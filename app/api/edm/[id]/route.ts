@@ -119,11 +119,11 @@ export async function PATCH(
 
         const cropped = await sharp(imageBuffer)
           .extract({ left, top, width, height })
-          .png()
+          .jpeg({ quality: 85 })
           .toBuffer()
 
-        const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.png`
-        const uploadResult = await uploadEdmFile(cropped, filePath, 'image/png')
+        const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.jpg`
+        const uploadResult = await uploadEdmFile(cropped, filePath, 'image/jpeg')
         cellImages[cell.id] = uploadResult.fileUrl
       }
 
@@ -148,13 +148,13 @@ export async function PATCH(
 
         const thumbBuffer = await sharp(scaled)
           .extract({ left: 0, top: 0, width: THUMB_WIDTH, height: extractHeight })
-          .png()
+          .jpeg({ quality: 85 })
           .toBuffer()
 
         const thumbResult = await uploadEdmFile(
           thumbBuffer,
-          `${basePath}/thumbnail.png`,
-          'image/png'
+          `${basePath}/thumbnail.jpg`,
+          'image/jpeg'
         )
         thumbnailUrl = thumbResult.fileUrl
       } catch (thumbErr) {
