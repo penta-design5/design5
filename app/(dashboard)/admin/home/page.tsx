@@ -165,13 +165,13 @@ export default async function AdminHomePage() {
     getCategoriesByType(CategoryType.BROCHURE),
   ])
 
-  const getFirstCategorySlug = (categories: typeof workCategories) => {
+  const getFirstCategoryHref = (categories: typeof workCategories) => {
     if (categories.length > 0) {
       const firstCategory = categories[0]
       if (firstCategory.children && firstCategory.children.length > 0) {
-        return firstCategory.children[0].slug
+        return `/${firstCategory.children[0].slug}`
       }
-      return firstCategory.slug
+      return `/${firstCategory.slug}`
     }
     return '#'
   }
@@ -182,7 +182,7 @@ export default async function AdminHomePage() {
       description: '디자인 산출물 목록',
       iconName: 'Wallpaper',
       color: 'bg-penta-indigo/5 dark:bg-penta-indigo/30 text-penta-indigo',
-      href: getFirstCategorySlug(workCategories),
+      href: getFirstCategoryHref(workCategories),
       count: workCategories.length,
     },
     {
@@ -190,7 +190,7 @@ export default async function AdminHomePage() {
       description: 'CI/BI, ICON 등 벡터 편집',
       iconName: 'Image',
       color: 'bg-penta-green/5 dark:bg-penta-green/20 text-penta-green',
-      href: getFirstCategorySlug(sourceCategories),
+      href: getFirstCategoryHref(sourceCategories),
       count: sourceCategories.length,
     },
     {
@@ -198,7 +198,7 @@ export default async function AdminHomePage() {
       description: 'PPT, 카드, 바탕화면 등 다운로드',
       iconName: 'FileText',
       color: 'bg-penta-yellow/10 dark:bg-penta-yellow/20 text-penta-yellow',
-      href: getFirstCategorySlug(templateCategories),
+      href: getFirstCategoryHref(templateCategories),
       count: templateCategories.length,
     },
     {
@@ -206,7 +206,7 @@ export default async function AdminHomePage() {
       description: '회사소개서 및 제품 브로셔 다운로드',
       iconName: 'BookOpen',
       color: 'bg-penta-blue/5 dark:bg-penta-blue/30 text-penta-blue',
-      href: getFirstCategorySlug(brochureCategories),
+      href: getFirstCategoryHref(brochureCategories),
       count: brochureCategories.length,
     },
   ]
