@@ -1,4 +1,3 @@
-import { Suspense } from 'react'
 import { getCategoriesByType } from '@/lib/categories'
 import { CategoryType } from '@prisma/client'
 import Link from 'next/link'
@@ -7,10 +6,9 @@ import { CategoryCard } from '@/components/CategoryCard'
 import { ThemeLogo } from '@/components/ThemeLogo'
 import { NoticesSection } from '@/components/NoticesSection'
 import { getRecentPosts, getRecentNotices } from '@/lib/homepage'
-import { ListSkeleton } from '@/components/ui/list-skeleton'
 
-export const dynamic = 'auto'
-export const revalidate = 60
+// Vercel 서버리스 환경(connection_limit: 1)에서 연결 풀 타임아웃 방지
+export const dynamic = 'force-dynamic'
 
 // 카테고리 타입에 따른 배경색 매핑
 function getCategoryTypeBadgeColor(type: CategoryType): string {
@@ -44,9 +42,9 @@ function getCategoryTypeLabel(type: CategoryType): string {
   }
 }
 
-async function RecentPostsSection() {
-  const recentPosts = await getRecentPosts()
+type RecentPostItem = Awaited<ReturnType<typeof getRecentPosts>>[number]
 
+function RecentPostsSection({ recentPosts }: { recentPosts: RecentPostItem[] }) {
   return (
     <section>
       <Card className="py-0 pb-3 gap-3">
@@ -57,7 +55,6 @@ async function RecentPostsSection() {
           {recentPosts.length > 0 ? (
             <div className="space-y-4">
               {recentPosts.map((post) => {
-                // 웰컴보드 템플릿인 경우 templateId 파라미터 사용
                 if (post.isTemplate && post.category.pageType === 'welcomeboard') {
                   return (
                     <Link
@@ -82,7 +79,6 @@ async function RecentPostsSection() {
                   )
                 }
 
-                // 일반 게시물인 경우
                 const isCiBiCategory = post.category.pageType === 'ci-bi'
                 const isCharacterCategory = post.category.pageType === 'character'
                 const isWapplesCategory = post.category.pageType === 'wapples'
@@ -94,7 +90,7 @@ async function RecentPostsSection() {
                 const href = (isCiBiCategory || isCharacterCategory || isWapplesCategory || isDamoCategory || isIsignCategory || isCloudbricCategory || isIconCategory || isWelcomeBoardCategory)
                   ? `/${post.category.slug}?postId=${post.id}`
                   : `/${post.category.slug}/${post.id}`
-                
+
                 return (
                   <Link
                     key={post.id}
@@ -129,41 +125,36 @@ async function RecentPostsSection() {
   )
 }
 
-async function NoticesSectionWrapper() {
-  const notices = await getRecentNotices()
+type NoticeItem = Awaited<ReturnType<typeof getRecentNotices>>[number]
 
+function NoticesSectionWithData({ notices }: { notices: NoticeItem[] }) {
   return (
-    <NoticesSection 
+    <NoticesSection
       notices={notices.map(notice => ({
         id: notice.id,
         title: notice.title,
         isImportant: notice.isImportant,
-        createdAt: notice.createdAt instanceof Date 
-          ? notice.createdAt.toISOString() 
+        createdAt: notice.createdAt instanceof Date
+          ? notice.createdAt.toISOString()
           : typeof notice.createdAt === 'string'
             ? notice.createdAt
             : new Date(notice.createdAt).toISOString(),
         author: {
           name: notice.author.name,
         },
-      }))} 
+      }))}
     />
   )
 }
 
 export default async function AdminHomePage() {
-  // 병렬로 카테고리 데이터 가져오기
-  const [
-    workCategories,
-    sourceCategories,
-    templateCategories,
-    brochureCategories,
-  ] = await Promise.all([
-    getCategoriesByType(CategoryType.WORK),
-    getCategoriesByType(CategoryType.SOURCE),
-    getCategoriesByType(CategoryType.TEMPLATE),
-    getCategoriesByType(CategoryType.BROCHURE),
-  ])
+  // Vercel 서버리스(connection_limit: 1) 대응: DB 호출을 직렬로 수행
+  const workCategories = await getCategoriesByType(CategoryType.WORK)
+  const sourceCategories = await getCategoriesByType(CategoryType.SOURCE)
+  const templateCategories = await getCategoriesByType(CategoryType.TEMPLATE)
+  const brochureCategories = await getCategoriesByType(CategoryType.BROCHURE)
+  const recentPosts = await getRecentPosts()
+  const recentNotices = await getRecentNotices()
 
   const getFirstCategoryHref = (categories: typeof workCategories) => {
     if (categories.length > 0) {
@@ -236,37 +227,8 @@ export default async function AdminHomePage() {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-        {/* 최근 게시물 */}
-        <Suspense fallback={
-          <section>
-            <Card className="py-0 pb-3 gap-3">
-              <div className="pt-4 pb-4 pl-6 pr-6 border-b min-h-[65px] flex items-center">
-                <h3 className="font-semibold">최근 게시물</h3>
-              </div>
-              <CardContent className="p-6">
-                <ListSkeleton count={3} />
-              </CardContent>
-            </Card>
-          </section>
-        }>
-          <RecentPostsSection />
-        </Suspense>
-
-        {/* 공지사항 */}
-        <Suspense fallback={
-          <section>
-            <Card className="py-0 pb-3 gap-3">
-              <div className="pt-4 pb-4 pl-6 pr-6 border-b min-h-[65px] flex items-center">
-                <h3 className="font-semibold">공지사항</h3>
-              </div>
-              <CardContent className="p-6">
-                <ListSkeleton count={3} />
-              </CardContent>
-            </Card>
-          </section>
-        }>
-          <NoticesSectionWrapper />
-        </Suspense>
+        <RecentPostsSection recentPosts={recentPosts} />
+        <NoticesSectionWithData notices={recentNotices} />
       </div>
     </div>
   )
