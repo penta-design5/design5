@@ -405,7 +405,8 @@ export function ChartSettingsPanel({
               <p className="text-xs text-muted-foreground">
                 설정은 현재 브라우저의 로컬 저장소에 저장됩니다. 
                 다른 브라우저나 기기에서는 사용할 수 없으며, 
-                시크릿 모드에서는 저장되지 않을 수 있습니다.
+                시크릿 모드에서는 저장되지 않을 수 있습니다.<br />
+                또한 인터넷 사용 기록 삭제 시 쿠키 또는 사이트 데이터를 삭제하면 로컬 저장소에 저장된 설정도 함께 삭제됩니다.
               </p>
             </div>
           </div>

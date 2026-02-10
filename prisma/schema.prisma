@@ -46,6 +46,7 @@ model User {
   welcomeBoardTemplates   WelcomeBoardTemplate[]
   diagrams                Diagram[] @relation("DiagramAuthor")
   edms                    Edm[]     @relation("EdmAuthor")
+  desktopWallpapers       DesktopWallpaper[]
 
   @@map("users")
 }
@@ -206,6 +207,28 @@ model Edm {
   updatedAt     DateTime @updatedAt
 
   @@map("edms")
+}
+
+// 바탕화면 모델
+model DesktopWallpaper {
+  id                   String   @id @default(cuid())
+  title                String
+  description          String?
+  thumbnailUrl         String?  // B2 - 윈도우용 배경에서 자동 생성
+  backgroundUrlWindows String?  // B2 - 16:9, 2560x1440
+  backgroundUrlMac     String?  // B2 - 16:10, 2560x1600
+  widthWindows         Int      @default(2560)
+  heightWindows        Int      @default(1440)
+  widthMac             Int      @default(2560)
+  heightMac            Int      @default(1600)
+
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("desktop_wallpapers")
 }
 
 // 다이어그램 ZIP 파일 설정 (관리자 업로드, 사용자 다운로드) - 단일 행

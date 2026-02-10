@@ -470,7 +470,7 @@ function DiagramCanvas({
         회전: <kbd className="px-1 py-0.5 bg-background border rounded text-[10px]">Shift</kbd> + 회전 - 15도
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+      <div className="flex-1 flex p-8 overflow-auto">
         <div
           ref={stageWrapperRef}
           style={{
@@ -478,6 +478,7 @@ function DiagramCanvas({
             width: canvasSize.width * zoom,
             height: canvasSize.height * zoom,
             flexShrink: 0,
+            margin: 'auto',
           }}
         >
           <div style={{ boxShadow: '0 0 10px rgba(0,0,0,0.1)', position: 'absolute', inset: 0 }}>

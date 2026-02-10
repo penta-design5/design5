@@ -76,6 +76,11 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     !pathname.startsWith('/admin') &&
     pathname.startsWith('/welcome-board'))
 
+  // 바탕화면 페이지인지 확인 (pathname 기반으로 우선 감지)
+  const isDesktopPage = Boolean(pathname && 
+    !pathname.startsWith('/admin') &&
+    pathname.startsWith('/wallpaper'))
+
   // PDF Extractor 페이지인지 확인 (pathname 기반으로 우선 감지)
   const isPdfExtractorPage = Boolean(pathname && 
     !pathname.startsWith('/admin') &&
@@ -129,8 +134,8 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
             isCiBiPage={hasRightPanel}
           />
         )}
-        <main className={`flex-1 bg-background ${isEdmEditorPage ? 'p-0 overflow-hidden relative' : 'pt-16 md:pt-16'} ${isSpecialPage || isWelcomeBoardPage ? 'p-0 overflow-hidden relative' : 'overflow-y-auto'}`}>
-          {isSpecialPage || isWelcomeBoardPage ? (
+        <main className={`flex-1 bg-background ${isEdmEditorPage ? 'p-0 overflow-hidden relative' : 'pt-16 md:pt-16'} ${isSpecialPage || isWelcomeBoardPage || isDesktopPage ? 'p-0 overflow-hidden relative' : 'overflow-y-auto'}`}>
+          {isSpecialPage || isWelcomeBoardPage || isDesktopPage ? (
             children
           ) : (
             <div className="w-full px-8 pt-0 pb-10">
