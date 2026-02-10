@@ -1,0 +1,37 @@
+# Supabase 7일 비활동 일시정지 방지: 3일마다 앱 keepalive API 호출
+# 설정: Repository → Settings → Secrets and variables → Actions
+#   - Variables: APP_URL = 배포된 앱 URL (커스텀 도메인 예: https://layerary.com)
+#   - Secrets (선택): KEEPALIVE_SECRET = API 보안용 비밀값 (Vercel에 KEEPALIVE_SECRET 설정 시 동일 값)
+
+name: Supabase Keepalive
+
+on:
+  schedule:
+    # 매 3일마다 UTC 00:00에 실행
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+    # 수동 실행 가능
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call keepalive API
+        run: |
+          APP_URL="${{ vars.APP_URL }}"
+          if [ -z "$APP_URL" ]; then
+            echo "::error::APP_URL is not set. Add it in Repository Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+          URL="${APP_URL%/}/api/keepalive"
+          SECRET="${{ secrets.KEEPALIVE_SECRET }}"
+          if [ -n "$SECRET" ]; then
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SECRET" "$URL")
+          else
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+          fi
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::keepalive returned HTTP $HTTP_CODE (expected 200)"
+            exit 1
+          fi
+          echo "keepalive OK (HTTP $HTTP_CODE)"
