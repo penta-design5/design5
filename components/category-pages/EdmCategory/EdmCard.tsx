@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Edit, Trash2, FileImage } from 'lucide-react'
+import { Edit, Trash2, FileImage, User } from 'lucide-react'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface EdmCardProps {
   edm: {
@@ -20,9 +22,19 @@ interface EdmCardProps {
   }
   onEdit: () => void
   onDelete: () => void
+  canEdit?: boolean
+  authorName?: string | null
+  isOtherUser?: boolean
 }
 
-export function EdmCard({ edm, onEdit, onDelete }: EdmCardProps) {
+export function EdmCard({
+  edm,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  authorName = null,
+  isOtherUser = false,
+}: EdmCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const imageUrlRef = useRef<string | null>(null)
 
@@ -50,15 +62,21 @@ export function EdmCard({ edm, onEdit, onDelete }: EdmCardProps) {
 
   const getImageSrc = (url: string) => {
     if (!url || url === '/placeholder.png') return '/placeholder.png'
-    // Supabase Storage: 공개 URL이라 직접 사용
     if (url.startsWith('http') && url.includes('supabase.co')) return url
     return url
   }
 
   const thumbnailSrc = edm.thumbnailUrl ? getImageSrc(edm.thumbnailUrl) : null
 
-  return (
-    <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden w-[320px] h-[230px] flex flex-col">
+  const card = (
+    <Card
+      className={cn(
+        'group transition-all duration-200 overflow-hidden w-[320px] h-[230px] flex flex-col',
+        isOtherUser
+          ? 'border-2 border-amber-400/70 bg-amber-50/30 dark:bg-amber-950/20 hover:shadow-md opacity-95'
+          : 'hover:shadow-lg'
+      )}
+    >
       <div className="relative flex-1 bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
         {thumbnailSrc ? (
           <>
@@ -69,9 +87,11 @@ export function EdmCard({ edm, onEdit, onDelete }: EdmCardProps) {
               src={thumbnailSrc}
               alt={edm.title}
               fill
-              className={`object-contain transition-opacity duration-300 ${
-                !imageLoaded ? 'opacity-0' : 'opacity-100'
-              }`}
+              className={cn(
+                'object-contain transition-opacity duration-300',
+                !imageLoaded ? 'opacity-0' : 'opacity-100',
+                isOtherUser && 'opacity-90'
+              )}
               sizes="320px"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageLoaded(true)}
@@ -86,21 +106,32 @@ export function EdmCard({ edm, onEdit, onDelete }: EdmCardProps) {
           </div>
         )}
 
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <Button variant="secondary" size="sm" onClick={onEdit}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <Button variant="secondary" size="sm" onClick={onEdit}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {isOtherUser && authorName && (
+          <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+            <span className="inline-flex items-center gap-1 rounded-md bg-black/50 px-2 py-1 text-xs text-white">
+              <User className="h-3 w-3" />
+              {authorName}
+            </span>
+          </div>
+        )}
       </div>
 
       <CardContent className="p-4 border-t">
@@ -108,4 +139,19 @@ export function EdmCard({ edm, onEdit, onDelete }: EdmCardProps) {
       </CardContent>
     </Card>
   )
+
+  if (isOtherUser && authorName) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="cursor-default">{card}</div>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <span className="font-medium">작성자: {authorName}</span>
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return card
 }

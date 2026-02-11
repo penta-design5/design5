@@ -2,17 +2,16 @@
 
 import { forwardRef, useCallback, useRef, useState, useEffect } from 'react'
 import Image from 'next/image'
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { isKoreanHoliday } from '@/lib/korean-holidays'
 import type {
   DesktopEditorData,
   DesktopElement,
   SelectedBackground,
   CalendarThemeKey,
 } from '@/lib/desktop-schemas'
-import { CALENDAR_THEMES, getCalendarNaturalSize, toCalendarRgba } from '@/lib/desktop-schemas'
+import { getCalendarNaturalSize, toCalendarRgba } from '@/lib/desktop-schemas'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
+import { DesktopCalendar } from '@/components/category-pages/DesktopCategory/DesktopCalendar'
 
 const getImageSrc = (url: string) => {
   if (!url) return ''
@@ -20,144 +19,6 @@ const getImageSrc = (url: string) => {
     return `/api/posts/images?url=${encodeURIComponent(url)}`
   }
   return url
-}
-
-// 간단한 월별 캘린더 그리드 (html2canvas 호환)
-function MiniCalendar({
-  year,
-  month,
-  fontSize,
-  color,
-  backgroundColor,
-  theme,
-  scale = 1,
-  sundayColor = '#ec5851',
-  holidayColor = '#ec5851',
-  saturdayColor = '#8196f7',
-  todayCircleColor = '#8196f7',
-}: {
-  year: number
-  month: number
-  fontSize: number
-  color: string
-  backgroundColor: string
-  theme: CalendarThemeKey
-  scale?: number
-  sundayColor?: string
-  holidayColor?: string
-  saturdayColor?: string
-  todayCircleColor?: string
-}) {
-  const d = new Date(year, month - 1, 1)
-  const start = startOfWeek(startOfMonth(d), { weekStartsOn: 0 })
-  const end = endOfWeek(endOfMonth(d), { weekStartsOn: 0 })
-  const days: Date[] = []
-  let day = start
-  while (day <= end) {
-    days.push(day)
-    day = addDays(day, 1)
-  }
-  const weeks: Date[][] = []
-  for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7))
-  }
-  const themeClasses = CALENDAR_THEMES[theme] || CALENDAR_THEMES.default
-  const weekdayNames = ['일', '월', '화', '수', '목', '금', '토']
-  const fs = fontSize * scale
-  const cellPadding = Math.max(4, Math.round(fs * 0.4))
-
-  const getWeekdayColor = (index: number) => {
-    if (index === 0) return sundayColor
-    if (index === 6) return saturdayColor
-    return color
-  }
-
-  const getDateColor = (date: Date, isCurrentMonth: boolean) => {
-    if (!isCurrentMonth) return color
-    if (isKoreanHoliday(date)) return holidayColor
-    const dow = date.getDay()
-    if (dow === 0) return sundayColor
-    if (dow === 6) return saturdayColor
-    return color
-  }
-
-  return (
-    <div
-      className={cn('rounded-xl overflow-hidden shadow-md', themeClasses.root)}
-      style={{
-        backgroundColor,
-        padding: Math.max(10, Math.round(fs * 0.7)),
-        fontSize: fs,
-        color,
-      }}
-    >
-      <div
-        className="text-center font-bold mb-3 tracking-tight"
-        style={{ fontSize: fs * 1.15 }}
-      >
-        {year}년 {month}월
-      </div>
-      <table className="w-full border-collapse" style={{ fontSize: fs }}>
-        <thead>
-          <tr>
-            {weekdayNames.map((w, i) => (
-              <th
-                key={w}
-                className="font-semibold"
-                style={{
-                  padding: cellPadding,
-                  fontSize: fs,
-                  color: getWeekdayColor(i),
-                }}
-              >
-                {w}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {weeks.map((week, wi) => (
-            <tr key={wi}>
-              {week.map((date, di) => {
-                const isCurrentMonth = isSameMonth(date, d)
-                const isToday =
-                  date.getDate() === new Date().getDate() &&
-                  date.getMonth() === new Date().getMonth() &&
-                  date.getFullYear() === new Date().getFullYear()
-                const dateColor = getDateColor(date, isCurrentMonth)
-                return (
-                  <td
-                    key={di}
-                    className="text-center align-middle"
-                    style={{
-                      padding: cellPadding,
-                      opacity: isCurrentMonth ? 1 : 0.45,
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        'inline-flex items-center justify-center rounded-full font-medium',
-                        isToday && 'text-white'
-                      )}
-                      style={{
-                        minWidth: fs * 1.4,
-                        height: fs * 1.4,
-                        fontSize: fs,
-                        color: isToday ? undefined : dateColor,
-                        backgroundColor: isToday ? todayCircleColor : undefined,
-                      }}
-                    >
-                      {format(date, 'd')}
-                    </span>
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
 }
 
 interface DesktopCanvasProps {
@@ -319,11 +180,36 @@ export const DesktopCanvas = forwardRef<HTMLDivElement, DesktopCanvasProps>(
         } else if (data.type === 'calendar') {
           const { elX, elY, elWidth, elHeight, elFontSize } = data
           const minSize = 80
-          const newWidth = Math.max(minSize, logicalX - elX)
-          const newHeight = Math.max(minSize, logicalY - elY)
-          const scaleW = newWidth / elWidth
-          const scaleH = newHeight / elHeight
-          const scaleFactor = (scaleW + scaleH) / 2
+          const aspectRatio = elWidth / elHeight
+          const rawW = logicalX - elX
+          const rawH = logicalY - elY
+          let newWidth: number
+          let newHeight: number
+          if (rawW <= 0 && rawH <= 0) {
+            newWidth = elWidth
+            newHeight = elHeight
+          } else if (rawW <= 0) {
+            newHeight = Math.max(minSize, rawH)
+            newWidth = newHeight * aspectRatio
+          } else if (rawH <= 0) {
+            newWidth = Math.max(minSize, rawW)
+            newHeight = newWidth / aspectRatio
+          } else if (rawW / rawH > aspectRatio) {
+            newWidth = Math.max(minSize, rawW)
+            newHeight = newWidth / aspectRatio
+          } else {
+            newHeight = Math.max(minSize, rawH)
+            newWidth = newHeight * aspectRatio
+          }
+          if (newWidth < minSize) {
+            newWidth = minSize
+            newHeight = minSize / aspectRatio
+          }
+          if (newHeight < minSize) {
+            newHeight = minSize
+            newWidth = minSize * aspectRatio
+          }
+          const scaleFactor = Math.min(newWidth / elWidth, newHeight / elHeight)
           const newFontSize = Math.round(
             Math.max(8, Math.min(48, elFontSize * scaleFactor))
           )
@@ -342,7 +228,7 @@ export const DesktopCanvas = forwardRef<HTMLDivElement, DesktopCanvasProps>(
               color: cs?.color ?? '#333',
               backgroundColor: cs?.backgroundColor ?? '#ffffff',
               backgroundOpacity: cs?.backgroundOpacity ?? 0.9,
-              theme: (cs?.theme as 'default' | 'minimal' | 'dark') ?? 'default',
+              theme: (cs?.theme as CalendarThemeKey) ?? 'classic',
               sundayColor: cs?.sundayColor ?? '#ec5851',
               holidayColor: cs?.holidayColor ?? '#ec5851',
               saturdayColor: cs?.saturdayColor ?? '#8196f7',
@@ -507,7 +393,7 @@ function DesktopElementRender({ element }: { element: DesktopElement }) {
       color: '#333',
       backgroundColor: '#ffffff',
       backgroundOpacity: 0.9,
-      theme: 'default' as CalendarThemeKey,
+      theme: 'classic' as CalendarThemeKey,
       sundayColor: '#ec5851',
       holidayColor: '#ec5851',
       saturdayColor: '#8196f7',
@@ -529,7 +415,7 @@ function DesktopElementRender({ element }: { element: DesktopElement }) {
             height: naturalH,
           }}
         >
-          <MiniCalendar
+          <DesktopCalendar
             year={style.year}
             month={style.month}
             fontSize={fs}

@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { parseGridToCells, generateHtmlCode } from '@/lib/edm-utils'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
 
-// GET /api/edm - eDM 목록 조회
+// GET /api/edm - eDM 목록 조회 (관리자는 전체, 일반 사용자는 본인만)
 export async function GET(request: NextRequest) {
   try {
     const session = await auth()
@@ -14,14 +14,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    const isAdmin = session.user.role === 'ADMIN'
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = (page - 1) * limit
 
+    const where = isAdmin ? {} : { authorId: session.user.id }
+
     const [edms, total] = await Promise.all([
       prisma.edm.findMany({
-        where: { authorId: session.user.id },
+        where,
         select: {
           id: true,
           title: true,
@@ -29,16 +32,18 @@ export async function GET(request: NextRequest) {
           thumbnailUrl: true,
           imageWidth: true,
           imageHeight: true,
+          authorId: true,
           createdAt: true,
           updatedAt: true,
+          author: {
+            select: { id: true, name: true },
+          },
         },
         orderBy: { updatedAt: 'desc' },
         skip,
         take: limit,
       }),
-      prisma.edm.count({
-        where: { authorId: session.user.id },
-      }),
+      prisma.edm.count({ where }),
     ])
 
     return NextResponse.json({

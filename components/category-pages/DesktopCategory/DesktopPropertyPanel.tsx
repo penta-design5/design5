@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Slider } from '@/components/ui/slider'
 import { Trash2 } from 'lucide-react'
 import type { DesktopElement, CalendarThemeKey } from '@/lib/desktop-schemas'
-import { CALENDAR_THEMES, calendarBgToHex, calendarBgToOpacity } from '@/lib/desktop-schemas'
+import { CALENDAR_COLOR_PRESETS, calendarBgToHex, calendarBgToOpacity } from '@/lib/desktop-schemas'
 
 interface DesktopPropertyPanelProps {
   element: DesktopElement | null
@@ -31,12 +31,20 @@ const defaultCalendarStyle = () => ({
   color: '#333333',
   backgroundColor: '#ffffff',
   backgroundOpacity: 0.9,
-  theme: 'default' as CalendarThemeKey,
+  theme: 'classic' as CalendarThemeKey,
   sundayColor: '#ec5851',
   holidayColor: '#ec5851',
   saturdayColor: '#8196f7',
   todayCircleColor: '#8196f7',
 })
+
+const CALENDAR_THEME_LABELS: Record<CalendarThemeKey, string> = {
+  classic: '클래식',
+  pastel: '파스텔',
+  dark: '다크',
+  ocean: '오션',
+  forest: '포레스트',
+}
 
 export function DesktopPropertyPanel({
   element,
@@ -174,9 +182,11 @@ export function DesktopPropertyPanel({
       color: '#333',
       backgroundColor: '#ffffff',
       backgroundOpacity: 0.9,
-      theme: 'default' as CalendarThemeKey,
+      theme: 'classic' as CalendarThemeKey,
     }) as { year: number; month: number; fontSize?: number; color?: string; backgroundColor?: string; backgroundOpacity?: number; theme?: CalendarThemeKey; sundayColor?: string; holidayColor?: string; saturdayColor?: string; todayCircleColor?: string }
-    const themes = Object.keys(CALENDAR_THEMES) as CalendarThemeKey[]
+    const themeKeys = Object.keys(CALENDAR_COLOR_PRESETS) as CalendarThemeKey[]
+    const rawTheme = style.theme as string | undefined
+    const themeValue: CalendarThemeKey = (rawTheme === 'default' ? 'classic' : rawTheme === 'minimal' ? 'pastel' : (rawTheme as CalendarThemeKey)) || 'classic'
     return (
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">속성</h2>
@@ -378,20 +388,27 @@ export function DesktopPropertyPanel({
           </div>
         </div>
         <div className="space-y-2">
-          <Label>테마</Label>
+          <Label>테마 (색상 프리셋)</Label>
           <Select
-            value={style.theme || 'default'}
+            value={themeValue}
             onValueChange={(v: CalendarThemeKey) =>
-              onUpdate({ calendarStyle: { ...defaultCalendarStyle(), ...style, theme: v } })
+              onUpdate({
+                calendarStyle: {
+                  ...defaultCalendarStyle(),
+                  ...style,
+                  ...CALENDAR_COLOR_PRESETS[v],
+                  theme: v,
+                },
+              })
             }
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {themes.map((t) => (
+              {themeKeys.map((t) => (
                 <SelectItem key={t} value={t}>
-                  {t === 'default' ? '기본' : t === 'minimal' ? '미니멀' : '다크'}
+                  {CALENDAR_THEME_LABELS[t]}
                 </SelectItem>
               ))}
             </SelectContent>

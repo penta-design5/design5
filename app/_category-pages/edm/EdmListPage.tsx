@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
@@ -18,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 interface Edm {
   id: string
@@ -26,14 +28,20 @@ interface Edm {
   thumbnailUrl?: string | null
   imageWidth: number
   imageHeight: number
+  authorId: string
   createdAt: Date
   updatedAt: Date
+  author?: { id: string; name: string | null }
 }
 
 const EDM_CARD_WIDTH = 320
 
 export function EdmListPage() {
   const router = useRouter()
+  const { data: session } = useSession()
+  const currentUserId = session?.user?.id ?? null
+  const isAdmin = session?.user?.role === 'ADMIN'
+
   const [edms, setEdms] = useState<Edm[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(1)
@@ -241,8 +249,9 @@ export function EdmListPage() {
         )}
 
         {edms.length > 0 && (
-          <Flipper flipKey={flipKey}>
-            <div ref={containerRef} className="masonry-container justify-center md:justify-start">
+          <TooltipProvider>
+            <Flipper flipKey={flipKey}>
+              <div ref={containerRef} className="masonry-container justify-center md:justify-start">
               {columns.map((column, colIndex) => (
                 <div
                   key={colIndex}
@@ -253,21 +262,30 @@ export function EdmListPage() {
                     gap: '8px',
                   }}
                 >
-                  {column.map((edm) => (
-                    <Flipped key={edm.id} flipId={edm.id}>
-                      <div>
-                        <EdmCard
-                          edm={edm}
-                          onEdit={() => handleEdit(edm.id)}
-                          onDelete={() => handleDeleteClick(edm.id)}
-                        />
-                      </div>
-                    </Flipped>
-                  ))}
+                  {column.map((edm) => {
+                    const canEdit = edm.authorId === currentUserId
+                    const authorName = edm.author?.name ?? null
+                    const isOtherUser = isAdmin && edm.authorId !== currentUserId
+                    return (
+                      <Flipped key={edm.id} flipId={edm.id}>
+                        <div>
+                          <EdmCard
+                            edm={edm}
+                            onEdit={() => handleEdit(edm.id)}
+                            onDelete={() => handleDeleteClick(edm.id)}
+                            canEdit={canEdit}
+                            authorName={authorName}
+                            isOtherUser={isOtherUser}
+                          />
+                        </div>
+                      </Flipped>
+                    )
+                  })}
                 </div>
               ))}
-            </div>
-          </Flipper>
+              </div>
+            </Flipper>
+          </TooltipProvider>
         )}
 
         {hasMore && (

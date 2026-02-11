@@ -95,7 +95,8 @@ function buildExportCalendar(
     html += `<th style="padding:${cellPadding}px;font-size:${fs}px;font-weight:600;color:${getWeekdayColor(i)}">${w}</th>`
   })
   html += '</tr></thead><tbody>'
-  const cx = circleSize / 2
+  const svgSize = circleSize + 2  // 1px 여유로 원 가장자리 잘림 방지
+  const cx = svgSize / 2
   const r = circleSize / 2 - 0.5
 
   weeks.forEach((week) => {
@@ -110,7 +111,7 @@ function buildExportCalendar(
       const dayNum = format(date, 'd')
       // SVG로 원·텍스트 그리기: html2canvas에서 CSS 정렬이 틀어지는 문제 회피
       html += `<td style="padding:${cellPadding}px;vertical-align:middle;opacity:${opacity};text-align:center">`
-      html += `<svg width="${circleSize}" height="${circleSize}" viewBox="0 0 ${circleSize} ${circleSize}" style="display:block;margin:0 auto;vertical-align:middle"><circle cx="${cx}" cy="${cx}" r="${r}" fill="${circleFill}"/><text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" fill="${textFill}" font-size="${fs}" font-weight="500" font-family="Pretendard,sans-serif">${dayNum}</text></svg>`
+      html += `<svg width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}" style="display:block;margin:0 auto;vertical-align:middle"><circle cx="${cx}" cy="${cx}" r="${r}" fill="${circleFill}"/><text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" fill="${textFill}" font-size="${fs}" font-weight="500" font-family="Pretendard,sans-serif">${dayNum}</text></svg>`
       html += `</td>`
     })
     html += '</tr>'

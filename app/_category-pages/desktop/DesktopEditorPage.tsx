@@ -51,7 +51,7 @@ import type {
   SelectedBackground,
   SavedDesktopPreset,
 } from '@/lib/desktop-schemas'
-import { desktopStorageUtils, getDesktopElementBounds } from '@/lib/desktop-schemas'
+import { CALENDAR_COLOR_PRESETS, desktopStorageUtils, getDesktopElementBounds } from '@/lib/desktop-schemas'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
 
 interface Category {
@@ -75,6 +75,7 @@ const createNewElement = (type: 'title' | 'description' | 'calendar'): DesktopEl
     return { ...base, value: '설명을 입력하세요', width: 400, textStyle: { fontSize: 18, color: '#555', fontFamily: 'Pretendard, sans-serif', fontWeight: 'normal' } }
   }
   const now = new Date()
+  const classic = CALENDAR_COLOR_PRESETS.classic
   return {
     ...base,
     width: 220,
@@ -83,14 +84,8 @@ const createNewElement = (type: 'title' | 'description' | 'calendar'): DesktopEl
       year: now.getFullYear(),
       month: now.getMonth() + 1,
       fontSize: 14,
-      color: '#333',
-      backgroundColor: '#ffffff',
-      backgroundOpacity: 0.9,
-      theme: 'default',
-      sundayColor: '#ec5851',
-      holidayColor: '#ec5851',
-      saturdayColor: '#8196f7',
-      todayCircleColor: '#8196f7',
+      theme: 'classic',
+      ...classic,
     },
   }
 }

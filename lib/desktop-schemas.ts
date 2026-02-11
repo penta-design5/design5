@@ -12,7 +12,58 @@ export const textElementStyleSchema = z.object({
   fontWeight: z.enum(['normal', 'medium', 'semibold', 'bold']).default('normal'),
 })
 
-// 캘린더 요소 스타일
+// 캘린더 색상 프리셋 (테마 = 프리셋 선택 시 이 값들로 채워짐)
+export const CALENDAR_COLOR_PRESETS = {
+  classic: {
+    color: '#333333',
+    backgroundColor: '#ffffff',
+    backgroundOpacity: 0.9,
+    sundayColor: '#ec5851',
+    holidayColor: '#ec5851',
+    saturdayColor: '#8196f7',
+    todayCircleColor: '#8196f7',
+  },
+  pastel: {
+    color: '#5a5a5a',
+    backgroundColor: '#fef6f0',
+    backgroundOpacity: 0.95,
+    sundayColor: '#e88b7a',
+    holidayColor: '#e88b7a',
+    saturdayColor: '#8ba3d9',
+    todayCircleColor: '#a8c5e8',
+  },
+  dark: {
+    color: '#e5e5e5',
+    backgroundColor: '#1f2937',
+    backgroundOpacity: 0.95,
+    sundayColor: '#f87171',
+    holidayColor: '#f87171',
+    saturdayColor: '#93c5fd',
+    todayCircleColor: '#60a5fa',
+  },
+  ocean: {
+    color: '#1e3a5f',
+    backgroundColor: '#f0f9ff',
+    backgroundOpacity: 0.95,
+    sundayColor: '#dc2626',
+    holidayColor: '#dc2626',
+    saturdayColor: '#2563eb',
+    todayCircleColor: '#0ea5e9',
+  },
+  forest: {
+    color: '#1a3d2e',
+    backgroundColor: '#f0fdf4',
+    backgroundOpacity: 0.95,
+    sundayColor: '#b91c1c',
+    holidayColor: '#b91c1c',
+    saturdayColor: '#15803d',
+    todayCircleColor: '#22c55e',
+  },
+} as const
+
+export type CalendarThemeKey = keyof typeof CALENDAR_COLOR_PRESETS
+
+// 캘린더 요소 스타일 (theme = 색상 프리셋 키, 선택 시 해당 프리셋 색상 적용)
 export const calendarElementStyleSchema = z.object({
   year: z.number().min(2000).max(2100),
   month: z.number().min(1).max(12),
@@ -20,8 +71,7 @@ export const calendarElementStyleSchema = z.object({
   color: z.string().default('#333333'),
   backgroundColor: z.string().default('#ffffff'),
   backgroundOpacity: z.number().min(0).max(1).default(0.9),
-  theme: z.enum(['default', 'minimal', 'dark']).default('default'),
-  // 요일/오늘 색상 (사용자 지정)
+  theme: z.enum(['classic', 'pastel', 'dark', 'ocean', 'forest']).default('classic'),
   sundayColor: z.string().default('#ec5851'),
   holidayColor: z.string().default('#ec5851'),
   saturdayColor: z.string().default('#8196f7'),
@@ -145,7 +195,7 @@ export function getCalendarNaturalSize(year: number, month: number, fontSize: nu
   const titleHeight = Math.ceil(fs * 1.15 * 1.5) + 12 // font-size*line-height + margin-bottom
   const headerHeight = cellPadding * 2 + Math.ceil(fs * 1.4)
   const rowHeight = cellPadding * 2 + circleSize
-  const height = outerPadding * 2 + titleHeight + headerHeight + numWeeks * rowHeight + 8
+  const height = outerPadding * 2 + titleHeight + headerHeight + numWeeks * rowHeight + 16
 
   return { width, height, numWeeks }
 }
@@ -176,39 +226,6 @@ export const STORAGE_KEYS = {
   PRESETS: 'desktop-editor-presets',
   AUTOSAVE: 'desktop-editor-autosave',
 } as const
-
-// 캘린더 테마 프리셋 (react-day-picker classNames / CSS 변수용)
-export const CALENDAR_THEMES = {
-  default: {
-    root: 'rounded-lg border bg-white shadow-sm p-2',
-    day: 'rounded-md hover:bg-accent',
-    day_button: 'h-8 w-8',
-    selected: 'bg-primary text-primary-foreground',
-    today: 'bg-accent font-semibold',
-    outside: 'text-muted-foreground opacity-50',
-    weekday: 'text-muted-foreground text-xs font-medium',
-  },
-  minimal: {
-    root: 'rounded-lg p-2',
-    day: 'rounded-md hover:bg-muted/50',
-    day_button: 'h-8 w-8 font-light',
-    selected: 'bg-foreground text-background',
-    today: 'border border-foreground',
-    outside: 'text-muted-foreground/40',
-    weekday: 'text-muted-foreground/80 text-xs',
-  },
-  dark: {
-    root: 'rounded-lg bg-neutral-900/90 text-neutral-100 p-2 border border-neutral-700',
-    day: 'rounded-md hover:bg-neutral-700',
-    day_button: 'h-8 w-8',
-    selected: 'bg-neutral-100 text-neutral-900',
-    today: 'bg-neutral-600 text-white',
-    outside: 'text-neutral-500 opacity-50',
-    weekday: 'text-neutral-400 text-xs',
-  },
-} as const
-
-export type CalendarThemeKey = keyof typeof CALENDAR_THEMES
 
 // localStorage 유틸리티
 export const desktopStorageUtils = {

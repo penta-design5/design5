@@ -31,7 +31,8 @@ export async function GET(
       return NextResponse.json({ error: 'eDM을 찾을 수 없습니다.' }, { status: 404 })
     }
 
-    if (edm.authorId !== session.user.id) {
+    const isAdmin = session.user.role === 'ADMIN'
+    if (edm.authorId !== session.user.id && !isAdmin) {
       return NextResponse.json({ error: '접근 권한이 없습니다.' }, { status: 403 })
     }
 
