@@ -95,7 +95,9 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     }
   }
 
-  const groupedCategories = categories.reduce((acc, category) => {
+  // edm 카테고리는 가이드 영상 API용으로만 사용하고 사이드바 메뉴에는 표시하지 않음 (LABs 아래 하드코딩 링크 사용)
+  const categoriesForMenu = categories.filter((c) => c.slug !== 'edm')
+  const groupedCategories = categoriesForMenu.reduce((acc, category) => {
     // 최상위 카테고리만 그룹화 (children이 이미 포함되어 있음)
     if (!acc[category.type]) {
       acc[category.type] = []

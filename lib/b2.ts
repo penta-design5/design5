@@ -261,57 +261,78 @@ export async function deleteFileByUrl(fileUrl: string): Promise<void> {
   })
 }
 
+function getFilePathFromB2Url(fileUrl: string): string {
+  let filePath = ''
+  if (fileUrl.includes('/file/')) {
+    const match = fileUrl.match(/\/file\/[^\/]+\/(.+)$/)
+    if (match) filePath = match[1]
+  } else {
+    const urlObj = new URL(fileUrl)
+    const pathParts = urlObj.pathname.split('/').filter(Boolean)
+    if (pathParts.length > 1) filePath = pathParts.slice(1).join('/')
+  }
+  return filePath
+}
+
 /**
  * 파일 다운로드
  */
 export async function downloadFile(fileUrl: string): Promise<{ fileBuffer: Buffer; contentType: string }> {
   await authorize()
   const bucketName = process.env.B2_BUCKET_NAME!
+  if (!bucketName) throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
 
-  if (!bucketName) {
-    throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
-  }
-
-  // B2 파일 URL에서 파일 경로 추출
-  // URL 형식: https://s3.us-west-004.backblazeb2.com/bucket-name/path/to/file
-  // 또는: https://f{fileId}.backblazeb2.com/file/bucket-name/path/to/file
-  let filePath = ''
-  if (fileUrl.includes('/file/')) {
-    // B2 네이티브 URL 형식
-    const match = fileUrl.match(/\/file\/[^\/]+\/(.+)$/)
-    if (match) {
-      filePath = match[1]
-    }
-  } else {
-    // S3 호환 URL 형식
-    const urlObj = new URL(fileUrl)
-    const pathParts = urlObj.pathname.split('/').filter(Boolean)
-    if (pathParts.length > 1) {
-      // 첫 번째는 버킷 이름, 나머지는 파일 경로
-      filePath = pathParts.slice(1).join('/')
-    }
-  }
-
-  if (!filePath) {
-    throw new Error('파일 경로를 추출할 수 없습니다.')
-  }
+  const filePath = getFilePathFromB2Url(fileUrl)
+  if (!filePath) throw new Error('파일 경로를 추출할 수 없습니다.')
 
   try {
     const response = await b2.downloadFileByName({
-      bucketName: bucketName,
+      bucketName,
       fileName: filePath,
       responseType: 'arraybuffer',
     })
-
     const fileBuffer = Buffer.from(response.data)
     const contentType = response.headers['content-type'] || 'application/octet-stream'
-
     return { fileBuffer, contentType }
   } catch (error: any) {
     console.error('B2 download error:', error)
-    if (error.response?.status === 404) {
-      throw new Error('파일을 찾을 수 없습니다.')
-    }
+    if (error.response?.status === 404) throw new Error('파일을 찾을 수 없습니다.')
+    throw new Error(`B2 파일 다운로드 실패: ${error.message || '알 수 없는 오류'}`)
+  }
+}
+
+/**
+ * Range 헤더로 파일 일부 다운로드 (비디오 스트리밍 등)
+ */
+export async function downloadFileWithRange(
+  fileUrl: string,
+  start: number,
+  end: number
+): Promise<{ fileBuffer: Buffer; contentType: string; contentRange: string; totalLength: number }> {
+  await authorize()
+  const bucketName = process.env.B2_BUCKET_NAME!
+  if (!bucketName) throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
+
+  const filePath = getFilePathFromB2Url(fileUrl)
+  if (!filePath) throw new Error('파일 경로를 추출할 수 없습니다.')
+
+  try {
+    const rangeHeader = `bytes=${start}-${end}`
+    const response = await b2.downloadFileByName({
+      bucketName,
+      fileName: filePath,
+      responseType: 'arraybuffer',
+      axiosOverride: { headers: { Range: rangeHeader } },
+    })
+    const fileBuffer = Buffer.from(response.data)
+    const headers = response.headers || {}
+    const contentType = headers['content-type'] || headers['Content-Type'] || 'application/octet-stream'
+    const contentRange = headers['content-range'] || headers['Content-Range'] || ''
+    const totalLength = contentRange ? parseInt(contentRange.split('/')[1], 10) || fileBuffer.length : fileBuffer.length
+    return { fileBuffer, contentType, contentRange, totalLength }
+  } catch (error: any) {
+    console.error('B2 download range error:', error)
+    if (error.response?.status === 404) throw new Error('파일을 찾을 수 없습니다.')
     throw new Error(`B2 파일 다운로드 실패: ${error.message || '알 수 없는 오류'}`)
   }
 }

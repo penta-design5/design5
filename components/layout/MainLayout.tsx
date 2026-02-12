@@ -81,6 +81,11 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     !pathname.startsWith('/admin') &&
     pathname.startsWith('/wallpaper'))
 
+  // 감사/연말 카드 페이지인지 확인
+  const isCardPage = Boolean(pathname && 
+    !pathname.startsWith('/admin') &&
+    pathname.startsWith('/card'))
+
   // PDF Extractor 페이지인지 확인 (pathname 기반으로 우선 감지)
   const isPdfExtractorPage = Boolean(pathname && 
     !pathname.startsWith('/admin') &&
@@ -104,6 +109,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
   // CI/BI, 캐릭터, WAPPLES, D.AMO, iSIGN, Cloudbric, PPT, PDF Extractor, ICON, Chart Generator, eDM 편집 페이지인지 확인
   // 웰컴보드는 에디터 모드일 때 자체 헤더를 사용하므로 제외
   const isSpecialPage = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isEdmEditorPage
+  const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage
 
   // 헤더 너비 제한이 필요한 페이지 (우측 패널이 있는 페이지만)
   const hasRightPanel = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage
@@ -134,8 +140,8 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
             isCiBiPage={hasRightPanel}
           />
         )}
-        <main className={`flex-1 bg-background ${isEdmEditorPage ? 'p-0 overflow-hidden relative' : 'pt-16 md:pt-16'} ${isSpecialPage || isWelcomeBoardPage || isDesktopPage ? 'p-0 overflow-hidden relative' : 'overflow-y-auto'}`}>
-          {isSpecialPage || isWelcomeBoardPage || isDesktopPage ? (
+        <main className={`flex-1 bg-background ${isEdmEditorPage ? 'p-0 overflow-hidden relative' : 'pt-16 md:pt-16'} ${isSpecialPage || isCardPageOrSimilar ? 'p-0 overflow-hidden relative' : 'overflow-y-auto'}`}>
+          {isSpecialPage || isCardPageOrSimilar ? (
             children
           ) : (
             <div className="w-full px-8 pt-0 pb-10">

@@ -92,6 +92,7 @@ async function main() {
       name: '감사/연말 카드',
       slug: 'card',
       type: CategoryType.TEMPLATE,
+      pageType: 'card',
       order: 2,
       description: '감사/연말 카드 템플릿',
     },
@@ -110,6 +111,14 @@ async function main() {
       pageType: 'welcomeboard',
       order: 4,
       description: '웰컴보드 템플릿',
+    },
+    {
+      name: 'eDM Code Generator',
+      slug: 'edm',
+      type: CategoryType.TEMPLATE,
+      pageType: 'edm',
+      order: 5,
+      description: 'eDM HTML 코드 생성',
     },
     // BROCHURE 카테고리
     {

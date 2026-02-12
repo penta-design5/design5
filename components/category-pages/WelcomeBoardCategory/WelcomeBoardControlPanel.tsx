@@ -398,7 +398,8 @@ export function WelcomeBoardControlPanel({
       <div className="p-4 bg-muted rounded-lg">
         <p className="text-xs text-muted-foreground">
           미리보기 화면이나 속성 패널에서 요소를 선택하고 텍스트나 로고 추가 및 정렬을 변경할 수 있습니다.<br />
-          설정 변경이 완료되면 아래 내보내기 버튼을 사용하여 이미지 또는 PDF로 저장하세요.
+          설정 변경이 완료되면 아래 내보내기 버튼을 사용하여 이미지 또는 PDF로 저장하세요.<br />
+          로고 또는 서명 이미지는 편집 상태에서만 유효합니다.
         </p>
       </div>
     </div>

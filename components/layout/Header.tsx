@@ -71,7 +71,7 @@ export function Header({ onMenuClick, isCiBiPage = false }: HeaderProps) {
         {/* 우측: 검색 바 및 사용자 메뉴 */}
         <div className="flex items-center gap-1 justify-end">
           {/* 테마 토글 버튼 */}
-          {mounted && (
+          {/* {mounted && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -91,7 +91,7 @@ export function Header({ onMenuClick, isCiBiPage = false }: HeaderProps) {
                 <p>{currentTheme === 'dark' ? '라이트 모드로 변경' : '다크 모드로 변경'}</p>
               </TooltipContent>
             </Tooltip>
-          )}
+          )} */}
 
           {/* 검색 바 */}
           <form onSubmit={handleSearch} className="hidden md:flex max-w-md w-1/4 min-w-[220px]">

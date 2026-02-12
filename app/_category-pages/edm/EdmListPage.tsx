@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, MessageCircleQuestion } from 'lucide-react'
 import { EdmCard } from '@/components/category-pages/EdmCategory/EdmCard'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import { PostCardSkeleton } from '@/components/ui/post-card-skeleton'
@@ -19,7 +19,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 
 interface Edm {
   id: string
@@ -34,11 +41,19 @@ interface Edm {
   author?: { id: string; name: string | null }
 }
 
+interface GuideVideoInfo {
+  url: string
+  fileName: string
+  fileSize: number
+}
+
 const EDM_CARD_WIDTH = 320
+const EDM_CATEGORY_SLUG = 'edm'
 
 export function EdmListPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const { confirm } = useConfirmDialog()
   const currentUserId = session?.user?.id ?? null
   const isAdmin = session?.user?.role === 'ADMIN'
 
@@ -50,6 +65,13 @@ export function EdmListPage() {
   const [deletingEdmId, setDeletingEdmId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [columns, setColumns] = useState<Edm[][]>([])
+
+  const [guideVideo, setGuideVideo] = useState<GuideVideoInfo | null>(null)
+  const [guideVideoLoading, setGuideVideoLoading] = useState(true)
+  const [guideDialogOpen, setGuideDialogOpen] = useState(false)
+  const [guideVideoUploading, setGuideVideoUploading] = useState(false)
+  const [guideVideoDeleting, setGuideVideoDeleting] = useState(false)
+  const guideVideoInputRef = useRef<HTMLInputElement>(null)
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -120,6 +142,25 @@ export function EdmListPage() {
     fetchEdms(1, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const fetchGuideVideo = useCallback(async () => {
+    try {
+      setGuideVideoLoading(true)
+      const res = await fetch(`/api/categories/${EDM_CATEGORY_SLUG}/guide-video`)
+      if (res.ok) {
+        const data = await res.json()
+        setGuideVideo(data.guideVideo ?? null)
+      }
+    } catch (e) {
+      console.error('Fetch guide video error:', e)
+    } finally {
+      setGuideVideoLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchGuideVideo()
+  }, [fetchGuideVideo])
 
   useEffect(() => {
     if (page > 1 && !loading && !fetchInProgressRef.current && hasMore) {
@@ -196,20 +237,182 @@ export function EdmListPage() {
     }
   }
 
+  const handleGuideIconClick = () => {
+    if (guideVideoLoading) return
+    if (guideVideo) {
+      setGuideDialogOpen(true)
+    } else {
+      toast.info('등록된 가이드 영상이 없습니다.')
+    }
+  }
+
+  const handleGuideVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('video/') && !file.name.toLowerCase().endsWith('.mp4')) {
+      toast.error('MP4 또는 WebM 형식만 업로드할 수 있습니다.')
+      return
+    }
+    try {
+      setGuideVideoUploading(true)
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`/api/categories/${EDM_CATEGORY_SLUG}/guide-video`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || '업로드에 실패했습니다.')
+      }
+      const data = await res.json()
+      setGuideVideo(data.guideVideo)
+      toast.success('가이드 영상이 업로드되었습니다.')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : '업로드 중 오류가 발생했습니다.')
+    } finally {
+      setGuideVideoUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleGuideVideoDelete = async () => {
+    if (!(await confirm('가이드 영상을 삭제하시겠습니까?'))) return
+    try {
+      setGuideVideoDeleting(true)
+      const res = await fetch(`/api/categories/${EDM_CATEGORY_SLUG}/guide-video`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || '삭제에 실패했습니다.')
+      }
+      setGuideVideo(null)
+      setGuideDialogOpen(false)
+      toast.success('가이드 영상이 삭제되었습니다.')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : '삭제 중 오류가 발생했습니다.')
+    } finally {
+      setGuideVideoDeleting(false)
+    }
+  }
+
+  const getGuideVideoSrc = () => {
+    return `/api/categories/${EDM_CATEGORY_SLUG}/guide-video/stream`
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
   return (
     <div className="w-full min-h-screen bg-background">
       <div className="pb-8">
         <div className="flex justify-between items-end mb-6">
           <div>
             <h1 className="text-3xl font-bold">eDM Code Generator</h1>
-            <p className="text-muted-foreground mt-2">
-              이미지는 그리드를 기준으로 분할되며 그리드 추가, 삭제, 이동 등 편집이 가능합니다.
-              <br />
-              <sub>셀을 드래그하여 선택한 후 병합하면 이미지 갯수를 최소화 할 수 있습니다.</sub>
+            <p className="text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
+              이미지를 업로드하고 그리드를 이용하여 셀로 구분한 후 링크를 추가하여 HTML 코드를 생성합니다.
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={handleGuideIconClick}
+                    disabled={guideVideoLoading}
+                  >
+                    <MessageCircleQuestion className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>가이드 영상 보기</TooltipContent>
+              </Tooltip>
             </p>
           </div>
           <Button onClick={handleCreateNew}>eDM 추가</Button>
         </div>
+
+        {isAdmin && (
+          <div className="mb-6 p-4 border rounded-lg bg-card flex flex-wrap items-center gap-3">
+            <span className="font-medium text-sm">가이드 영상</span>
+            {guideVideo ? (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {guideVideo.fileName} ({formatFileSize(guideVideo.fileSize)})
+                </span>
+                <div className="flex gap-2">
+                  <input
+                    ref={guideVideoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,.mp4,.webm"
+                    className="hidden"
+                    onChange={handleGuideVideoUpload}
+                    disabled={guideVideoUploading}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => guideVideoInputRef.current?.click()}
+                    disabled={guideVideoUploading}
+                  >
+                    {guideVideoUploading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        업로드 중...
+                      </>
+                    ) : (
+                      '영상 교체'
+                    )}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleGuideVideoDelete}
+                    disabled={guideVideoDeleting}
+                  >
+                    {guideVideoDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        삭제 중...
+                      </>
+                    ) : (
+                      '삭제'
+                    )}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-sm text-muted-foreground">등록된 영상 없음</span>
+                <input
+                  ref={guideVideoInputRef}
+                  type="file"
+                  accept="video/mp4,video/webm,.mp4,.webm"
+                  className="hidden"
+                  onChange={handleGuideVideoUpload}
+                  disabled={guideVideoUploading}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => guideVideoInputRef.current?.click()}
+                  disabled={guideVideoUploading}
+                >
+                  {guideVideoUploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      업로드 중...
+                    </>
+                  ) : (
+                    '영상 업로드'
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
 
         {loading && edms.length === 0 && (
           <div ref={containerRef} className="masonry-container justify-center md:justify-start">
@@ -299,6 +502,28 @@ export function EdmListPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={guideDialogOpen} onOpenChange={setGuideDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>eDM 가이드 영상</DialogTitle>
+          </DialogHeader>
+          {guideVideo && (
+            <div className="relative w-full rounded-lg overflow-hidden bg-black">
+              <video
+                src={getGuideVideoSrc()}
+                controls
+                className="w-full max-h-[70vh]"
+                playsInline
+                autoPlay
+                muted
+              >
+                브라우저가 비디오 재생을 지원하지 않습니다.
+              </video>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

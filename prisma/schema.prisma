@@ -47,6 +47,7 @@ model User {
   diagrams                Diagram[] @relation("DiagramAuthor")
   edms                    Edm[]     @relation("EdmAuthor")
   desktopWallpapers       DesktopWallpaper[]
+  cardTemplates           CardTemplate[]
 
   @@map("users")
 }
@@ -229,6 +230,27 @@ model DesktopWallpaper {
   updatedAt  DateTime @updatedAt
 
   @@map("desktop_wallpapers")
+}
+
+// 감사/연말 카드 템플릿 모델
+model CardTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  thumbnailUrl     String?  // B2 썸네일 이미지 경로
+  backgroundImages Json     // [{ url, width, height, label? }] 동일 디자인 여러 크기/비율
+  width            Int      @default(1080)  // 기본 캔버스
+  height           Int      @default(1920)
+  config           Json     // 텍스트/로고 요소 설정 (제목, 부제목, 인사말, 발신자, 로고영역)
+  status           String   @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("card_templates")
 }
 
 // 다이어그램 ZIP 파일 설정 (관리자 업로드, 사용자 다운로드) - 단일 행
