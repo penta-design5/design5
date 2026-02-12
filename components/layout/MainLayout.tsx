@@ -138,6 +138,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
           <Header 
             onMenuClick={() => setMobileMenuOpen(true)} 
             isCiBiPage={hasRightPanel}
+            categories={categories}
           />
         )}
         <main className={`flex-1 bg-background ${isEdmEditorPage ? 'p-0 overflow-hidden relative' : 'pt-16 md:pt-16'} ${isSpecialPage || isCardPageOrSimilar ? 'p-0 overflow-hidden relative' : 'overflow-y-auto'}`}>
