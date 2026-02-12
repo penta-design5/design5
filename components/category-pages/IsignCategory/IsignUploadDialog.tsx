@@ -342,7 +342,6 @@ export function IsignUploadDialog({
         }
 
         const { post } = await response.json()
-        console.log('Post updated:', post)
       } else {
         // 생성 모드: POST 요청
         const response = await fetch('/api/posts', {
@@ -368,7 +367,6 @@ export function IsignUploadDialog({
         }
 
         const { post } = await response.json()
-        console.log('Post created:', post)
       }
 
       // 성공 후 다이얼로그 닫기 및 목록 새로고침

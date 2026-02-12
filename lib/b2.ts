@@ -5,10 +5,8 @@ import sharp from 'sharp'
 const applicationKeyId = process.env.B2_APPLICATION_KEY_ID
 const applicationKey = process.env.B2_APPLICATION_KEY
 
-if (!applicationKeyId || !applicationKey) {
-  console.error('B2 인증 정보가 설정되지 않았습니다.')
-  console.error('B2_APPLICATION_KEY_ID:', applicationKeyId ? '설정됨' : '설정되지 않음')
-  console.error('B2_APPLICATION_KEY:', applicationKey ? '설정됨' : '설정되지 않음')
+if ((!applicationKeyId || !applicationKey) && process.env.NODE_ENV === 'development') {
+  console.error('B2 인증 정보가 설정되지 않았습니다. B2_APPLICATION_KEY_ID와 B2_APPLICATION_KEY를 확인해주세요.')
 }
 
 const b2 = new B2({

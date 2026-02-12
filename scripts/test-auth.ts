@@ -60,8 +60,8 @@ async function testAuth() {
     
     console.log('\n🎉 인증 테스트 통과!')
     console.log('\n📝 테스트 계정 정보:')
-    console.log('   관리자: admin@pentasecurity.com / admin123')
-    console.log('   회원: member@pentasecurity.com / member123')
+    console.log('   관리자: admin@pentasecurity.com / ***')
+    console.log('   회원: member@pentasecurity.com / ***')
     
   } catch (error) {
     console.error('❌ 에러 발생:', error)

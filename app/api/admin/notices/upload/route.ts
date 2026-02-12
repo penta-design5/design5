@@ -33,13 +33,11 @@ export async function POST(request: Request) {
     const filePath = `notices/${safeFileName}`
 
     // Backblaze B2에 업로드
-    console.log('Uploading file to B2:', { fileName: file.name, filePath, fileSize: file.size, contentType: file.type })
     const uploadResult = await uploadFile(
       buffer,
       filePath,
       file.type
     )
-    console.log('B2 upload success:', uploadResult)
 
     return NextResponse.json({
       success: true,

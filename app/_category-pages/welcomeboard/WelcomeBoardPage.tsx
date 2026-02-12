@@ -83,11 +83,7 @@ export function WelcomeBoardPage({ category }: WelcomeBoardPageProps) {
   useEffect(() => {
     if (templates.length > 0) {
       const existingTemplateIds = templates.map(t => t.id)
-      const removedCount = presetStorageUtils.cleanupOrphanedPresets(existingTemplateIds)
-      
-      if (removedCount > 0) {
-        console.log(`${removedCount}개의 오래된 프리셋이 자동 정리되었습니다.`)
-      }
+      presetStorageUtils.cleanupOrphanedPresets(existingTemplateIds)
     }
   }, [templates])
 

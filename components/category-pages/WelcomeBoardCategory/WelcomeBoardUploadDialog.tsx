@@ -344,7 +344,6 @@ export function WelcomeBoardUploadDialog({
         }
 
         const { post } = await response.json()
-        console.log('Post updated:', post)
       } else {
         // 생성 모드: POST 요청
         const response = await fetch('/api/posts', {
@@ -370,7 +369,6 @@ export function WelcomeBoardUploadDialog({
         }
 
         const { post } = await response.json()
-        console.log('Post created:', post)
 
         // 생성 후 썸네일 업로드 (postId가 필요한 경우)
         if (selectedThumbnail && post.id) {

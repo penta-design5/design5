@@ -89,7 +89,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (existingTemplate.backgroundUrl?.includes('backblazeb2.com')) {
         try {
           await deleteFileByUrl(existingTemplate.backgroundUrl)
-          console.log('[PUT] Deleted old background image:', existingTemplate.backgroundUrl)
         } catch (deleteError) {
           console.error('[PUT] Failed to delete old background image:', deleteError)
           // 삭제 실패해도 업데이트는 계속 진행
@@ -155,7 +154,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     if (existingTemplate.backgroundUrl?.includes('backblazeb2.com')) {
       try {
         await deleteFileByUrl(existingTemplate.backgroundUrl)
-        console.log('[DELETE] Deleted background image:', existingTemplate.backgroundUrl)
       } catch (deleteError) {
         console.error('[DELETE] Failed to delete background image:', deleteError)
         // 이미지 삭제 실패해도 템플릿 삭제는 계속 진행
