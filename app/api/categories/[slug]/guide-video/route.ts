@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { uploadFile, generateSafeFileName, deleteFileByUrl } from '@/lib/b2'
@@ -117,7 +118,7 @@ export async function POST(
 
     await prisma.category.update({
       where: { id: category.id },
-      data: { config: updatedConfig },
+      data: { config: updatedConfig as Prisma.InputJsonValue },
     })
 
     return NextResponse.json({
@@ -186,7 +187,7 @@ export async function DELETE(
 
     await prisma.category.update({
       where: { id: category.id },
-      data: { config: updatedConfig },
+      data: { config: updatedConfig as Prisma.InputJsonValue },
     })
 
     return NextResponse.json({

@@ -26,6 +26,7 @@ declare module 'backblaze-b2' {
       bucketName: string
       fileName: string
       responseType?: string
+      axiosOverride?: { headers?: Record<string, string> }
     }): Promise<any>
     listBuckets(): Promise<any>
     updateBucket(params: {

@@ -171,7 +171,7 @@ export function CardExport({ template, userEditData, canvasRef }: CardExportProp
         document.body.removeChild(container)
       }
     },
-    [template, config, textValues, userEditData, exportWidth, exportHeight, bgUrl, highResolution]
+    [config, textValues, userEditData, exportWidth, exportHeight, bgUrl, highResolution]
   )
 
   const downloadPNG = useCallback(async () => {

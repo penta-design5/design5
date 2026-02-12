@@ -295,6 +295,8 @@ export function CardAdminDialog({ open, onClose, onSuccess, template }: CardAdmi
     description,
     backgroundItems,
     config,
+    width,
+    height,
     isEditing,
     template,
     onSuccess,
