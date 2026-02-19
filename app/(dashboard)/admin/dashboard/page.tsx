@@ -51,6 +51,9 @@ export default function DashboardPage() {
   // Backblaze B2 대시보드 URL
   const b2DashboardUrl = 'https://tree-phx1-0000.secure.backblaze.com/b2_browse_files2.htm?bucketId=fcc961200ce077dc9eb20213'
 
+  // Cloudflare R2 대시보드 URL
+  const r2DashboardUrl = 'https://dash.cloudflare.com/ea37da5b38aff81fbd82412db6049212/r2/overview'
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -215,6 +218,17 @@ export default function DashboardPage() {
                 </div>
                 <SquareArrowOutUpRight className="h-4 w-4" />
               </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-between"
+                onClick={() => window.open(r2DashboardUrl, '_blank')}
+              >
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4" />
+                  <span>Cloudflare R2 Dashboard</span>
+                </div>
+                <SquareArrowOutUpRight className="h-4 w-4" />
+              </Button>              
             </div>
           </CardContent>
         </Card>

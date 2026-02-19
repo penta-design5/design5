@@ -417,7 +417,7 @@ export default function ProfilePage() {
         </Card>
 
         {/* 비밀번호 변경 */}
-        <Card>
+        {/* <Card>
           <CardHeader>
             <CardTitle>비밀번호 변경</CardTitle>
             <CardDescription>
@@ -481,7 +481,7 @@ export default function ProfilePage() {
               )}
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* 회원 탈퇴 */}
         <Card>
