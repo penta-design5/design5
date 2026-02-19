@@ -44,7 +44,7 @@ layerary/
 │   ├── auth.ts, auth-helpers.ts  # NextAuth
 │   ├── prisma.ts                 # Prisma 클라이언트
 │   ├── b2.ts                     # Backblaze B2 업로드
-│   ├── supabase.ts, supabase-edm-storage.ts
+│   ├── supabase.ts, r2-edm-storage.ts
 │   ├── categories.ts             # 카테고리 조회
 │   └── *.ts                      # 스키마, 유틸
 ├── prisma/

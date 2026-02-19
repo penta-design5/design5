@@ -27,9 +27,22 @@ interface EdmEditorPageProps {
 function getImageSrc(url: string) {
   if (!url) return ''
   if (url.startsWith('data:')) return url
-  // Supabase Storage: 공개 URL이라 직접 사용
   if (url.includes('supabase.co')) return url
+  if (url.includes('cdn.layerary.com')) return url
   return url
+}
+
+function loadImage(
+  url: string,
+  crossOrigin: 'anonymous' | '' = 'anonymous'
+): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const i = new Image()
+    if (crossOrigin) i.crossOrigin = crossOrigin
+    i.onload = () => resolve(i)
+    i.onerror = reject
+    i.src = getImageSrc(url)
+  })
 }
 
 async function reconstructImageFromCells(
@@ -45,27 +58,39 @@ async function reconstructImageFromCells(
   const ctx = canvas.getContext('2d')
   if (!ctx) return ''
 
-  for (const cell of cells) {
-    const url = cellImages[cell.id]
-    if (!url) continue
+  const firstCellUrl = cells[0] ? cellImages[cells[0].id] : ''
 
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image()
-      i.crossOrigin = 'anonymous'
-      i.onload = () => resolve(i)
-      i.onerror = reject
-      i.src = getImageSrc(url)
-    })
-
-    const left = Math.round((cell.left / 100) * imageWidth)
-    const top = Math.round((cell.top / 100) * imageHeight)
-    const w = Math.round((cell.width / 100) * imageWidth)
-    const h = Math.round((cell.height / 100) * imageHeight)
-
-    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, left, top, w, h)
+  const drawCells = async (useCrossOrigin: boolean): Promise<void> => {
+    for (const cell of cells) {
+      const url = cellImages[cell.id]
+      if (!url) continue
+      const img = await loadImage(url, useCrossOrigin ? 'anonymous' : '')
+      const left = Math.round((cell.left / 100) * imageWidth)
+      const top = Math.round((cell.top / 100) * imageHeight)
+      const w = Math.round((cell.width / 100) * imageWidth)
+      const h = Math.round((cell.height / 100) * imageHeight)
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, left, top, w, h)
+    }
   }
 
-  return canvas.toDataURL('image/png')
+  try {
+    await drawCells(true)
+    return canvas.toDataURL('image/png')
+  } catch {
+    // CORS 미설정 시 crossOrigin='anonymous'에서 이미지 로드 실패. crossOrigin 없이 재시도.
+  }
+
+  try {
+    ctx.clearRect(0, 0, imageWidth, imageHeight)
+    await drawCells(false)
+    try {
+      return canvas.toDataURL('image/png')
+    } catch {
+      return firstCellUrl || ''
+    }
+  } catch {
+    return firstCellUrl || ''
+  }
 }
 
 async function cropImageToCells(

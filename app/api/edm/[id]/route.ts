@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { uploadEdmFile, deleteEdmFileByUrl } from '@/lib/supabase-edm-storage'
+import {
+  uploadEdmFile,
+  getPresignedUrl,
+  isObjectKey,
+  deleteEdmFileByUrl,
+} from '@/lib/r2-edm-storage'
 import sharp from 'sharp'
 import { parseGridToCells, generateHtmlCode } from '@/lib/edm-utils'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
@@ -36,7 +41,46 @@ export async function GET(
       return NextResponse.json({ error: '접근 권한이 없습니다.' }, { status: 403 })
     }
 
-    return NextResponse.json({ edm })
+    let thumbnailUrl = edm.thumbnailUrl
+    const cellImages = (edm.cellImages as Record<string, string>) || {}
+    const cellImagesResolved: Record<string, string> = {}
+
+    if (edm.thumbnailUrl && isObjectKey(edm.thumbnailUrl)) {
+      try {
+        thumbnailUrl = await getPresignedUrl(edm.thumbnailUrl)
+      } catch (e) {
+        console.warn('Presigned URL 실패(thumbnail):', e)
+      }
+    }
+    for (const [cellId, val] of Object.entries(cellImages)) {
+      if (isObjectKey(val)) {
+        try {
+          cellImagesResolved[cellId] = await getPresignedUrl(val)
+        } catch (e) {
+          console.warn('Presigned URL 실패(cell):', cellId, e)
+        }
+      } else {
+        cellImagesResolved[cellId] = val
+      }
+    }
+
+    const htmlCode = generateHtmlCode(
+      edm.gridConfig as unknown as GridConfig,
+      cellImagesResolved,
+      (edm.cellLinks as CellLinks) || {},
+      (edm.alignment as 'left' | 'center' | 'right') || 'left',
+      edm.imageWidth,
+      edm.imageHeight
+    )
+
+    return NextResponse.json({
+      edm: {
+        ...edm,
+        thumbnailUrl,
+        cellImages: cellImagesResolved,
+        htmlCode,
+      },
+    })
   } catch (error) {
     console.error('Error fetching edm:', error)
     return NextResponse.json(
@@ -100,9 +144,9 @@ export async function PATCH(
       const cells = parseGridToCells(gridConfig)
       const oldCellImages = (existing.cellImages as Record<string, string>) || {}
 
-      for (const url of Object.values(oldCellImages)) {
+      for (const keyOrUrl of Object.values(oldCellImages)) {
         try {
-          await deleteEdmFileByUrl(url)
+          await deleteEdmFileByUrl(keyOrUrl)
         } catch (e) {
           console.warn('Failed to delete old cell image:', e)
         }
@@ -125,7 +169,7 @@ export async function PATCH(
 
         const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.jpg`
         const uploadResult = await uploadEdmFile(cropped, filePath, 'image/jpeg')
-        cellImages[cell.id] = uploadResult.fileUrl
+        cellImages[cell.id] = uploadResult.fileUrl ?? uploadResult.filePath
       }
 
       if (existing.thumbnailUrl) {
@@ -157,15 +201,21 @@ export async function PATCH(
           `${basePath}/thumbnail.jpg`,
           'image/jpeg'
         )
-        thumbnailUrl = thumbResult.fileUrl
+        thumbnailUrl = thumbResult.fileUrl ?? thumbResult.filePath
       } catch (thumbErr) {
         console.warn('Thumbnail upload failed:', thumbErr)
       }
     }
 
+    const cellImagesForHtml: Record<string, string> = {}
+    for (const [cellId, val] of Object.entries(cellImages)) {
+      cellImagesForHtml[cellId] = isObjectKey(val)
+        ? await getPresignedUrl(val)
+        : val
+    }
     const htmlCode = generateHtmlCode(
       gridConfig,
-      cellImages,
+      cellImagesForHtml,
       cellLinks,
       alignment,
       imageWidth,
@@ -191,7 +241,23 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json({ edm })
+    const resolvedThumbnailUrl =
+      edm.thumbnailUrl && isObjectKey(edm.thumbnailUrl)
+        ? await getPresignedUrl(edm.thumbnailUrl)
+        : edm.thumbnailUrl
+    const resolvedCellImages: Record<string, string> = {}
+    for (const [cellId, val] of Object.entries(edm.cellImages as Record<string, string> || {})) {
+      resolvedCellImages[cellId] = isObjectKey(val) ? await getPresignedUrl(val) : val
+    }
+
+    return NextResponse.json({
+      edm: {
+        ...edm,
+        thumbnailUrl: resolvedThumbnailUrl,
+        cellImages: resolvedCellImages,
+        htmlCode,
+      },
+    })
   } catch (error: unknown) {
     console.error('Error updating edm:', error)
     const message = error instanceof Error ? error.message : 'eDM 수정에 실패했습니다.'
@@ -225,9 +291,9 @@ export async function DELETE(
     }
 
     const cellImages = (existing.cellImages as Record<string, string>) || {}
-    for (const url of Object.values(cellImages)) {
+    for (const keyOrUrl of Object.values(cellImages)) {
       try {
-        await deleteEdmFileByUrl(url)
+        await deleteEdmFileByUrl(keyOrUrl)
       } catch (e) {
         console.warn('Failed to delete cell image:', e)
       }

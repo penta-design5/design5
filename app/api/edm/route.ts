@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { uploadEdmFile } from '@/lib/supabase-edm-storage'
+import {
+  uploadEdmFile,
+  getPresignedUrl,
+  isObjectKey,
+} from '@/lib/r2-edm-storage'
 import sharp from 'sharp'
 import { parseGridToCells, generateHtmlCode } from '@/lib/edm-utils'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
@@ -22,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     const where = isAdmin ? {} : { authorId: session.user.id }
 
-    const [edms, total] = await Promise.all([
+    const [edmsRaw, total] = await Promise.all([
       prisma.edm.findMany({
         where,
         select: {
@@ -45,6 +49,20 @@ export async function GET(request: NextRequest) {
       }),
       prisma.edm.count({ where }),
     ])
+
+    const edms = await Promise.all(
+      edmsRaw.map(async (edm) => {
+        let thumbnailUrl = edm.thumbnailUrl
+        if (thumbnailUrl && isObjectKey(thumbnailUrl)) {
+          try {
+            thumbnailUrl = await getPresignedUrl(thumbnailUrl)
+          } catch (e) {
+            console.warn('Presigned URL 실패(목록 thumbnail):', e)
+          }
+        }
+        return { ...edm, thumbnailUrl }
+      })
+    )
 
     return NextResponse.json({
       edms,
@@ -112,12 +130,18 @@ export async function POST(request: NextRequest) {
 
       const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.jpg`
       const uploadResult = await uploadEdmFile(cropped, filePath, 'image/jpeg')
-      cellImages[cell.id] = uploadResult.fileUrl
+      cellImages[cell.id] = uploadResult.fileUrl ?? uploadResult.filePath
     }
 
+    const cellImagesForHtml: Record<string, string> = {}
+    for (const [cellId, val] of Object.entries(cellImages)) {
+      cellImagesForHtml[cellId] = isObjectKey(val)
+        ? await getPresignedUrl(val)
+        : val
+    }
     const htmlCode = generateHtmlCode(
       gridConfig,
-      cellImages,
+      cellImagesForHtml,
       cellLinks,
       alignment,
       imageWidth,
@@ -146,7 +170,7 @@ export async function POST(request: NextRequest) {
         `${basePath}/thumbnail.jpg`,
         'image/jpeg'
       )
-      thumbnailUrl = thumbResult.fileUrl
+      thumbnailUrl = thumbResult.fileUrl ?? thumbResult.filePath
     } catch (thumbErr) {
       console.warn('Thumbnail upload failed:', thumbErr)
     }
@@ -167,7 +191,27 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ edm }, { status: 201 })
+    const resolvedThumbnailUrl =
+      thumbnailUrl && isObjectKey(thumbnailUrl)
+        ? await getPresignedUrl(thumbnailUrl)
+        : thumbnailUrl
+    const resolvedCellImages: Record<string, string> = {}
+    for (const [cellId, val] of Object.entries(cellImages)) {
+      resolvedCellImages[cellId] = isObjectKey(val)
+        ? await getPresignedUrl(val)
+        : val
+    }
+
+    return NextResponse.json(
+      {
+        edm: {
+          ...edm,
+          thumbnailUrl: resolvedThumbnailUrl,
+          cellImages: resolvedCellImages,
+        },
+      },
+      { status: 201 }
+    )
   } catch (error: unknown) {
     console.error('Error creating edm:', error)
     const message = error instanceof Error ? error.message : 'eDM 생성에 실패했습니다.'
