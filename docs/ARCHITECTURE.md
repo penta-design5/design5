@@ -96,7 +96,7 @@ layerary/
    - 렌더링 (ListPage → Card 컴포넌트)
 
 2. **업로드**
-   - FormData/JSON → API Route → B2 또는 Supabase Storage 업로드 → DB 저장
+   - FormData/JSON → API Route → B2 또는 Cloudflare R2(eDM) 업로드 → DB 저장
 
 3. **검색**
    - Header 검색창 → `GET /api/search?q=...&categorySlug=...` → SearchResultsDialog

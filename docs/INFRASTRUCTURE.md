@@ -1,6 +1,6 @@
 # 인프라 다이어그램
 
-배포 환경의 물리적/논리적 구조를 표현합니다. Vercel, Supabase, Backblaze B2, GitHub가 실제로 어떻게 연결되는지 보여줍니다.
+배포 환경의 물리적/논리적 구조를 표현합니다. Vercel, Supabase, Backblaze B2, Cloudflare R2, GitHub가 실제로 어떻게 연결되는지 보여줍니다.
 
 ## 인프라 개요
 
@@ -22,11 +22,14 @@ flowchart TB
   subgraph supabase [Supabase]
     PgSQL[(PostgreSQL)]
     Pooler[Connection Pooler]
-    Storage[Storage - edms bucket]
   end
 
   subgraph b2 [Backblaze B2]
     Bucket[B2 Bucket]
+  end
+
+  subgraph r2 [Cloudflare R2]
+    R2Bucket[R2 Bucket - eDM]
   end
 
   subgraph github [GitHub]
@@ -39,8 +42,8 @@ flowchart TB
   CDN --> Static
   Serverless -->|DATABASE_URL| Pooler
   Pooler --> PgSQL
-  Serverless -->|Service Role| Storage
   Serverless -->|B2 API| Bucket
+  Serverless -->|R2 S3 API| R2Bucket
   Repo -->|push| vercel
   Actions -->|3일마다| Serverless
 ```
@@ -64,13 +67,22 @@ flowchart TB
 |----------|------|------------|
 | **Connection Pooler** | Session 모드 연결 풀. Prisma용 | `DATABASE_URL` (connection_limit=1 권장) |
 | **PostgreSQL** | 메인 DB. 마이그레이션은 Direct 연결 사용 | `DIRECT_URL` |
-| **Storage (edms)** | eDM 셀 이미지용 Public 버킷 | `SUPABASE_SERVICE_ROLE_KEY` |
+
+- **참고**: eDM 셀 이미지는 Supabase Storage가 아닌 **Cloudflare R2**에 저장됩니다.
 
 ### Backblaze B2
 
 | 구성요소 | 설명 | 환경 변수 |
 |----------|------|------------|
 | **B2 Bucket** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_ID`, `B2_BUCKET_NAME`, `B2_ENDPOINT` |
+
+### Cloudflare R2
+
+| 구성요소 | 설명 | 환경 변수 |
+|----------|------|------------|
+| **R2 Bucket (eDM)** | eDM 셀 이미지·썸네일 저장. S3 호환 API 사용. 공개 URL 또는 Presigned URL 제공 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`(선택) |
+
+- **R2_PUBLIC_URL** 설정 시 만료 없는 공개 URL로 저장되어 이메일 HTML에서 이미지가 안정적으로 표시됩니다. 미설정 시 Presigned URL(최대 7일)을 사용합니다.
 
 ### GitHub
 
@@ -95,7 +107,8 @@ flowchart LR
     E2[DIRECT_URL]
     E3[NEXTAUTH_URL]
     E4[B2_*]
-    E5[SUPABASE_*]
+    E5[R2_*]
+    E6[SUPABASE_*]
   end
 
   V --> E1
@@ -103,11 +116,13 @@ flowchart LR
   V --> E3
   V --> E4
   V --> E5
+  V --> E6
 
   E1 --> Pooler[Supabase Pooler]
   E2 --> PgSQL[Supabase Direct]
   E4 --> B2[Backblaze B2]
-  E5 --> Storage[Supabase Storage]
+  E5 --> R2[Cloudflare R2]
+  E6 --> Pooler
 ```
 
 ## 관련 문서

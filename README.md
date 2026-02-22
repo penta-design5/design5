@@ -14,7 +14,7 @@ LAYERARY는 펜타시큐리티의 디자인 작업물을 리뷰하고, 필요한
 - **Backend**: Next.js API Routes / Server Actions
 - **Database**: Supabase (PostgreSQL)
 - **ORM**: Prisma
-- **Storage**: Backblaze B2 (이미지/파일), Supabase Storage (eDM)
+- **Storage**: Backblaze B2 (이미지/파일), Cloudflare R2 (eDM 셀 이미지)
 - **Auth**: NextAuth.js (Auth.js)
 
 ## 사전 요구사항
@@ -38,8 +38,22 @@ npm install
 cp env.example.txt .env.local
 ```
 
-필수 환경 변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `B2_*`, `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`  
+필수 환경 변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `B2_*`, `R2_*`(eDM용), `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`  
 자세한 내용은 `env.example.txt`를 참조하세요.
+
+### eDM 저장소 (Cloudflare R2)
+
+eDM(이메일 디렉트 메일)의 셀 이미지는 **Cloudflare R2**에 저장됩니다. R2는 S3 호환 API를 사용하며, 이메일 HTML에서 이미지 URL이 오래 유지되어야 하므로 공개 URL(`R2_PUBLIC_URL`) 또는 Presigned URL 방식을 사용합니다.
+
+| 환경 변수 | 설명 |
+|-----------|------|
+| `R2_ACCOUNT_ID` | Cloudflare 계정 ID |
+| `R2_ACCESS_KEY_ID` | R2 API 액세스 키 |
+| `R2_SECRET_ACCESS_KEY` | R2 API 시크릿 키 |
+| `R2_BUCKET_NAME` | eDM 이미지용 버킷 이름 (예: `edms`) |
+| `R2_PUBLIC_URL` | (선택) 공개 액세스 기준 URL. 설정 시 만료 없는 공개 URL로 저장되어 이메일에서 안정적으로 표시됨 |
+
+R2 미설정 시 eDM 생성/수정 API는 동작하지 않습니다. 구현 세부사항은 `lib/r2-edm-storage.ts`를 참조하고, 배포 시 R2 설정은 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)의 Cloudflare R2 섹션을 참조하세요.
 
 ### 3. 데이터베이스 마이그레이션
 

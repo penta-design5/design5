@@ -102,7 +102,7 @@ sequenceDiagram
   participant Browser
   participant API
   participant Sharp
-  participant SupabaseStorage
+  participant R2
   participant Prisma
   participant DB
 
@@ -112,8 +112,8 @@ sequenceDiagram
   API->>Sharp: 이미지 셀별 크롭
   Sharp-->>API: 셀 버퍼들
   loop 각 셀
-    API->>SupabaseStorage: uploadEdmFile (edms 버킷)
-    SupabaseStorage-->>API: cellUrl
+    API->>R2: uploadEdmFile (Cloudflare R2 S3 API)
+    R2-->>API: fileUrl / filePath
   end
   API->>API: generateHtmlCode (gridConfig, cellImages, cellLinks)
   API->>Prisma: edm.create
@@ -126,4 +126,4 @@ sequenceDiagram
 
 - **인증**: 로그인 필수
 - **엔드포인트**: `POST /api/edm`
-- **스토리지**: Supabase Storage (`edms` 버킷, Public)
+- **스토리지**: Cloudflare R2 (S3 호환 API, `lib/r2-edm-storage.ts`). `R2_PUBLIC_URL` 설정 시 공개 URL(만료 없음), 미설정 시 Presigned URL(최대 7일)

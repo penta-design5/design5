@@ -113,12 +113,13 @@ export async function PATCH(
     }
 
     const formData = await request.formData()
-    const image = formData.get('image') as File | null
+    // 텍스트 필드를 먼저 읽고, 파일은 나중에 읽기 (multipart 파싱 시 필드 누락 방지)
     const title = formData.get('title') as string | null
     const description = formData.get('description') as string | null
     const gridConfigStr = formData.get('gridConfig') as string | null
     const cellLinksStr = formData.get('cellLinks') as string | null
     const alignment = (formData.get('alignment') as Alignment) || existing.alignment
+    const image = formData.get('image') as File | null
 
     let gridConfig = existing.gridConfig as unknown as GridConfig
     let cellLinks = (existing.cellLinks as CellLinks) || {}
@@ -225,7 +226,10 @@ export async function PATCH(
     const edm = await prisma.edm.update({
       where: { id },
       data: {
-        title: title !== undefined && title !== null ? title.trim() : existing.title,
+        title:
+          title !== undefined && title !== null && String(title).trim() !== ''
+            ? String(title).trim()
+            : existing.title,
         description:
           description !== undefined && description !== null
             ? description.trim() || null

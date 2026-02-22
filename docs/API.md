@@ -115,7 +115,7 @@ API는 NextAuth 세션 기반 인증을 사용합니다.
 | 메서드 | 경로 | 인증 | 용도 |
 |--------|------|------|------|
 | GET | `/api/edm` | 로그인 | eDM 목록 (관리자: 전체, 일반: 본인) |
-| POST | `/api/edm` | 로그인 | eDM 생성 (FormData: image, title, description, gridConfig, cellLinks, alignment) |
+| POST | `/api/edm` | 로그인 | eDM 생성 (FormData: image, title, description, gridConfig, cellLinks, alignment). 셀 이미지는 Cloudflare R2에 저장 |
 | GET | `/api/edm/[id]` | 로그인 | eDM 상세 |
 | PATCH | `/api/edm/[id]` | 로그인 | eDM 수정 |
 | DELETE | `/api/edm/[id]` | 로그인 | eDM 삭제 |

@@ -8,8 +8,9 @@
 
 ## 사전 준비
 
-- **Supabase 프로젝트**: PostgreSQL 데이터베이스, Storage (eDM용)
+- **Supabase 프로젝트**: PostgreSQL 데이터베이스
 - **Backblaze B2 버킷**: 이미지/파일 저장 (다이어그램, 게시물 썸네일, PPT ZIP 등)
+- **Cloudflare R2 버킷**: eDM 셀 이미지 저장 (이메일 HTML용)
 - **(선택) Google OAuth 클라이언트**: Google 로그인 사용 시
 
 ---
@@ -29,9 +30,14 @@
 | `B2_BUCKET_ID` | ✅ | Backblaze B2 |
 | `B2_BUCKET_NAME` | ✅ | Backblaze B2 |
 | `B2_ENDPOINT` | ✅ | Backblaze B2 엔드포인트 |
+| `R2_ACCOUNT_ID` | ✅ | Cloudflare R2 (eDM 이미지) |
+| `R2_ACCESS_KEY_ID` | ✅ | Cloudflare R2 |
+| `R2_SECRET_ACCESS_KEY` | ✅ | Cloudflare R2 |
+| `R2_BUCKET_NAME` | ✅ | R2 버킷 이름 (예: `edms`) |
+| `R2_PUBLIC_URL` | 권장 | eDM 이미지 공개 URL (예: `https://cdn.layerary.com`). 설정 시 이메일에서 만료 없이 표시 |
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (Keepalive 등) |
 | `GOOGLE_CLIENT_ID` | 선택 | Google OAuth |
 | `GOOGLE_CLIENT_SECRET` | 선택 | Google OAuth |
 | `KEEPALIVE_SECRET` | 선택 | Keepalive API 보안용 (GitHub Actions와 동일 값) |
@@ -52,16 +58,34 @@
 
 ---
 
-## Supabase Storage (eDM)
+## Cloudflare R2 (eDM 이미지)
 
-eDM 이미지는 Supabase Storage를 사용합니다.
+eDM(이메일 디렉트 메일)의 셀 이미지와 썸네일은 **Cloudflare R2**에 저장됩니다. R2는 S3 호환 API를 사용하며, 이메일 HTML에서 이미지 URL이 오래 유지되어야 하므로 공개 URL 또는 Presigned URL을 사용합니다.
 
-1. Supabase Dashboard → **Storage** → **New bucket**
-2. 버킷 이름: `edms`
-3. **Public bucket** 체크
-4. 생성
+### R2 버킷 생성
 
-자세한 보안 설정은 [docs/SUPABASE_SECURITY_SETUP.md](SUPABASE_SECURITY_SETUP.md)를 참조하세요.
+1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **R2 Object Storage** → **Create bucket**
+2. 버킷 이름: 예) `edms`
+3. 생성 후 **Settings**에서 **Public access** (선택): 커스텀 도메인 연결 시 `R2_PUBLIC_URL`로 공개 URL 사용 가능
+
+### R2 API 토큰 생성
+
+1. R2 → **Manage R2 API Tokens** → **Create API token**
+2. 권한: **Object Read & Write**
+3. 생성된 **Access Key ID**, **Secret Access Key**를 Vercel 환경 변수 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`에 설정
+4. **Account ID**는 Cloudflare 대시보드 URL 또는 Overview에서 확인 → `R2_ACCOUNT_ID`에 설정
+
+### 환경 변수 요약
+
+| 변수 | 설명 |
+|------|------|
+| `R2_ACCOUNT_ID` | Cloudflare 계정 ID |
+| `R2_ACCESS_KEY_ID` | R2 API 액세스 키 |
+| `R2_SECRET_ACCESS_KEY` | R2 API 시크릿 키 |
+| `R2_BUCKET_NAME` | 버킷 이름 (예: `edms`) |
+| `R2_PUBLIC_URL` | (권장) 공개 액세스 기준 URL. 설정 시 DB에 공개 URL 저장 → 이메일에서 만료 없이 이미지 표시. 미설정 시 Presigned URL(최대 7일) 사용 |
+
+구현: `lib/r2-edm-storage.ts` (AWS SDK S3 호환 클라이언트 사용)
 
 ---
 

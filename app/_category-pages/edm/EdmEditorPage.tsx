@@ -12,6 +12,15 @@ import { EdmControlPanel } from '@/components/category-pages/EdmCategory/EdmCont
 import { EdmLinkPanel } from '@/components/category-pages/EdmCategory/EdmLinkPanel'
 import { EdmCodePanel } from '@/components/category-pages/EdmCategory/EdmCodePanel'
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   generateHtmlCode,
   getDefaultGridConfig,
   parseGridToCells,
@@ -149,8 +158,47 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
   const [saving, setSaving] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
 
   const imgRef = useRef<HTMLImageElement | null>(null)
+  /** 다이얼로그 등에서 handleSave 호출 시 항상 최신 state를 쓰기 위한 ref */
+  const saveStateRef = useRef({
+    title: '',
+    description: '',
+    imagePreviewUrl: null as string | null,
+    imageFile: null as File | null,
+    gridConfig: getDefaultGridConfig(),
+    cellLinks: {} as CellLinks,
+    cellImagesForPreview: {} as Record<string, string>,
+    imageWidth: 1920,
+    imageHeight: 1080,
+    alignment: 'left' as Alignment,
+  })
+  useEffect(() => {
+    saveStateRef.current = {
+      title,
+      description,
+      imagePreviewUrl,
+      imageFile,
+      gridConfig,
+      cellLinks,
+      cellImagesForPreview,
+      imageWidth,
+      imageHeight,
+      alignment,
+    }
+  }, [
+    title,
+    description,
+    imagePreviewUrl,
+    imageFile,
+    gridConfig,
+    cellLinks,
+    cellImagesForPreview,
+    imageWidth,
+    imageHeight,
+    alignment,
+  ])
 
   useEffect(() => {
     if (!edmId) return
@@ -280,35 +328,56 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
     return new File([u8arr], filename, { type: mime })
   }
 
-  const handleSave = async () => {
-    if (!title.trim()) {
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    const state = saveStateRef.current
+    const titleToUse = state.title?.trim() ?? ''
+    const hasTitle = titleToUse.length > 0
+
+    if (!hasTitle && !edmId) {
       toast.error('제목을 입력해 주세요.')
-      return
+      return false
+    }
+    // 기존 eDM에서 제목이 비어 있으면 서버에 빈 문자열로 덮어쓰지 않도록, 아래에서 title은 비우지 않고 보냄
+    if (!hasTitle && edmId) {
+      toast.error('제목을 입력해 주세요.')
+      return false
     }
 
-    if (!imageFile && !edmId) {
+    // 새 eDM은 이미지 업로드 필수. 기존 eDM은 그리드/링크만 바꾼 경우에도 재구성해서 이미지 전송 시도
+    if (!edmId && !state.imageFile) {
       toast.error('이미지를 업로드해 주세요.')
-      return
-    }
-
-    if (edmId && !imageFile && !imagePreviewUrl) {
-      toast.error('이미지가 없습니다.')
-      return
+      return false
     }
 
     try {
       setSaving(true)
 
       const formData = new FormData()
-      formData.append('title', title.trim())
-      formData.append('description', description.trim())
-      formData.append('gridConfig', JSON.stringify(gridConfig))
-      formData.append('cellLinks', JSON.stringify(cellLinks))
-      formData.append('alignment', alignment)
+      if (hasTitle) formData.append('title', titleToUse)
+      formData.append('description', (state.description ?? '').trim())
+      formData.append('gridConfig', JSON.stringify(state.gridConfig))
+      formData.append('cellLinks', JSON.stringify(state.cellLinks))
+      formData.append('alignment', state.alignment)
 
-      let imageToSend: File | null = imageFile
-      if (!imageToSend && imagePreviewUrl?.startsWith('data:')) {
-        imageToSend = dataUrlToFile(imagePreviewUrl, 'edm-image.png')
+      let imageToSend: File | null = state.imageFile
+      if (!imageToSend && state.imagePreviewUrl?.startsWith('data:')) {
+        imageToSend = dataUrlToFile(state.imagePreviewUrl, 'edm-image.png')
+      }
+      // 기존 eDM인데 이미지가 아직 없으면, 셀 이미지로 전체 이미지 재구성 후 전송 시도(그리드 변경 시 R2 재저장 위해)
+      if (!imageToSend && edmId && state.cellImagesForPreview && Object.keys(state.cellImagesForPreview).length > 0) {
+        try {
+          const dataUrl = await reconstructImageFromCells(
+            state.cellImagesForPreview,
+            state.imageWidth,
+            state.imageHeight,
+            state.gridConfig
+          )
+          if (dataUrl?.startsWith('data:')) {
+            imageToSend = dataUrlToFile(dataUrl, 'edm-image.png')
+          }
+        } catch (e) {
+          console.warn('Save: reconstruct image for PATCH failed', e)
+        }
       }
       if (imageToSend) {
         formData.append('image', imageToSend)
@@ -332,11 +401,12 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
         }
         setHasUnsavedChanges(false)
         toast.success('eDM이 저장되었습니다.')
+        return true
       } else {
-        if (!imageFile) {
+        if (!state.imageFile) {
           toast.error('이미지를 업로드해 주세요.')
           setSaving(false)
-          return
+          return false
         }
         const res = await fetch('/api/edm', {
           method: 'POST',
@@ -349,15 +419,17 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
         }
         toast.success('eDM이 저장되었습니다.')
         router.push(`/edm/${data.edm.id}`)
+        return true
       }
     } catch (err) {
       console.error(err)
       const msg = err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.'
       toast.error(msg)
+      return false
     } finally {
       setSaving(false)
     }
-  }
+  }, [edmId, router])
 
   const handleMergeCells = useCallback(() => {
     const result = canMergeCells(gridConfig, selectedCellIds)
@@ -375,6 +447,25 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
     if (edmId) setHasUnsavedChanges(true)
   }, [gridConfig, selectedCellIds, cellLinks, edmId])
 
+  const handleBack = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setLeaveConfirmOpen(true)
+    } else {
+      router.push('/edm')
+    }
+  }, [hasUnsavedChanges, router])
+
+  const handleLeaveWithoutSaving = useCallback(() => {
+    setLeaveConfirmOpen(false)
+    router.push('/edm')
+  }, [router])
+
+  const handleSaveAndLeave = useCallback(async () => {
+    setLeaveConfirmOpen(false)
+    const ok = await handleSave()
+    if (ok && edmId) router.push('/edm')
+  }, [edmId, handleSave, router])
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center">
@@ -387,7 +478,7 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
     <div className="fixed inset-0 bg-background flex flex-col overflow-hidden min-h-0">
       <div className="h-14 border-b flex items-center pl-4 pr-8 justify-between bg-background shrink-0">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/edm')}>
+          <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
 
@@ -496,6 +587,37 @@ export function EdmEditorPage({ edmId }: EdmEditorPageProps) {
           onCodeGenerate={handleCodeGenerateAndCopy}
         />
       </div>
+
+      <AlertDialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>수정 사항을 저장할까요?</AlertDialogTitle>
+            <AlertDialogDescription>
+              저장하지 않고 나가면 변경 사항이 사라집니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-row gap-2 sm:justify-end">
+            <AlertDialogCancel disabled={saving}>취소</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={handleLeaveWithoutSaving}
+              disabled={saving}
+            >
+              저장하지 않고 나가기
+            </Button>
+            <Button onClick={handleSaveAndLeave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                '저장하고 나가기'
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

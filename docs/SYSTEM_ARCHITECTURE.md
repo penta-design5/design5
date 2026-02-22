@@ -19,7 +19,7 @@ flowchart TB
   subgraph data [Data Layer]
     SupabaseDB[(Supabase PostgreSQL)]
     B2[Backblaze B2]
-    SupabaseStorage[Supabase Storage edms]
+    R2[Cloudflare R2 - eDM]
   end
 
   subgraph external [External]
@@ -32,10 +32,10 @@ flowchart TB
   NextJS --> API
   API -->|Prisma| SupabaseDB
   API -->|uploadFile| B2
-  API -->|uploadEdmFile| SupabaseStorage
+  API -->|uploadEdmFile (S3 API)| R2
   API -->|Credentials/Google| GoogleOAuth
   B2 -->|public URL| Browser
-  SupabaseStorage -->|public URL| Browser
+  R2 -->|public / presigned URL| Browser
 ```
 
 ## 레이어별 역할
@@ -60,7 +60,7 @@ flowchart TB
 |----------|------|------------|
 | **Supabase PostgreSQL** | 사용자, 게시물, 카테고리, 다이어그램, eDM 등 메타데이터 | Prisma ORM |
 | **Backblaze B2** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등 | B2 SDK |
-| **Supabase Storage (edms)** | eDM 셀 이미지 (이메일 HTML에서 직접 참조) | Supabase JS |
+| **Cloudflare R2** | eDM 셀 이미지·썸네일 (이메일 HTML에서 직접 참조, S3 호환 API) | `lib/r2-edm-storage.ts` (AWS SDK S3 클라이언트) |
 
 ### External (외부 서비스)
 
@@ -71,8 +71,8 @@ flowchart TB
 - **Prisma**: PostgreSQL ORM, `DATABASE_URL`로 Supabase 연결
 - **NextAuth**: 세션(JWT), Credentials Provider, Google Provider
 - **backblaze-b2**: B2 버킷 업로드/다운로드
-- **@supabase/supabase-js**: Storage 업로드 (eDM), `SUPABASE_SERVICE_ROLE_KEY` 사용
+- **@aws-sdk/client-s3, @aws-sdk/s3-request-presigner**: Cloudflare R2 (eDM) 업로드/삭제 및 Presigned URL 생성
 
 ## CDN
 
-Vercel이 기본 제공하는 Edge Network를 통해 정적 에셋(JS, CSS, 이미지)과 Next.js 이미지 최적화(`next/image`)가 CDN으로 제공됩니다. B2와 Supabase Storage에 업로드된 파일은 각 서비스의 public URL로 직접 접근합니다.
+Vercel이 기본 제공하는 Edge Network를 통해 정적 에셋(JS, CSS, 이미지)과 Next.js 이미지 최적화(`next/image`)가 CDN으로 제공됩니다. B2와 Cloudflare R2에 업로드된 파일은 각 서비스의 public URL 또는 Presigned URL로 접근합니다.
