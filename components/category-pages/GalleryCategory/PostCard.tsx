@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface PostImage {
   url: string
@@ -97,17 +98,6 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
     }
   }
 
-  // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url || url === '/placeholder.png') {
-      return '/placeholder.png'
-    }
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
-
   // 게시물의 모든 이미지 가져오기
   const getAllImages = (): PostImage[] => {
     let images: PostImage[] = []
@@ -143,7 +133,7 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
     if (allImages.length > 0) {
       allImages.forEach((image) => {
         const img = new window.Image()
-        const imageUrl = getImageSrc(image.url)
+        const imageUrl = getB2ImageSrc(image.url)
         img.src = imageUrl
       })
     }
@@ -198,7 +188,7 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
         setImageLoaded(true) // 에러가 나도 로드 상태로 표시
       }
     }
-    img.src = getImageSrc(displayImageUrl)
+    img.src = getB2ImageSrc(displayImageUrl)
 
     // cleanup 함수: 컴포넌트가 언마운트되거나 URL이 변경되면 취소
     return () => {
@@ -259,9 +249,10 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
         )}
         {/* 메인 이미지 */}
         <Image
-          src={getImageSrc(displayImageUrl)}
+          src={getB2ImageSrc(displayImageUrl)}
           alt={post.title}
           fill
+          unoptimized={isB2WorkerUrl(getB2ImageSrc(displayImageUrl))}
           className={`object-cover transition-all duration-300 group-hover:brightness-50 ${
             !imageLoaded ? 'opacity-0' : 'opacity-100'
           }`}
@@ -270,10 +261,6 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
             setImageLoaded(true)
           }}
           onError={() => {
-            setImageLoaded(true)
-          }}
-          onLoadingComplete={() => {
-            // 추가 안전장치: 로딩 완료 시 확실히 상태 업데이트
             setImageLoaded(true)
           }}
           sizes="285px" // 카드 너비에 맞춤

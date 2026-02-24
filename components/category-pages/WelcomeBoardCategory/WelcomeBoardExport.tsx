@@ -10,6 +10,7 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import type { WelcomeBoardTemplate, UserEditData, ExportFormat, TemplateConfig } from '@/lib/welcomeboard-schemas'
 import { generateFileName } from '@/lib/welcomeboard-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface WelcomeBoardExportProps {
   template: WelcomeBoardTemplate
@@ -83,13 +84,7 @@ export function WelcomeBoardExport({
   }
 
   // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url) return ''
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => (url ? getB2ImageSrc(url) : '')
 
   // 내보내기 전용 캔버스 생성 및 캡처
   const captureCanvas = useCallback(

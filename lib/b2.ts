@@ -82,37 +82,33 @@ export async function uploadFile(
       throw new Error('파일 업로드에 실패했습니다.')
     }
 
-    // 공개 URL 생성
-    // B2_ENDPOINT가 설정되어 있으면 사용, 없으면 업로드 URL에서 추출
-    let endpoint = process.env.B2_ENDPOINT
-    if (!endpoint) {
-      // 업로드 URL에서 엔드포인트 추출
-      const uploadUrlStr = uploadUrl.data.uploadUrl
-      const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
-      if (match) {
-        endpoint = `https://${match[1]}`
-      } else {
-        // 기본 패턴으로 추출 시도 (B2 네이티브 엔드포인트)
-        const fileIdMatch = uploadUrlStr.match(/f(\d+)/)
-        if (fileIdMatch) {
-          endpoint = `https://f${fileIdMatch[1]}.backblazeb2.com`
+    // 공개 URL 생성: B2_PUBLIC_URL(Worker 등)이 있으면 경로만 사용(버킷 이름 제외). Worker가 단일 버킷으로 경로만 받는 경우 대응.
+    const publicBase = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
+    let fileUrl: string
+    if (publicBase) {
+      fileUrl = `${publicBase}/${fileName}`
+    } else {
+      let endpoint = process.env.B2_ENDPOINT
+      if (!endpoint) {
+        const uploadUrlStr = uploadUrl.data.uploadUrl
+        const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
+        if (match) {
+          endpoint = `https://${match[1]}`
         } else {
-          throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
+          const fileIdMatch = uploadUrlStr.match(/f(\d+)/)
+          if (fileIdMatch) {
+            endpoint = `https://f${fileIdMatch[1]}.backblazeb2.com`
+          } else {
+            throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
+          }
         }
       }
-    }
-
-    // 엔드포인트에서 마지막 슬래시 제거
-    endpoint = endpoint.replace(/\/$/, '')
-    
-    // S3 호환 엔드포인트인지 확인 (s3.로 시작하는 경우)
-    let fileUrl: string
-    if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
-      // S3 호환 엔드포인트: https://s3.{region}.backblazeb2.com/{bucketName}/{fileName}
-      fileUrl = `${endpoint}/${bucketName}/${fileName}`
-    } else {
-      // B2 네이티브 엔드포인트: https://f{fileId}.backblazeb2.com/file/{bucketName}/{fileName}
-      fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
+      endpoint = endpoint.replace(/\/$/, '')
+      if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
+        fileUrl = `${endpoint}/${bucketName}/${fileName}`
+      } else {
+        fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
+      }
     }
 
     return {
@@ -215,7 +211,7 @@ export async function deleteFileByUrl(fileUrl: string): Promise<void> {
     throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
   }
 
-  // B2 파일 URL에서 파일 경로 추출
+  // B2 파일 URL에서 파일 경로 추출 (B2 네이티브, S3 호환, Worker URL 형식 지원)
   let filePath = ''
   if (fileUrl.includes('/file/')) {
     // B2 네이티브 URL 형식
@@ -224,12 +220,12 @@ export async function deleteFileByUrl(fileUrl: string): Promise<void> {
       filePath = match[1]
     }
   } else {
-    // S3 호환 URL 형식
     const urlObj = new URL(fileUrl)
     const pathParts = urlObj.pathname.split('/').filter(Boolean)
-    if (pathParts.length > 1) {
-      // 첫 번째는 버킷 이름, 나머지는 파일 경로
+    if (pathParts.length >= 1 && pathParts[0] === bucketName) {
       filePath = pathParts.slice(1).join('/')
+    } else if (pathParts.length >= 1) {
+      filePath = pathParts.join('/')
     }
   }
 
@@ -259,6 +255,7 @@ export async function deleteFileByUrl(fileUrl: string): Promise<void> {
   })
 }
 
+/** B2 네이티브, S3 호환, Worker URL 형식에서 B2 객체 키(파일 경로) 추출 */
 function getFilePathFromB2Url(fileUrl: string): string {
   let filePath = ''
   if (fileUrl.includes('/file/')) {
@@ -267,9 +264,27 @@ function getFilePathFromB2Url(fileUrl: string): string {
   } else {
     const urlObj = new URL(fileUrl)
     const pathParts = urlObj.pathname.split('/').filter(Boolean)
-    if (pathParts.length > 1) filePath = pathParts.slice(1).join('/')
+    const bucketName = process.env.B2_BUCKET_NAME
+    // URL에 버킷 이름이 첫 세그먼트로 있으면 제외하고 나머지가 키. 없으면 전체 경로가 키(Worker 단일 버킷 형식).
+    if (pathParts.length >= 1 && bucketName && pathParts[0] === bucketName) {
+      filePath = pathParts.slice(1).join('/')
+    } else if (pathParts.length >= 1) {
+      filePath = pathParts.join('/')
+    }
   }
   return filePath
+}
+
+/**
+ * B2 스토리지 URL 여부 (직접 B2 URL 또는 Worker 공개 URL)
+ * API 라우트에서 B2 다운로드/썸네일 생성 여부 판별 시 사용
+ */
+export function isB2StorageUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false
+  if (url.includes('backblazeb2.com')) return true
+  const publicUrl = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
+  if (publicUrl && url.startsWith(publicUrl)) return true
+  return false
 }
 
 /**
@@ -381,26 +396,25 @@ export async function getPresignedUploadUrl(
     throw new Error('B2 업로드 URL을 가져오는데 실패했습니다.')
   }
 
-  // 파일 URL 생성 (서버에서 생성하여 반환)
-  let endpoint = process.env.B2_ENDPOINT
-  if (!endpoint) {
-    // 업로드 URL에서 엔드포인트 추출
-    const uploadUrlStr = uploadUrl.data.uploadUrl
-    const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
-    if (match) {
-      endpoint = `https://${match[1]}`
-    } else {
-      throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
-    }
-  }
-
-  endpoint = endpoint.replace(/\/$/, '')
-  
+  // 파일 URL 생성: B2_PUBLIC_URL이 있으면 경로만(버킷 이름 제외)
+  const publicBase = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
   let fileUrl: string
-  if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
-    fileUrl = `${endpoint}/${bucketName}/${fileName}`
+  if (publicBase) {
+    fileUrl = `${publicBase}/${fileName}`
   } else {
-    fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
+    let endpoint = process.env.B2_ENDPOINT
+    if (!endpoint) {
+      const uploadUrlStr = uploadUrl.data.uploadUrl
+      const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
+      if (match) endpoint = `https://${match[1]}`
+      else throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
+    }
+    endpoint = endpoint.replace(/\/$/, '')
+    if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
+      fileUrl = `${endpoint}/${bucketName}/${fileName}`
+    } else {
+      fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
+    }
   }
 
   return {

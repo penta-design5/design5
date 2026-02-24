@@ -3,6 +3,7 @@
 import { forwardRef, useMemo } from 'react'
 import Image from 'next/image'
 import type { CardTemplate, CardTemplateConfig, CardUserEditData } from '@/lib/card-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface CardCanvasProps {
   template: CardTemplate
@@ -15,10 +16,7 @@ interface CardCanvasProps {
 
 function getImageSrc(url: string) {
   if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
+  return getB2ImageSrc(url)
 }
 
 function getFontWeight(weight: string): number {

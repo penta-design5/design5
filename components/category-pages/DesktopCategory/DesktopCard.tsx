@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 const CARD_WIDTH = 320
 const CARD_HEIGHT = 200
@@ -17,14 +18,6 @@ interface DesktopCardProps {
   onEdit?: (wallpaper: DesktopWallpaperPost) => void
   onDelete?: (wallpaperId: string) => void
   showActions?: boolean
-}
-
-const getImageSrc = (url: string) => {
-  if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
 }
 
 export function DesktopCard({
@@ -51,7 +44,7 @@ export function DesktopCard({
       const img = new window.Image()
       img.onload = () => setImageLoaded(true)
       img.onerror = () => setImageLoaded(true)
-      img.src = getImageSrc(thumbnailUrl)
+      img.src = getB2ImageSrc(thumbnailUrl)
       if (img.complete && img.naturalHeight > 0) setImageLoaded(true)
     }
   }, [thumbnailUrl])
@@ -78,9 +71,10 @@ export function DesktopCard({
               <Skeleton className="absolute inset-0 w-full h-full" />
             )}
             <Image
-              src={getImageSrc(thumbnailUrl)}
+              src={getB2ImageSrc(thumbnailUrl)}
               alt={wallpaper.title}
               fill
+              unoptimized={isB2WorkerUrl(getB2ImageSrc(thumbnailUrl))}
               sizes={`${CARD_WIDTH}px`}
               className={`object-cover transition-opacity duration-300 ${
                 !imageLoaded ? 'opacity-0' : 'opacity-100'

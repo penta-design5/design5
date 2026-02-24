@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { CardTemplateConfig, CardTextElement, CardLogoArea } from '@/lib/card-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface CardElementEditorProps {
   config: CardTemplateConfig
@@ -53,10 +54,7 @@ interface CardElementEditorProps {
 function getImageSrc(url: string | null) {
   if (!url) return ''
   if (url.startsWith('blob:')) return url
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
+  return getB2ImageSrc(url)
 }
 
 function getFontWeight(weight: string): number {

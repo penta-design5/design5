@@ -27,6 +27,7 @@ import { z } from 'zod'
 import { Loader2, X, File } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 const postSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
@@ -516,11 +517,10 @@ export function PostUploadDialog({
                         className="relative aspect-square border rounded-md overflow-hidden bg-muted group"
                       >
                         <Image
-                          src={image.url.startsWith('http') && image.url.includes('backblazeb2.com')
-                            ? `/api/posts/images?url=${encodeURIComponent(image.url)}`
-                            : image.url}
+                          src={getB2ImageSrc(image.url)}
                           alt={image.name}
                           fill
+                          unoptimized={isB2WorkerUrl(getB2ImageSrc(image.url))}
                           className="object-cover"
                           sizes="(max-width: 768px) 33vw, 150px"
                         />

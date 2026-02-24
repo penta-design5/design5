@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import sharp from 'sharp'
 import { updateCardTemplateSchema } from '@/lib/card-schemas'
-import { deleteFileByUrl, downloadFile, uploadFile } from '@/lib/b2'
+import { deleteFileByUrl, downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import type { BackgroundImageItem } from '@/lib/card-schemas'
 
 interface RouteParams {
@@ -18,7 +18,7 @@ function getB2UrlsFromBackgroundImages(images: unknown): string[] {
   return images
     .filter((item): item is BackgroundImageItem => item && typeof item === 'object' && 'url' in item)
     .map((item) => item.url)
-    .filter((url) => typeof url === 'string' && url.includes('backblazeb2.com'))
+    .filter((url) => typeof url === 'string' && isB2StorageUrl(url))
 }
 
 /** 첫 배경 이미지로부터 썸네일 생성 후 B2 업로드 (eDM 방식: 318×167) */
@@ -26,7 +26,7 @@ async function generateCardThumbnail(
   firstImageUrl: string,
   templateId: string
 ): Promise<string | null> {
-  if (!firstImageUrl.includes('backblazeb2.com')) return null
+  if (!isB2StorageUrl(firstImageUrl)) return null
   try {
     const { fileBuffer } = await downloadFile(firstImageUrl)
     const scaled = await sharp(fileBuffer)
@@ -153,7 +153,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const thumbUrl = await generateCardThumbnail(newImages[0].url, id)
       if (thumbUrl) updateData.thumbnailUrl = thumbUrl
       const existingThumb = existingTemplate.thumbnailUrl
-      if (existingThumb && existingThumb.includes('backblazeb2.com')) {
+      if (existingThumb && isB2StorageUrl(existingThumb)) {
         try {
           await deleteFileByUrl(existingThumb)
         } catch (e) {
@@ -224,7 +224,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       }
     }
     const thumbUrl = existingTemplate.thumbnailUrl
-    if (thumbUrl && thumbUrl.includes('backblazeb2.com')) {
+    if (thumbUrl && isB2StorageUrl(thumbUrl)) {
       try {
         await deleteFileByUrl(thumbUrl)
       } catch (e) {

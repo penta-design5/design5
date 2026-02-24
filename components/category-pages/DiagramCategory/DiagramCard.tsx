@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Maximize2 } from 'lucide-react'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface DiagramCardProps {
   diagram: {
@@ -47,7 +48,7 @@ export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
       img.onerror = () => {
         setImageLoaded(true)
       }
-      img.src = getImageSrc(diagram.thumbnailUrl)
+      img.src = getB2ImageSrc(diagram.thumbnailUrl)
 
       // 이미 로드된 경우 즉시 상태 업데이트
       if (img.complete && img.naturalHeight > 0) {
@@ -57,15 +58,7 @@ export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
   }, [diagram.thumbnailUrl])
 
   // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url || url === '/placeholder.png') {
-      return '/placeholder.png'
-    }
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => getB2ImageSrc(url)
 
   const thumbnailSrc = diagram.thumbnailUrl ? getImageSrc(diagram.thumbnailUrl) : null
 
@@ -81,6 +74,7 @@ export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
               src={thumbnailSrc}
               alt={diagram.title}
               fill
+              unoptimized={isB2WorkerUrl(thumbnailSrc)}
               className={`object-contain transition-opacity duration-300 ${
                 !imageLoaded ? 'opacity-0' : 'opacity-100'
               }`}
@@ -89,9 +83,6 @@ export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
               onError={() => {
                 console.error('Image load error for:', diagram.thumbnailUrl)
                 console.error('Proxied URL:', thumbnailSrc)
-                setImageLoaded(true)
-              }}
-              onLoadingComplete={() => {
                 setImageLoaded(true)
               }}
             />

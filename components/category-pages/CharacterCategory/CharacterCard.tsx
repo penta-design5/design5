@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface PostImage {
   url: string
@@ -91,15 +92,7 @@ export function CharacterCard({
   const imageInfo = getFirstImageInfo()
 
   // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url || url === '/placeholder.png') {
-      return '/placeholder.png'
-    }
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => getB2ImageSrc(url)
 
   // 이미지 URL이 변경되면 로드 상태 리셋하고 이미 로드된 이미지인지 확인
   useEffect(() => {

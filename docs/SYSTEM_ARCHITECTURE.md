@@ -6,23 +6,23 @@
 
 ```mermaid
 flowchart TB
-  subgraph client [Client]
+  subgraph client["Client"]
     Browser[Browser]
   end
 
-  subgraph vercel [Vercel Edge/Serverless]
-    NextJS[Next.js App]
+  subgraph vercel["Vercel Edge/Serverless"]
+    NextJS["Next.js App"]
     API[API Routes]
     Middleware[Middleware]
   end
 
-  subgraph data [Data Layer]
+  subgraph data["Data Layer"]
     SupabaseDB[(Supabase PostgreSQL)]
     B2[Backblaze B2]
-    R2[Cloudflare R2 - eDM]
+    R2["Cloudflare R2 eDM"]
   end
 
-  subgraph external [External]
+  subgraph external["External"]
     GoogleOAuth[Google OAuth]
   end
 
@@ -32,10 +32,10 @@ flowchart TB
   NextJS --> API
   API -->|Prisma| SupabaseDB
   API -->|uploadFile| B2
-  API -->|uploadEdmFile (S3 API)| R2
-  API -->|Credentials/Google| GoogleOAuth
+  API -->|uploadEdmFile S3 API| R2
+  API -->|Credentials Google| GoogleOAuth
   B2 -->|public URL| Browser
-  R2 -->|public / presigned URL| Browser
+  R2 -->|public presigned URL| Browser
 ```
 
 ## 레이어별 역할

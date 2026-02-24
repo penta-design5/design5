@@ -12,14 +12,9 @@ import type {
 import { getCalendarNaturalSize, toCalendarRgba } from '@/lib/desktop-schemas'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
 import { DesktopCalendar } from '@/components/category-pages/DesktopCategory/DesktopCalendar'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
-const getImageSrc = (url: string) => {
-  if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
-}
+const getImageSrc = (url: string) => (url ? getB2ImageSrc(url) : '')
 
 interface DesktopCanvasProps {
   wallpaper: DesktopWallpaperPost

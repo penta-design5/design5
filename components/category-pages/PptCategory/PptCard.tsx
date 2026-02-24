@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface Post {
   id: string
@@ -37,38 +38,30 @@ export function PptCard({
   const [downloading, setDownloading] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const imageUrlRef = useRef<string | null>(null)
+  const thumbnailSrc = post.thumbnailUrl ? getB2ImageSrc(post.thumbnailUrl) : null
 
-  // thumbnailUrl이 변경될 때만 imageLoaded 상태 초기화
-  // 이미 로드된 이미지인지 확인하여 불필요한 리셋 방지
+  // thumbnailSrc가 변경될 때만 imageLoaded 상태 초기화
   useEffect(() => {
-    if (!post.thumbnailUrl) {
+    if (!thumbnailSrc || thumbnailSrc === '/placeholder.png') {
       setImageLoaded(false)
       imageUrlRef.current = null
       return
     }
 
-    // 이미지 URL이 변경된 경우에만 리셋
-    if (imageUrlRef.current !== post.thumbnailUrl) {
-      imageUrlRef.current = post.thumbnailUrl
+    if (imageUrlRef.current !== thumbnailSrc) {
+      imageUrlRef.current = thumbnailSrc
       setImageLoaded(false)
 
-      // 이미 로드된 이미지인지 확인 (브라우저 캐시)
       const img = new window.Image()
-      img.onload = () => {
-        setImageLoaded(true)
-      }
-      img.onerror = () => {
-        // 에러가 발생해도 로딩 상태는 true로 설정하여 Skeleton이 계속 표시되지 않도록
-        setImageLoaded(true)
-      }
-      img.src = post.thumbnailUrl
+      img.onload = () => setImageLoaded(true)
+      img.onerror = () => setImageLoaded(true)
+      img.src = thumbnailSrc
 
-      // 이미 로드된 경우 즉시 상태 업데이트
       if (img.complete && img.naturalHeight > 0) {
         setImageLoaded(true)
       }
     }
-  }, [post.thumbnailUrl])
+  }, [thumbnailSrc])
 
   // PPT 프록시 URL 생성
   const getProxyUrl = (fileUrl: string | null | undefined) => {
@@ -138,25 +131,22 @@ export function PptCard({
     >
       {/* 썸네일 이미지 또는 FileArchive 아이콘 */}
       <div className="flex-1 relative bg-muted overflow-hidden">
-        {post.thumbnailUrl ? (
+        {thumbnailSrc && thumbnailSrc !== '/placeholder.png' ? (
           <>
             {!imageLoaded && (
               <Skeleton className="absolute inset-0 w-full h-full" />
             )}
             <Image
-              src={post.thumbnailUrl}
+              src={thumbnailSrc}
               alt={post.title}
               fill
               sizes="320px"
+              unoptimized={isB2WorkerUrl(thumbnailSrc)}
               className={`object-cover transition-opacity duration-300 ${
                 !imageLoaded ? 'opacity-0' : 'opacity-100'
               }`}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageLoaded(true)}
-              onLoadingComplete={() => {
-                // 추가 안전장치: 로딩 완료 시 확실히 상태 업데이트
-                setImageLoaded(true)
-              }}
             />
           </>
         ) : (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { updateTemplateSchema } from '@/lib/welcomeboard-schemas'
-import { deleteFileByUrl } from '@/lib/b2'
+import { deleteFileByUrl, isB2StorageUrl } from '@/lib/b2'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -86,7 +86,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const newBackgroundUrl = validationResult.data.backgroundUrl
     if (newBackgroundUrl && existingTemplate.backgroundUrl !== newBackgroundUrl) {
       // 기존 배경 이미지가 B2 URL이면 삭제
-      if (existingTemplate.backgroundUrl?.includes('backblazeb2.com')) {
+      if (existingTemplate.backgroundUrl && isB2StorageUrl(existingTemplate.backgroundUrl)) {
         try {
           await deleteFileByUrl(existingTemplate.backgroundUrl)
         } catch (deleteError) {
@@ -151,7 +151,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // 템플릿 삭제 전 B2에서 배경 이미지 삭제
-    if (existingTemplate.backgroundUrl?.includes('backblazeb2.com')) {
+    if (existingTemplate.backgroundUrl && isB2StorageUrl(existingTemplate.backgroundUrl)) {
       try {
         await deleteFileByUrl(existingTemplate.backgroundUrl)
       } catch (deleteError) {

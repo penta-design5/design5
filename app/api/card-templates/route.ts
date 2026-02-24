@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import sharp from 'sharp'
 import { createCardTemplateSchema } from '@/lib/card-schemas'
-import { downloadFile, uploadFile } from '@/lib/b2'
+import { downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import type { BackgroundImageItem } from '@/lib/card-schemas'
 
 const CARD_THUMB_WIDTH = 318
@@ -13,7 +13,7 @@ async function generateCardThumbnail(
   firstImageUrl: string,
   templateId: string
 ): Promise<string | null> {
-  if (!firstImageUrl.includes('backblazeb2.com')) return null
+  if (!isB2StorageUrl(firstImageUrl)) return null
   try {
     const { fileBuffer } = await downloadFile(firstImageUrl)
     const scaled = await sharp(fileBuffer)

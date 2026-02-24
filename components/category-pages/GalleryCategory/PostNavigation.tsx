@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface NavigationPost {
   id: string
@@ -107,13 +108,9 @@ export function PostNavigation({
     }
   }
 
-  // Backblaze B2 URL인 경우 프록시를 통해 제공
   const getThumbnailSrc = (url: string | null) => {
     if (!url) return null
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
+    return getB2ImageSrc(url)
   }
 
   if (allPosts.length === 0) {
@@ -162,6 +159,7 @@ export function PostNavigation({
                     src={getThumbnailSrc(post.thumbnailUrl) || '/placeholder.png'}
                     alt={post.title}
                     fill
+                    unoptimized={isB2WorkerUrl(getThumbnailSrc(post.thumbnailUrl) || '')}
                     className="object-cover"
                     sizes="80px"
                     loading="lazy"
@@ -236,6 +234,7 @@ export function PostNavigation({
                   src={getThumbnailSrc(post.thumbnailUrl) || '/placeholder.png'}
                   alt={post.title}
                   fill
+                  unoptimized={isB2WorkerUrl(getThumbnailSrc(post.thumbnailUrl) || '')}
                   className="object-cover"
                   sizes="96px"
                   loading="lazy"

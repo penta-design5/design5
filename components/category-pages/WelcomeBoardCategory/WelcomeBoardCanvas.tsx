@@ -3,6 +3,7 @@
 import { forwardRef, useMemo } from 'react'
 import Image from 'next/image'
 import type { TemplateConfig, UserEditData, WelcomeBoardTemplate } from '@/lib/welcomeboard-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface WelcomeBoardCanvasProps {
   template: WelcomeBoardTemplate
@@ -85,13 +86,7 @@ export const WelcomeBoardCanvas = forwardRef<HTMLDivElement, WelcomeBoardCanvasP
     }
 
     // Backblaze B2 URL인 경우 프록시를 통해 제공
-    const getImageSrc = (url: string) => {
-      if (!url) return ''
-      if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-        return `/api/posts/images?url=${encodeURIComponent(url)}`
-      }
-      return url
-    }
+    const getImageSrc = (url: string) => (url ? getB2ImageSrc(url) : '')
 
     return (
       <div

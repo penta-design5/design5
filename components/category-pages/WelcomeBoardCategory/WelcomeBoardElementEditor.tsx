@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { TemplateConfig, TextElement, LogoArea } from '@/lib/welcomeboard-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface WelcomeBoardElementEditorProps {
   config: TemplateConfig
@@ -87,10 +88,7 @@ export function WelcomeBoardElementEditor({
   const getImageSrc = (url: string | null) => {
     if (!url) return ''
     if (url.startsWith('blob:')) return url
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
+    return getB2ImageSrc(url)
   }
 
   // 폰트 두께를 CSS 값으로 변환

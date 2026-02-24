@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { changeSvgColors, changeCiColorSet, changeAllSvgColors } from '@/lib/svg-utils'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface PostImage {
   url: string
@@ -96,15 +97,7 @@ export function CiBiCard({
   const imageInfo = getFirstImageInfo()
 
   // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url || url === '/placeholder.png') {
-      return '/placeholder.png'
-    }
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => getB2ImageSrc(url)
 
   // 썸네일 크기 측정 (선택 전에 한 번만)
   useEffect(() => {

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { ZoomIn } from 'lucide-react'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface PostImage {
   url: string
@@ -56,12 +57,7 @@ export function ImageGallery({ images }: ImageGalleryProps) {
   const sortedImages = [...validImages].sort((a, b) => (a.order || 0) - (b.order || 0))
 
   // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => getB2ImageSrc(url)
 
   // 이미지 크기 미리 로드 - early return 이전에 배치
   useEffect(() => {
@@ -158,6 +154,7 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     alt={image.name || `Image ${index + 1}`}
                     width={dimensions.width}
                     height={dimensions.height}
+                    unoptimized={isB2WorkerUrl(getImageSrc(image.url))}
                     className={cn(
                       'object-contain transition-opacity duration-300',
                       !isLoaded ? 'opacity-0' : 'opacity-100',
@@ -167,7 +164,6 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     loading={index === 0 ? 'eager' : 'lazy'}
                     priority={index === 0}
                     onLoad={() => handleImageLoad(index)}
-                    onLoadingComplete={() => handleImageLoad(index)}
                     sizes={isExpanded ? '100vw' : '600px'}
                   />
                 </div>
@@ -184,6 +180,7 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     src={getImageSrc(image.url)}
                     alt={image.name || `Image ${index + 1}`}
                     fill
+                    unoptimized={isB2WorkerUrl(getImageSrc(image.url))}
                     className={cn(
                       'object-contain transition-opacity duration-300',
                       !isLoaded ? 'opacity-0' : 'opacity-100'
@@ -192,7 +189,6 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     loading={index === 0 ? 'eager' : 'lazy'}
                     priority={index === 0}
                     onLoad={() => handleImageLoad(index)}
-                    onLoadingComplete={() => handleImageLoad(index)}
                     sizes={isExpanded ? '100vw' : '600px'}
                   />
                 </div>

@@ -10,14 +10,9 @@ import type { DesktopEditorData, DesktopElement } from '@/lib/desktop-schemas'
 import { getCalendarNaturalSize, toCalendarRgba } from '@/lib/desktop-schemas'
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth } from 'date-fns'
 import { isKoreanHoliday } from '@/lib/korean-holidays'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
-const getImageSrc = (url: string) => {
-  if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
-}
+const getImageSrc = (url: string) => (url ? getB2ImageSrc(url) : '')
 
 function buildExportCalendar(
   year: number,

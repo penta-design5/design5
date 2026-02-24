@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { deleteFileByUrl, downloadFile, uploadFile } from '@/lib/b2'
+import { deleteFileByUrl, downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import sharp from 'sharp'
 
 interface RouteParams {
@@ -15,7 +15,7 @@ async function generateThumbnailUrl(
   prefix: string
 ): Promise<string | null> {
   const sourceUrl = backgroundUrlWindows || backgroundUrlMac
-  if (!sourceUrl || !sourceUrl.includes('backblazeb2.com')) return null
+  if (!sourceUrl || !isB2StorageUrl(sourceUrl)) return null
 
   try {
     const { fileBuffer } = await downloadFile(sourceUrl)
@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       existing.thumbnailUrl,
       existing.backgroundUrlWindows,
       existing.backgroundUrlMac,
-    ].filter((u): u is string => !!u && u.includes('backblazeb2.com'))
+    ].filter((u): u is string => !!u && isB2StorageUrl(u))
 
     for (const url of urlsToDelete) {
       try {

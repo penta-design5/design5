@@ -10,6 +10,7 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import type { CardTemplate, CardUserEditData, CardTemplateConfig, ExportFormat } from '@/lib/card-schemas'
 import { generateCardFileName } from '@/lib/card-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface CardExportProps {
   template: CardTemplate
@@ -19,10 +20,7 @@ interface CardExportProps {
 
 function getImageSrc(url: string) {
   if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
+  return getB2ImageSrc(url)
 }
 
 function getFontWeight(w: string): number {

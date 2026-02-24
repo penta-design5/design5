@@ -16,6 +16,7 @@ import {
 import { Loader2, Upload, X, Monitor, Laptop } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface DesktopUploadDialogProps {
   open: boolean
@@ -24,13 +25,7 @@ interface DesktopUploadDialogProps {
   wallpaper?: DesktopWallpaperPost | null
 }
 
-const getImageSrc = (url: string) => {
-  if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
-}
+const getImageSrc = (url: string) => (url ? getB2ImageSrc(url) : '')
 
 async function uploadToB2(file: File, prefix: string): Promise<string> {
   const safeName = `wallpaper-${prefix}-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9가-힣._-]/g, '_')}`

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RotateCcw, Link as LinkIcon, Loader2 } from 'lucide-react'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface Post {
   id: string
@@ -60,16 +61,7 @@ export function PropertyPanel({
   const postType = post?.concept || 'CI' // 기본값 CI
   const availableColors = postType === 'CI' ? CI_COLORS : BI_COLORS
 
-  // Backblaze B2 URL인 경우 프록시를 통해 제공
-  const getImageSrc = (url: string) => {
-    if (!url || url === '/placeholder.png') {
-      return '/placeholder.png'
-    }
-    if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-      return `/api/posts/images?url=${encodeURIComponent(url)}`
-    }
-    return url
-  }
+  const getImageSrc = (url: string) => getB2ImageSrc(url)
 
   // 흰색 선택 여부 확인
   const isWhiteSelected = selectedColor === '#FFFFFF' || selectedColor === '#FFF' || selectedColor?.toLowerCase() === 'white'

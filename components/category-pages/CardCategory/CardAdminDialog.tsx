@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { CardElementEditor } from './CardElementEditor'
 import type { CardTemplate, CardTemplateConfig, BackgroundImageItem, CardTextElement, CardLogoArea } from '@/lib/card-schemas'
 import { DEFAULT_CARD_CONFIG } from '@/lib/card-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface CardAdminDialogProps {
   open: boolean
@@ -22,10 +23,7 @@ type BackgroundItemState = { url: string; width: number; height: number; label?:
 
 function getImageSrc(url: string) {
   if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
+  return getB2ImageSrc(url)
 }
 
 export function CardAdminDialog({ open, onClose, onSuccess, template }: CardAdminDialogProps) {

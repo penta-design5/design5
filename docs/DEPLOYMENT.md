@@ -9,7 +9,7 @@
 ## 사전 준비
 
 - **Supabase 프로젝트**: PostgreSQL 데이터베이스
-- **Backblaze B2 버킷**: 이미지/파일 저장 (다이어그램, 게시물 썸네일, PPT ZIP 등)
+- **Backblaze B2 버킷**: 이미지/파일 저장 (다이어그램, 게시물 썸네일, PPT ZIP 등). 버킷을 private으로 두고 Cloudflare Worker로 공개할 경우 `B2_PUBLIC_URL`을 Worker 도메인(예: `https://assets.layerary.com`)으로 설정하세요.
 - **Cloudflare R2 버킷**: eDM 셀 이미지 저장 (이메일 HTML용)
 - **(선택) Google OAuth 클라이언트**: Google 로그인 사용 시
 
@@ -30,6 +30,8 @@
 | `B2_BUCKET_ID` | ✅ | Backblaze B2 |
 | `B2_BUCKET_NAME` | ✅ | Backblaze B2 |
 | `B2_ENDPOINT` | ✅ | Backblaze B2 엔드포인트 |
+| `B2_PUBLIC_URL` | 권장 | B2 공개 URL (예: Cloudflare Worker `https://assets.layerary.com`). 버킷을 private으로 두고 Worker로 서빙할 때 설정. 설정 시 업로드 후 저장되는 fileUrl이 이 주소를 사용합니다. |
+| `NEXT_PUBLIC_B2_PUBLIC_URL` | 선택 | 클라이언트용 B2 공개 URL. `B2_PUBLIC_URL`과 동일하게 두면 Worker URL은 프록시 없이 직접 로드됩니다. |
 | `R2_ACCOUNT_ID` | ✅ | Cloudflare R2 (eDM 이미지) |
 | `R2_ACCESS_KEY_ID` | ✅ | Cloudflare R2 |
 | `R2_SECRET_ACCESS_KEY` | ✅ | Cloudflare R2 |
@@ -83,7 +85,7 @@ eDM(이메일 디렉트 메일)의 셀 이미지와 썸네일은 **Cloudflare R2
 | `R2_ACCESS_KEY_ID` | R2 API 액세스 키 |
 | `R2_SECRET_ACCESS_KEY` | R2 API 시크릿 키 |
 | `R2_BUCKET_NAME` | 버킷 이름 (예: `edms`) |
-| `R2_PUBLIC_URL` | (권장) 공개 액세스 기준 URL. 설정 시 DB에 공개 URL 저장 → 이메일에서 만료 없이 이미지 표시. 미설정 시 Presigned URL(최대 7일) 사용 |
+| `R2_PUBLIC_URL` | (권장) 공개 액세스 기준 URL. 설정 시 DB에 공개 URL 저장 → 이메일에서 만료 없이 이미지 표시. 미설정 시ㅇ Presigned URL(최대 7일) 사용 |
 
 구현: `lib/r2-edm-storage.ts` (AWS SDK S3 호환 클라이언트 사용)
 

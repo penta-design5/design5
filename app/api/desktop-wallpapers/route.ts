@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { downloadFile, uploadFile } from '@/lib/b2'
+import { downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import sharp from 'sharp'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +54,7 @@ async function generateThumbnailUrl(
   prefix: string
 ): Promise<string | null> {
   const sourceUrl = backgroundUrlWindows || backgroundUrlMac
-  if (!sourceUrl || !sourceUrl.includes('backblazeb2.com')) return null
+  if (!sourceUrl || !isB2StorageUrl(sourceUrl)) return null
 
   try {
     const { fileBuffer } = await downloadFile(sourceUrl)

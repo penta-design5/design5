@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Layout, Pencil, Trash2 } from 'lucide-react'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import type { CardTemplate } from '@/lib/card-schemas'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 
 interface CardGalleryProps {
   templates: CardTemplate[]
@@ -23,10 +24,7 @@ const CARD_GAP = 8
 
 function getThumbnailSrc(url: string | null | undefined): string {
   if (!url) return ''
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
-    return `/api/posts/images?url=${encodeURIComponent(url)}`
-  }
-  return url
+  return getB2ImageSrc(url)
 }
 
 export function CardGallery({
