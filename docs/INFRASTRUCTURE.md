@@ -28,6 +28,10 @@ flowchart TB
     Bucket[B2 Bucket]
   end
 
+  subgraph cf [Cloudflare]
+    CFWorker[Worker - assets]
+  end
+
   subgraph r2 [Cloudflare R2]
     R2Bucket[R2 Bucket - eDM]
   end
@@ -38,11 +42,13 @@ flowchart TB
   end
 
   U1 -->|HTTPS| CDN
+  U1 -->|"이미지/파일 URL"| CFWorker
   CDN --> Serverless
   CDN --> Static
   Serverless -->|DATABASE_URL| Pooler
   Pooler --> PgSQL
   Serverless -->|B2 API| Bucket
+  Bucket -.->|"파일 서빙"| CFWorker
   Serverless -->|R2 S3 API| R2Bucket
   Repo -->|push| vercel
   Actions -->|3일마다| Serverless
@@ -76,6 +82,8 @@ flowchart TB
 |----------|------|------------|
 | **B2 Bucket** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_ID`, `B2_BUCKET_NAME`, `B2_ENDPOINT` |
 
+- **Cloudflare Worker (선택)**: Private 버킷일 경우 Cloudflare Worker를 두고 공개 URL(예: https://assets.layerary.com)로 파일을 서빙할 수 있습니다. 이때 `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`을 Worker 도메인으로 설정합니다.
+
 ### Cloudflare R2
 
 | 구성요소 | 설명 | 환경 변수 |
@@ -106,7 +114,7 @@ flowchart LR
     E1[DATABASE_URL]
     E2[DIRECT_URL]
     E3[NEXTAUTH_URL]
-    E4[B2_*]
+    E4["B2_* (B2_PUBLIC_URL 등)"]
     E5[R2_*]
     E6[SUPABASE_*]
   end

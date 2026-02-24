@@ -43,7 +43,8 @@ layerary/
 ├── lib/                          # 유틸 및 설정
 │   ├── auth.ts, auth-helpers.ts  # NextAuth
 │   ├── prisma.ts                 # Prisma 클라이언트
-│   ├── b2.ts                     # Backblaze B2 업로드
+│   ├── b2.ts                     # Backblaze B2 업로드. Worker 사용 시 B2_PUBLIC_URL로 반환 URL 생성
+│   ├── b2-client-url.ts         # 클라이언트용 B2/Worker 이미지 URL 변환 (getB2ImageSrc, isB2WorkerUrl)
 │   ├── supabase.ts, r2-edm-storage.ts
 │   ├── categories.ts             # 카테고리 조회
 │   └── *.ts                      # 스키마, 유틸
@@ -97,6 +98,7 @@ layerary/
 
 2. **업로드**
    - FormData/JSON → API Route → B2 또는 Cloudflare R2(eDM) 업로드 → DB 저장
+   - B2: 서버 경유 업로드(Penta Design 등) 또는 Presigned URL로 브라우저에서 B2 직접 업로드(다른 카테고리, B2 CORS 필요). 반환 URL은 `B2_PUBLIC_URL` 설정 시 Cloudflare Worker 도메인 사용 가능.
 
 3. **검색**
    - Header 검색창 → `GET /api/search?q=...&categorySlug=...` → SearchResultsDialog

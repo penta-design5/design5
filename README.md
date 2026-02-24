@@ -14,7 +14,7 @@ LAYERARY는 펜타시큐리티의 디자인 작업물을 리뷰하고, 필요한
 - **Backend**: Next.js API Routes / Server Actions
 - **Database**: Supabase (PostgreSQL)
 - **ORM**: Prisma
-- **Storage**: Backblaze B2 (이미지/파일), Cloudflare R2 (eDM 셀 이미지)
+- **Storage**: Backblaze B2 (이미지/파일, private 버킷 + Cloudflare Worker 공개 URL 연동 가능), Cloudflare R2 (eDM 셀 이미지)
 - **Auth**: NextAuth.js (Auth.js)
 
 ## 사전 요구사항
@@ -39,7 +39,14 @@ cp env.example.txt .env.local
 ```
 
 필수 환경 변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `B2_*`, `R2_*`(eDM용), `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`  
-자세한 내용은 `env.example.txt`를 참조하세요.
+Worker 사용 시 선택: `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`. 자세한 내용은 `env.example.txt` 및 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참조하세요.
+
+### 이미지/파일 저장소 (Backblaze B2)
+
+게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등은 **Backblaze B2**에 저장됩니다.
+
+- **Private 버킷 + Cloudflare Worker**: B2 버킷을 비공개로 두고 Worker(예: `https://assets.layerary.com`)로 파일을 서빙할 수 있습니다. 이 경우 `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`을 Worker 도메인으로 설정하세요.
+- **Presigned 직접 업로드**: CI/BI, Character, PPT 등 일부 카테고리는 브라우저에서 B2로 직접 업로드합니다. 배포 도메인(예: https://layerary.com)에서 이 업로드를 사용하려면 `npm run b2:setup-cors`를 한 번 실행해 B2 버킷 CORS를 설정해야 합니다. 자세한 내용은 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참조하세요.
 
 ### eDM 저장소 (Cloudflare R2)
 

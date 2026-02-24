@@ -19,6 +19,7 @@ flowchart TB
   subgraph data["Data Layer"]
     SupabaseDB[(Supabase PostgreSQL)]
     B2[Backblaze B2]
+    CFWorker[Cloudflare Worker]
     R2["Cloudflare R2 eDM"]
   end
 
@@ -34,7 +35,8 @@ flowchart TB
   API -->|uploadFile| B2
   API -->|uploadEdmFile S3 API| R2
   API -->|Credentials Google| GoogleOAuth
-  B2 -->|public URL| Browser
+  B2 -.->|"파일 서빙"| CFWorker
+  CFWorker -->|public URL| Browser
   R2 -->|public presigned URL| Browser
 ```
 
@@ -59,7 +61,7 @@ flowchart TB
 | 구성요소 | 용도 | 접근 방식 |
 |----------|------|------------|
 | **Supabase PostgreSQL** | 사용자, 게시물, 카테고리, 다이어그램, eDM 등 메타데이터 | Prisma ORM |
-| **Backblaze B2** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등 | B2 SDK |
+| **Backblaze B2** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등. Private 버킷 시 Cloudflare Worker(예: assets.layerary.com)로 공개 URL 제공 | B2 SDK. `lib/b2.ts`, `lib/b2-client-url.ts` 참조 |
 | **Cloudflare R2** | eDM 셀 이미지·썸네일 (이메일 HTML에서 직접 참조, S3 호환 API) | `lib/r2-edm-storage.ts` (AWS SDK S3 클라이언트) |
 
 ### External (외부 서비스)
@@ -75,4 +77,4 @@ flowchart TB
 
 ## CDN
 
-Vercel이 기본 제공하는 Edge Network를 통해 정적 에셋(JS, CSS, 이미지)과 Next.js 이미지 최적화(`next/image`)가 CDN으로 제공됩니다. B2와 Cloudflare R2에 업로드된 파일은 각 서비스의 public URL 또는 Presigned URL로 접근합니다.
+Vercel이 기본 제공하는 Edge Network를 통해 정적 에셋(JS, CSS, 이미지)과 Next.js 이미지 최적화(`next/image`)가 CDN으로 제공됩니다. B2에 업로드된 파일은 Cloudflare Worker 공개 URL(또는 B2 직접 URL)로, R2 파일은 공개 URL 또는 Presigned URL로 접근합니다.

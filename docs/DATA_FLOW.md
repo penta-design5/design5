@@ -61,6 +61,8 @@ sequenceDiagram
 
 - **인증**: ADMIN 역할 필수
 - **엔드포인트**: `POST /api/posts`, `POST /api/posts/upload` 등
+- **B2 URL**: 저장된 파일 URL은 `B2_PUBLIC_URL` 설정 시 Cloudflare Worker URL(예: https://assets.layerary.com)로 반환되며, 클라이언트는 해당 URL로 이미지를 로드합니다.
+- **Presigned 업로드**: 일부 카테고리(CI/BI, Character, PPT 등)는 Presigned URL로 브라우저에서 B2에 직접 업로드하며, 이 경우 B2 CORS 설정이 필요합니다.
 
 ---
 
@@ -126,4 +128,4 @@ sequenceDiagram
 
 - **인증**: 로그인 필수
 - **엔드포인트**: `POST /api/edm`
-- **스토리지**: Cloudflare R2 (S3 호환 API, `lib/r2-edm-storage.ts`). `R2_PUBLIC_URL` 설정 시 공개 URL(만료 없음), 미설정 시 Presigned URL(최대 7일)
+- **스토리지**: Cloudflare R2 (S3 호환 API, `lib/r2-edm-storage.ts`). `R2_PUBLIC_URL` 설정 시 공개 URL(만료 없음), 미설정 시 Presigned URL(최대 7일). eDM 셀 이미지는 R2, 일반 게시물 이미지는 B2(및 Cloudflare Worker)에 저장됩니다.
