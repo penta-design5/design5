@@ -38,7 +38,29 @@ async function setupCORS() {
 
     // CORS 규칙 설정 (중복 제거)
     const allowedOrigins = new Set<string>(['http://localhost:3000'])
-    
+
+    // 프로덕션 도메인: Presigned 직접 업로드 시 layerary.com에서 CORS 허용 (모든 카테고리 업로드 대응)
+    const productionOrigins = [
+      'https://layerary.com',
+      'https://www.layerary.com',
+    ]
+    productionOrigins.forEach((origin) => {
+      allowedOrigins.add(origin)
+      console.log(`프로덕션 도메인 추가: ${origin}`)
+    })
+
+    // B2_CORS_ORIGINS(쉼표 구분)로 추가 출처 지정 가능
+    const extraOrigins = process.env.B2_CORS_ORIGINS
+    if (extraOrigins) {
+      extraOrigins.split(',').forEach((raw) => {
+        const origin = raw.trim()
+        if (origin) {
+          allowedOrigins.add(origin)
+          console.log(`추가 출처(B2_CORS_ORIGINS): ${origin}`)
+        }
+      })
+    }
+
     // .env.local에서 읽기 (로컬 개발용)
     const localUrl = envLocal.NEXT_PUBLIC_APP_URL
     if (localUrl) {
@@ -74,9 +96,9 @@ async function setupCORS() {
       console.log(`Vercel URL에서 도메인 추가: ${vercelOrigin}`)
     }
     
-    if (allowedOrigins.size === 1) {
-      console.warn('⚠️  Vercel 도메인이 환경 변수에 설정되지 않았습니다.')
-      console.warn('   .env 파일에 NEXT_PUBLIC_APP_URL을 Vercel 도메인으로 설정하세요.')
+    // NEXT_PUBLIC_APP_URL이 프로덕션 URL이 아니어도 layerary.com은 위에서 이미 포함됨
+    if (allowedOrigins.size <= 2) {
+      console.warn('⚠️  추가 출처가 없습니다. 필요 시 .env에 NEXT_PUBLIC_APP_URL 또는 B2_CORS_ORIGINS를 설정하세요.')
     }
     
     // Set을 배열로 변환

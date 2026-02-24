@@ -60,6 +60,22 @@
 
 ---
 
+## Backblaze B2 (CORS – Presigned 직접 업로드)
+
+CI/BI, Character, PPT, 웰컴보드, Wapples, Isign, Damo, Cloudbric 등은 **Presigned URL**로 브라우저에서 B2에 직접 업로드합니다. 배포 도메인(예: https://layerary.com)에서 이 업로드가 동작하려면 **B2 버킷에 CORS**를 설정해야 합니다.
+
+1. 로컬에서 B2 인증 정보가 들어 있는 `.env` / `.env.local`을 준비한 뒤:
+2. 다음 명령을 **한 번** 실행하세요.
+   ```bash
+   npm run b2:setup-cors
+   ```
+3. 스크립트에 **https://layerary.com**, **https://www.layerary.com**이 기본으로 포함됩니다. 적용까지 수 분 걸릴 수 있습니다.
+4. 추가 출처가 필요하면 환경 변수 `B2_CORS_ORIGINS`(쉼표 구분)를 설정한 뒤 같은 명령을 다시 실행하세요.
+
+(Penta Design 갤러리는 서버 경유 업로드(`/api/posts/upload`)를 사용하므로 CORS 없이도 동작합니다.)
+
+---
+
 ## Cloudflare R2 (eDM 이미지)
 
 eDM(이메일 디렉트 메일)의 셀 이미지와 썸네일은 **Cloudflare R2**에 저장됩니다. R2는 S3 호환 API를 사용하며, 이메일 HTML에서 이미지 URL이 오래 유지되어야 하므로 공개 URL 또는 Presigned URL을 사용합니다.
