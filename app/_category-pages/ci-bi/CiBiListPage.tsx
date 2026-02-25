@@ -493,9 +493,9 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {/* 좌측: 게시물 목록 */}
-      <div className="flex-1 pr-[410px] overflow-y-auto">
-        <div className="px-8 pt-16 pb-8">
+      {/* 좌측: 게시물 목록 (모바일에서 좌우 동일 px-8, masonry는 justify-start로 좌측 여백 제거) */}
+      <div className="flex-1 min-w-0 pr-0 md:pr-[410px] overflow-y-auto">
+        <div className="w-full min-w-0 box-border pt-16 pb-8 px-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">{category.name}</h1>
             {isAdmin && (
@@ -505,8 +505,8 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
             )}
           </div>
 
-          {/* 필터 메뉴 */}
-          <div className="flex items-center gap-4 mb-3">
+          {/* 필터 메뉴 (모바일에서 줄바꿈) */}
+          <div className="flex flex-wrap items-center gap-4 mb-3">
             {['ALL', 'CI', 'D.AMO', 'WAPPLES', 'iSIGN', 'Cloudbric', 'etc'].map((filter) => (
               <button
                 key={filter}
@@ -524,11 +524,11 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
 
           {/* 로딩 중 Skeleton 표시 */}
           {loading && posts.length === 0 && (
-            <div ref={containerRef} className="masonry-container justify-center md:justify-start">
+            <div ref={containerRef} className="masonry-container masonry-container--cibi justify-start">
               {Array.from({ length: Math.min(4, Math.max(1, Math.floor((containerRef.current?.offsetWidth || 1200) / (CIBI_CARD_WIDTH + 8)))) }).map((_, colIndex) => (
                 <div key={colIndex} className="masonry-column" style={{ flex: `0 0 ${CIBI_CARD_WIDTH}px`, width: `${CIBI_CARD_WIDTH}px`, gap: '8px' }}>
                   {Array.from({ length: 3 }).map((_, index) => (
-                    <ImageCardSkeleton key={index} width={CIBI_CARD_WIDTH} height={136} />
+                    <ImageCardSkeleton key={index} height={136} className="w-full" />
                   ))}
                 </div>
               ))}
@@ -561,7 +561,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
               }}
               decisionData={columns}
             >
-              <div ref={containerRef} className="masonry-container justify-center md:justify-start">
+              <div ref={containerRef} className="masonry-container masonry-container--cibi justify-start">
                 {columns.map((column, columnIndex) => (
                   <div key={columnIndex} className="masonry-column" style={{ flex: `0 0 ${CIBI_CARD_WIDTH}px`, width: `${CIBI_CARD_WIDTH}px`, gap: '8px' }}>
                     {column.map((post) => (
@@ -599,14 +599,16 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 */}
-      <PropertyPanel
-        post={selectedPost}
-        selectedColor={selectedColor}
-        onColorChange={handleColorChange}
-        onSizeChange={handleSizeChange}
-        onDownload={handleDownload}
-      />
+      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      <div className="hidden md:block">
+        <PropertyPanel
+          post={selectedPost}
+          selectedColor={selectedColor}
+          onColorChange={handleColorChange}
+          onSizeChange={handleSizeChange}
+          onDownload={handleDownload}
+        />
+      </div>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

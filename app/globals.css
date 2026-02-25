@@ -93,6 +93,34 @@
   gap: 10px;
 }
 
+/* CI/BI 목록: 모바일에서 카드 열 100% (부모 px-8로 좌우 동일 여백) */
+@media (max-width: 767px) {
+  .masonry-container--cibi {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .masonry-container--cibi .masonry-column {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
+/* 캐릭터 목록: 모바일에서 masonry가 부모 100% 넘지 않도록, 카드 열 100% */
+@media (max-width: 767px) {
+  .masonry-container--character {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .masonry-container--character .masonry-column {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
 /* 모바일 수평 네비게이션 스크롤바 숨기기 */
 .horizontal-nav-scroll::-webkit-scrollbar {
   display: none;

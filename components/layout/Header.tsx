@@ -118,25 +118,20 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
 
   return (
     <header
-      className={`fixed md:absolute top-0 left-0 md:left-56 z-50 ${
-        isCiBiPage ? 'md:right-[410px]' : 'right-0'
-      } ${
-        isCiBiPage
-          ? 'bg-neutral-50 dark:bg-neutral-900'
-          : ''
+      className={`fixed md:absolute top-0 left-0 md:left-56 z-50 right-0 ${
+        isCiBiPage ? 'md:right-[410px]' : ''
       }`}
-      style={
-        isCiBiPage
-          ? undefined
-          : {
-              backgroundColor:
-                currentTheme === 'dark'
-                  ? 'rgba(13, 13, 13, 0.6)'
-                  : 'rgba(255, 255, 255, 0.6)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            }
-      }
+      style={{
+        backgroundColor: isCiBiPage
+          ? currentTheme === 'dark'
+            ? 'rgba(23, 23, 23, 0.6)' /* neutral-900 계열, 컨텐츠 배경과 조화 */
+            : 'rgba(250, 250, 250, 0.6)' /* neutral-50 계열, CI/BI·ICON·캐릭터·PPT·PDF·Chart 등과 조화 */
+          : currentTheme === 'dark'
+            ? 'rgba(13, 13, 13, 0.6)'
+            : 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
       <div className="flex h-16 items-center justify-between px-8 w-full">
         <div className="flex items-center gap-4 -ml-3">

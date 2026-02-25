@@ -69,7 +69,7 @@ export function PdfUploadZone({ onFileSelect, selectedFile, onFileRemove }: PdfU
   }
 
   return (
-    <div className="flex-1 pr-[410px] overflow-y-auto">
+    <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
       <div className="px-8 pt-16 pb-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">PDF Extractor</h1>

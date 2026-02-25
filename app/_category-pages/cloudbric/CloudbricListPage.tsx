@@ -462,8 +462,8 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {/* 좌측: 게시물 목록 */}
-      <div className="flex-1 pr-[410px] overflow-y-auto">
+      {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
+      <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">{category.name}</h1>
@@ -570,14 +570,16 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 */}
-      <CloudbricPropertyPanel
-        post={selectedPost ? {
-          ...selectedPost,
-          fileUrl: getFileUrl(selectedPost),
-        } : null}
-        onDownload={handleDownload}
-      />
+      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      <div className="hidden md:block">
+        <CloudbricPropertyPanel
+          post={selectedPost ? {
+            ...selectedPost,
+            fileUrl: getFileUrl(selectedPost),
+          } : null}
+          onDownload={handleDownload}
+        />
+      </div>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

@@ -450,8 +450,8 @@ export function IconListPage({ category }: IconListPageProps) {
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {/* 좌측: 게시물 목록 */}
-      <div className="flex-1 pr-[410px] overflow-y-auto">
+      {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
+      <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         {/* 헤더 */}
         <div className="flex-none px-8 pt-16 pb-4 bg-neutral-50 dark:bg-neutral-900">
           <div className="flex items-center justify-between mb-6">
@@ -558,18 +558,20 @@ export function IconListPage({ category }: IconListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 */}
-      <IconPropertyPanel
-        color={color}
-        strokeWidth={strokeWidth}
-        size={size}
-        selectedCount={selectedPostIds.size}
-        onColorChange={setColor}
-        onStrokeWidthChange={setStrokeWidth}
-        onSizeChange={setSize}
-        onReset={handleReset}
-        onDownload={handlePropertyPanelDownload}
-      />
+      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      <div className="hidden md:block">
+        <IconPropertyPanel
+          color={color}
+          strokeWidth={strokeWidth}
+          size={size}
+          selectedCount={selectedPostIds.size}
+          onColorChange={setColor}
+          onStrokeWidthChange={setStrokeWidth}
+          onSizeChange={setSize}
+          onReset={handleReset}
+          onDownload={handlePropertyPanelDownload}
+        />
+      </div>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

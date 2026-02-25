@@ -167,20 +167,20 @@ export function PptZipSection({ categorySlug }: PptZipSectionProps) {
   }
 
   return (
-    <div className="p-4 border rounded-lg bg-card flex justify-start items-center gap-2">
+    <div className="p-4 border rounded-lg bg-card flex-row md:flex flex-wrap justify-start items-center gap-2">
       <div className="flex items-center gap-2">
         <FileArchive className="h-5 w-5 text-muted-foreground" />
         <h3 className="font-semibold">Pretendard 폰트 : </h3>
       </div>
 
       {zipInfo ? (
-        <div className="flex flex-1 justify-between items-center gap-2">
-          <div className="text-sm flex items-center gap-2">
-            <p className="font-medium">{zipInfo.fileName}</p>
-            <p className="text-muted-foreground">{formatFileSize(zipInfo.fileSize)}</p>
+        <div className="flex flex-wrap flex-1 min-w-0 justify-between items-center gap-2">
+          <div className="text-sm flex flex-wrap items-center gap-2 min-w-0">
+            <p className="font-medium break-words">{zipInfo.fileName}</p>
+            <p className="text-muted-foreground shrink-0">{formatFileSize(zipInfo.fileSize)}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button
               variant="default"
               size="sm"
@@ -222,8 +222,8 @@ export function PptZipSection({ categorySlug }: PptZipSectionProps) {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 justify-between items-center gap-2">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-wrap flex-1 min-w-0 justify-between items-center gap-2">
+          <p className="text-sm text-muted-foreground min-w-0">
             {isAdmin
               ? 'ZIP 파일이 없습니다. 파일을 업로드해주세요.'
               : 'ZIP 파일이 없습니다.'}

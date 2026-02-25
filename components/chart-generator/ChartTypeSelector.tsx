@@ -25,7 +25,7 @@ export function ChartTypeSelector({ selectedType, onTypeChange }: ChartTypeSelec
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">차트 타입</label>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {chartTypes.map(({ type, label, icon: Icon }) => (
           <Button
             key={type}

@@ -232,8 +232,8 @@ export function GalleryListPage({ category }: GalleryListPageProps) {
         )}
       </div>
 
-      {/* 필터 메뉴 */}
-      <div className="flex items-center gap-4 mb-3">
+      {/* 필터 메뉴 (모바일에서 줄바꿈) */}
+      <div className="flex flex-wrap items-center gap-4 mb-3">
         {yearFilters.map((filter) => (
           <button
             key={filter}

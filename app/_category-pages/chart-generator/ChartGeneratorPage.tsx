@@ -54,8 +54,8 @@ export function ChartGeneratorPage() {
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {/* 좌측: 차트 생성 영역 */}
-      <div className="flex-1 pr-[410px] overflow-y-auto">
+      {/* 좌측: 차트 생성 영역 (모바일에서는 우측 패널 없음 → pr-0) */}
+      <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
           <div className="mb-6">
             <h1 className="text-3xl font-bold">Chart Generator</h1>
@@ -102,8 +102,8 @@ export function ChartGeneratorPage() {
         </div>
       </div>
 
-      {/* 우측: 설정 패널 */}
-      <div className="fixed right-0 top-0 bottom-0">
+      {/* 우측: 설정 패널 (모바일 너비에서는 숨김) */}
+      <div className="hidden md:block fixed right-0 top-0 bottom-0">
         <ChartSettingsPanel
           settings={settings}
           chartType={chartType}

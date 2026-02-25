@@ -41,12 +41,14 @@ export default function PdfExtractorPage() {
         onFileRemove={handleFileRemove}
       />
 
-      {/* 우측: 속성 패널 */}
-      <PdfExtractorPanel
-        pdfFile={pdfFile}
-        numPages={numPages}
-        setNumPages={setNumPages}
-      />
+      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      <div className="hidden md:block">
+        <PdfExtractorPanel
+          pdfFile={pdfFile}
+          numPages={numPages}
+          setNumPages={setNumPages}
+        />
+      </div>
     </div>
   )
 }
