@@ -10,6 +10,7 @@
  */
 
 import 'dotenv/config'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 
 const WORKER_BASE = 'https://assets.layerary.com'
@@ -98,7 +99,8 @@ async function migratePosts(dryRun: boolean) {
     }
     if (Array.isArray(p.images)) {
       let changed = false
-      const nextImages = p.images.map((item: { url?: string; thumbnailUrl?: string; [k: string]: unknown }) => {
+      const imagesArr = p.images as Array<{ url?: string; thumbnailUrl?: string; [k: string]: unknown }>
+      const nextImages = imagesArr.map((item) => {
         const url = toWorkerUrl(item.url)
         const thumbnailUrl = toWorkerUrl(item.thumbnailUrl)
         if (url !== item.url || thumbnailUrl !== item.thumbnailUrl) changed = true
@@ -111,7 +113,7 @@ async function migratePosts(dryRun: boolean) {
     }
     if (Object.keys(updates).length > 0) {
       count++
-      if (!dryRun) await prisma.post.update({ where: { id: p.id }, data: updates })
+      if (!dryRun) await prisma.post.update({ where: { id: p.id }, data: updates as Prisma.PostUpdateInput })
     }
   }
   return count
@@ -125,7 +127,8 @@ async function migrateNotices(dryRun: boolean) {
   for (const n of notices) {
     if (!Array.isArray(n.attachments)) continue
     let changed = false
-    const next = n.attachments.map((item: { url?: string; [k: string]: unknown }) => {
+    const attachmentsArr = n.attachments as Array<{ url?: string; [k: string]: unknown }>
+    const next = attachmentsArr.map((item) => {
       const url = toWorkerUrl(item.url)
       if (url !== item.url) changed = true
       return { ...item, url: url ?? item.url }
@@ -235,7 +238,7 @@ async function migrateCardTemplates(dryRun: boolean) {
       if (!dryRun) {
         await prisma.cardTemplate.update({
           where: { id: c.id },
-          data: { thumbnailUrl: thumb ?? undefined, backgroundImages: bgImages },
+          data: { thumbnailUrl: thumb ?? undefined, backgroundImages: bgImages as Prisma.InputJsonValue },
         })
       }
     }
