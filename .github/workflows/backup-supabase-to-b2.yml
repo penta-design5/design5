@@ -46,5 +46,6 @@ jobs:
           PREFIX="${PREFIX%/}"
           REMOTE_PATH="${PREFIX}/backup-$(date +%Y%m%d-%H%M).dump"
           b2 account authorize "$B2_KEY_ID" "$B2_APPLICATION_KEY"
+          b2 bucket list
           b2 file upload --no-progress "$B2_BUCKET_NAME" backup.dump "$REMOTE_PATH"
           echo "Uploaded to $B2_BUCKET_NAME / $REMOTE_PATH"
