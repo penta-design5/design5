@@ -177,3 +177,14 @@
 .icon-svg-container svg *[stroke]:not([fill]) {
   fill: none !important;
 }
+
+/* stroke-dasharray 무력화: 원본에 dasharray가 있어도 실선으로 표시 (데스크톱 점선 현상 방지) */
+.icon-svg-container svg [stroke] {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+}
+
+/* shape-rendering으로 저PPI 데스크톱에서 선이 끊어져 보이는 것 완화 */
+.icon-svg-container svg {
+  shape-rendering: crispEdges;
+}

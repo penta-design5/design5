@@ -65,8 +65,8 @@ export function IconCard({
       // 1. 색상 변경 (fill="none" 유지)
       svg = changeAllSvgColors(svg, color)
       
-      // 2. stroke-width 변경
-      svg = changeSvgStrokeWidth(svg, strokeWidth)
+      // 2. stroke-width 변경 (목록 표시 시 최소 1.5px 보장으로 데스크톱에서 점선 현상 방지)
+      svg = changeSvgStrokeWidth(svg, strokeWidth, 1.5)
       
       // 3. 모든 stroke 요소에 fill="none" 명시적 추가 (없는 경우만)
       svg = svg.replace(
@@ -95,10 +95,10 @@ export function IconCard({
           if (viewBox) {
             newAttrs += ` viewBox="${viewBox}"`
           }
-          
+          // 데스크톱 등에서 stroke가 점선으로 렌더되는 것 완화
+          newAttrs += ' shape-rendering="crispEdges"'
           // CSS 변수 활용 및 스타일 추가
           newAttrs += ` style="width: 100%; height: 100%; display: block; --icon-color: ${color};"`
-          
           return `<svg${newAttrs ? ' ' + newAttrs : ''}>`
         }
       )

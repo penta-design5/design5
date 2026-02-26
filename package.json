@@ -13,7 +13,9 @@
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
     "b2:setup-cors": "tsx scripts/setup-b2-cors.ts",
-    "b2:check-cors": "tsx scripts/check-b2-cors.ts"
+    "b2:check-cors": "tsx scripts/check-b2-cors.ts",
+    "db:migrate-b2-urls": "tsx scripts/migrate-b2-urls-to-worker.ts",
+    "db:migrate-b2-urls:dry": "tsx scripts/migrate-b2-urls-to-worker.ts --dry-run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

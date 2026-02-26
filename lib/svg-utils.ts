@@ -428,35 +428,40 @@ export function changeAllSvgColors(
   return modifiedSvg
 }
 
+/** 아이콘 목록 표시 시 기본 크기(px). stroke 최소값 계산에 사용 */
+const ICON_DISPLAY_SIZE_PX = 56
+
 /**
  * SVG의 stroke-width를 변경합니다.
  * 개별 속성, 인라인 스타일, CSS 클래스 모두 지원합니다.
- * 
+ *
  * @param svgContent SVG 문자열
  * @param strokeWidth stroke-width 값 (px 단위)
+ * @param minDisplayPx 표시 시 stroke 최소 두께(px). 지정 시 저해상도/데스크톱에서 점선으로 보이는 것 방지 (예: 1.5)
  * @returns stroke-width가 변경된 SVG 문자열
  */
 export function changeSvgStrokeWidth(
   svgContent: string,
-  strokeWidth: number
+  strokeWidth: number,
+  minDisplayPx?: number
 ): string {
   let modifiedSvg = svgContent
-  
+
   // viewBox 추출하여 stroke-width를 viewBox 기준으로 계산
   const viewBoxMatch = modifiedSvg.match(/viewBox=["']([^"']+)["']/i)
   let viewBoxWidth = 24 // 기본값
-  
+
   if (viewBoxMatch) {
     const parts = viewBoxMatch[1].split(/\s+/).map(Number)
     if (parts.length === 4 && parts.every(n => !isNaN(n))) {
       viewBoxWidth = parts[2] // viewBox width
     }
   }
-  
+
   // SVG의 실제 width 추출
   const widthMatch = modifiedSvg.match(/width=["']([^"']+)["']/i)
   let actualWidth = viewBoxWidth
-  
+
   if (widthMatch) {
     const widthStr = widthMatch[1].replace(/px$/, '')
     const widthNum = parseFloat(widthStr)
@@ -464,17 +469,20 @@ export function changeSvgStrokeWidth(
       actualWidth = widthNum
     }
   }
-  
+
   // stroke-width를 viewBox 기준으로 계산
   // 일러스트레이터는 viewBox 기준으로 해석하므로
   // 설정한 strokeWidth(px)가 실제 크기에서 올바르게 표시되려면:
   // stroke-width(viewBox 단위) = strokeWidth(px) * (viewBoxWidth / actualWidth)
-  // 예: viewBox="0 0 24 24", width="80px", strokeWidth=1.5px
-  // stroke-width = 1.5 * (24/80) = 0.45
-  // 일러스트레이터에서: 0.45 * (80/24) = 1.5px로 표시됨
   const scale = viewBoxWidth / actualWidth
-  const strokeWidthValue = strokeWidth * scale
-  
+  let strokeWidthValue = strokeWidth * scale
+
+  // 데스크톱 등 저 DPR에서 서브픽셀 stroke가 점선으로 보이는 것 방지: 표시 시 최소 1.5px 이상 보장
+  if (minDisplayPx != null && minDisplayPx > 0) {
+    const minStrokeViewBox = minDisplayPx * (viewBoxWidth / ICON_DISPLAY_SIZE_PX)
+    strokeWidthValue = Math.max(strokeWidthValue, minStrokeViewBox)
+  }
+
   // 단위 없이 설정 (일러스트레이터가 viewBox 기준으로 해석)
   const strokeWidthStr = strokeWidthValue.toString()
   
