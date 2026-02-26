@@ -1,0 +1,53 @@
+# Supabase DB → Backblaze B2 자동 백업
+# 필요 Secrets: SUPABASE_DATABASE_URL, B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME
+# 선택 Secrets: B2_BUCKET_PATH (미설정 시 backups/db 사용)
+
+name: Backup Supabase to B2
+
+on:
+  schedule:
+    # 매일 UTC 02:00 실행 (한국시간 11:00)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # 수동 실행 가능
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Dump Supabase database
+        env:
+          SUPABASE_DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          if [ -z "$SUPABASE_DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DATABASE_URL is not set."
+            exit 1
+          fi
+          pg_dump "$SUPABASE_DATABASE_URL" -Fc -f backup.dump
+          ls -la backup.dump
+
+      - name: Install B2 CLI
+        run: pip install b2
+
+      - name: Upload to B2
+        env:
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_BUCKET_PATH: ${{ secrets.B2_BUCKET_PATH }}
+        run: |
+          if [ -z "$B2_KEY_ID" ] || [ -z "$B2_APPLICATION_KEY" ] || [ -z "$B2_BUCKET_NAME" ]; then
+            echo "::error::B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME are required."
+            exit 1
+          fi
+          PREFIX="${B2_BUCKET_PATH:-backups/db}"
+          PREFIX="${PREFIX%/}"
+          REMOTE_PATH="${PREFIX}/backup-$(date +%Y%m%d-%H%M).dump"
+          b2 authorize-account "$B2_KEY_ID" "$B2_APPLICATION_KEY"
+          b2 upload-file --noProgress "$B2_BUCKET_NAME" backup.dump "$REMOTE_PATH"
+          echo "Uploaded to $B2_BUCKET_NAME / $REMOTE_PATH"
