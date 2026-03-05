@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { changeAllSvgColors, changeSvgStrokeWidth } from '@/lib/svg-utils'
+import { changeAllSvgColors, changeSvgStrokeWidth, stripSvgStrokeDash } from '@/lib/svg-utils'
 
 interface Post {
   id: string
@@ -65,10 +65,13 @@ export function IconCard({
       // 1. 색상 변경 (fill="none" 유지)
       svg = changeAllSvgColors(svg, color)
       
-      // 2. stroke-width 변경 (목록 표시 시 최소 1.5px 보장으로 데스크톱에서 점선 현상 방지)
-      svg = changeSvgStrokeWidth(svg, strokeWidth, 1.5)
+      // 2. stroke-width 변경 (목록 표시 시 최소 2px 보장)
+      svg = changeSvgStrokeWidth(svg, strokeWidth, 2)
       
-      // 3. 모든 stroke 요소에 fill="none" 명시적 추가 (없는 경우만)
+      // 3. 가공된 SVG에 들어갈 수 있는 점선(dash) 제거 → 항상 실선으로 표시
+      svg = stripSvgStrokeDash(svg)
+      
+      // 4. 모든 stroke 요소에 fill="none" 명시적 추가 (없는 경우만)
       svg = svg.replace(
         /<(rect|circle|ellipse|line|polyline|polygon|path|g)([^>]*?)>/gi,
         (match, tagName, attrs) => {
@@ -80,7 +83,7 @@ export function IconCard({
         }
       )
       
-      // 4. 크기 조절: SVG 태그의 width/height만 제거 (rect 등의 width/height는 유지)
+      // 5. 크기 조절: SVG 태그의 width/height만 제거 (rect 등의 width/height는 유지)
       svg = svg.replace(
         /<svg([^>]*?)>/i,
         (match, attrs) => {
@@ -95,8 +98,8 @@ export function IconCard({
           if (viewBox) {
             newAttrs += ` viewBox="${viewBox}"`
           }
-          // 데스크톱 등에서 stroke가 점선으로 렌더되는 것 완화
-          newAttrs += ' shape-rendering="crispEdges"'
+          // 얇은 stroke가 픽셀 그리드에 맞춰 끊겨 보이는 것 방지 (geometricPrecision)
+          newAttrs += ' shape-rendering="geometricPrecision"'
           // CSS 변수 활용 및 스타일 추가
           newAttrs += ` style="width: 100%; height: 100%; display: block; --icon-color: ${color};"`
           return `<svg${newAttrs ? ' ' + newAttrs : ''}>`

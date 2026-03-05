@@ -129,3 +129,12 @@ sequenceDiagram
 - **인증**: 로그인 필수
 - **엔드포인트**: `POST /api/edm`
 - **스토리지**: Cloudflare R2 (S3 호환 API, `lib/r2-edm-storage.ts`). `R2_PUBLIC_URL` 설정 시 공개 URL(만료 없음), 미설정 시 Presigned URL(최대 7일). eDM 셀 이미지는 R2, 일반 게시물 이미지는 B2(및 Cloudflare Worker)에 저장됩니다.
+
+---
+
+## 5. GitHub Actions 자동화
+
+앱 외부에서 GitHub Actions로 주기적으로 실행되는 자동화입니다.
+
+- **Supabase Keepalive**: 3일마다 배포된 앱의 `GET /api/keepalive`를 호출해 Supabase(DB/Storage)에 접속합니다. 무료 플랜 7일 비활동 일시정지 방지를 위한 자동 API 요청입니다. `.github/workflows/keepalive.yml`, 상세는 [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) 참조.
+- **Backup Supabase to B2**: 매일 UTC 02:00에 Supabase PostgreSQL을 `pg_dump`(custom format)로 덤프한 뒤 B2 CLI로 Backblaze B2 버킷에 업로드하는 자동 백업입니다. `.github/workflows/backup-supabase-to-b2.yml`. 필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME` (선택: `B2_BUCKET_PATH`).

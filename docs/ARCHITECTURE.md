@@ -114,3 +114,10 @@ layerary/
 
 - **API**
   - `auth()`, `requireAuth()`, `requireAdmin()` (`lib/auth-helpers.ts`) 사용
+
+---
+
+## GitHub Actions 자동화
+
+- **Supabase Keepalive**: GitHub Actions에서 3일마다 `{APP_URL}/api/keepalive`를 호출해 Supabase DB/Storage를 ping합니다. 무료 플랜의 7일 비활동 일시정지를 방지합니다. 워크플로: `.github/workflows/keepalive.yml`. 상세: [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md).
+- **Backup Supabase to B2**: GitHub Actions에서 매일 UTC 02:00(한국시간 11:00)에 Supabase PostgreSQL을 `pg_dump`로 덤프한 뒤 Backblaze B2 버킷에 업로드합니다. 워크플로: `.github/workflows/backup-supabase-to-b2.yml`. 필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`.

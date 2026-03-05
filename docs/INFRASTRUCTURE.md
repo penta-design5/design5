@@ -98,9 +98,11 @@ flowchart TB
 |----------|------|
 | **Repository** | 소스 코드. push 시 Vercel 트리거 |
 | **GitHub Actions** | 3일마다 `{APP_URL}/api/keepalive` 호출 (Supabase 비활동 방지) |
+| **GitHub Actions** | 매일 UTC 02:00 Supabase DB 덤프 → B2 업로드 (Backup Supabase to B2) |
 
 - **Variables**: `APP_URL` (배포 URL)
 - **Secrets** (선택): `KEEPALIVE_SECRET`
+- **Backup 워크플로 Secrets**: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME` (선택: `B2_BUCKET_PATH`)
 
 ## 환경 변수 연결 관계
 

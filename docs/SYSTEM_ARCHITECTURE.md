@@ -68,6 +68,13 @@ flowchart TB
 
 - **Google OAuth**: 선택 사항. Google 계정 로그인 시 사용
 
+### GitHub Actions (자동화)
+
+| 기능 | 설명 |
+|------|------|
+| **Supabase Keepalive** | 3일마다 `{APP_URL}/api/keepalive` 호출로 Supabase 비활동 방지(무료 플랜 7일 일시정지 방지). `.github/workflows/keepalive.yml` |
+| **Backup Supabase to B2** | 매일 UTC 02:00 Supabase DB를 pg_dump로 덤프 후 B2 버킷에 업로드. `.github/workflows/backup-supabase-to-b2.yml` |
+
 ## 주요 라이브러리 / 연결
 
 - **Prisma**: PostgreSQL ORM, `DATABASE_URL`로 Supabase 연결

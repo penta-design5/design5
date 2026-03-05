@@ -142,6 +142,11 @@ eDM(이메일 디렉트 메일)의 셀 이미지와 썸네일은 **Cloudflare R2
 - Vercel 환경 변수: `KEEPALIVE_SECRET` (동일 값)
 - 워크플로: `.github/workflows/keepalive.yml` — **매 3일마다** `{APP_URL}/api/keepalive` 호출
 
+### Backup Supabase to B2
+
+GitHub Actions로 Supabase PostgreSQL을 매일 자동 백업합니다. `.github/workflows/backup-supabase-to-b2.yml` — **매일 UTC 02:00**(한국시간 11:00) 실행, 수동 실행 가능(workflow_dispatch).  
+필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`. 선택: `B2_BUCKET_PATH`(미설정 시 `backups/db` 사용). 덤프는 B2 버킷에 `backups/db/backup-YYYYMMDD-HHMM.dump` 형태로 업로드됩니다.
+
 ---
 
 ## 주의사항

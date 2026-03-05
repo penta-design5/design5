@@ -178,13 +178,15 @@
   fill: none !important;
 }
 
-/* stroke-dasharray 무력화: 원본에 dasharray가 있어도 실선으로 표시 (데스크톱 점선 현상 방지) */
-.icon-svg-container svg [stroke] {
+/* stroke-dasharray 무력화: 루트 svg + stroke 있는 자식 모두 실선으로 표시 (데스크톱 점선 현상 방지) */
+.icon-svg-container svg,
+.icon-svg-container svg [stroke],
+.icon-svg-container svg[stroke] {
   stroke-dasharray: none !important;
   stroke-dashoffset: 0 !important;
 }
 
-/* shape-rendering으로 저PPI 데스크톱에서 선이 끊어져 보이는 것 완화 */
+/* 얇은 stroke가 끊겨 보이는 것 방지 (crispEdges는 서브픽셀 선을 끊어 보이게 할 수 있음) */
 .icon-svg-container svg {
-  shape-rendering: crispEdges;
+  shape-rendering: geometricPrecision;
 }

@@ -23,6 +23,11 @@ npx prisma migrate resolve --applied 20260130000000_add_diagram_zip_config
 - **Build Command**를 `prisma migrate deploy && next build`로 지정하세요.
 - 이렇게 하면 배포 시 `diagram_zip_config` 테이블이 자동 생성됩니다.
 
+**⚠️ Prisma 마이그레이션 폴더와 .gitignore:**  
+현재 `.gitignore`에 `/prisma/migrations`가 있어서 마이그레이션 폴더가 GitHub에 올라가지 않습니다.  
+- **`prisma migrate deploy`를 쓰려면:** `prisma/migrations`를 저장소에 포함해야 합니다. `.gitignore`에서 해당 줄을 제거한 뒤 마이그레이션을 커밋하세요.  
+- **마이그레이션 없이 쓰는 경우:** 프로덕션 DB는 로컬에서 `prisma db push`로 스키마를 맞춰 두고, Vercel **Build Command**는 `next build`만 사용하세요.
+
 ### 2. Vercel 환경 변수 확인
 
 다음 환경 변수가 Vercel 프로젝트에 설정되어 있는지 확인하세요:

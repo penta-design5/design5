@@ -572,6 +572,45 @@ export function changeSvgStrokeWidth(
 }
 
 /**
+ * SVG에서 stroke-dasharray, stroke-dashoffset을 제거·무력화하여 항상 실선으로 렌더되게 합니다.
+ * 속성, 인라인 style, <style> 블록 내부를 모두 처리합니다.
+ *
+ * @param svgContent SVG 문자열
+ * @returns 점선이 제거된 SVG 문자열 (실선만 표시)
+ */
+export function stripSvgStrokeDash(svgContent: string): string {
+  let modifiedSvg = svgContent
+
+  // 1. 요소 속성에서 stroke-dasharray, stroke-dashoffset 제거 (공백 포함)
+  modifiedSvg = modifiedSvg.replace(/\s*stroke-dasharray=["'][^"']*["']/gi, '')
+  modifiedSvg = modifiedSvg.replace(/\s*stroke-dashoffset=["'][^"']*["']/gi, '')
+
+  // 2. 인라인 style 속성 내부: stroke-dasharray / stroke-dashoffset → none, 0
+  modifiedSvg = modifiedSvg.replace(
+    /style=["']([^"']*)["']/gi,
+    (match, styleContent) => {
+      let newStyle = styleContent
+        .replace(/\bstroke-dasharray\s*:\s*[^;'"\s]+;?/gi, 'stroke-dasharray: none;')
+        .replace(/\bstroke-dashoffset\s*:\s*[^;'"\s]+;?/gi, 'stroke-dashoffset: 0;')
+      return `style="${newStyle}"`
+    }
+  )
+
+  // 3. <style> 블록 내부의 stroke-dasharray, stroke-dashoffset 규칙을 실선으로 변경
+  modifiedSvg = modifiedSvg.replace(
+    /<style[^>]*>([\s\S]*?)<\/style>/gi,
+    (match, styleContent) => {
+      const newStyleContent = styleContent
+        .replace(/\bstroke-dasharray\s*:\s*[^;}\s]+/gi, 'stroke-dasharray: none')
+        .replace(/\bstroke-dashoffset\s*:\s*[^;}\s]+/gi, 'stroke-dashoffset: 0')
+      return match.replace(styleContent, newStyleContent)
+    }
+  )
+
+  return modifiedSvg
+}
+
+/**
  * ICON 페이지용 SVG 속성 통합 변경 함수
  * 색상, stroke-width, 크기를 한 번에 적용합니다.
  * fill="none"을 명시적으로 보장합니다.
