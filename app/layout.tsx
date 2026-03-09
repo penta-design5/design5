@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   icons: {
     icon: "/img/favicon.png",
   },
+  // --- 네이버 및 기타 소유권 확인 섹션 추가 ---
+  verification: {
+    other: {
+      'naver-site-verification': 'e00d701407f773c78740d07c043fb6b0bf57c340',
+    },
+  },  
   openGraph: {
     title: "LAYERARY | 펜타시큐리티 디자인 플랫폼",
     description,
