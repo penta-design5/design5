@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { ChevronDown, ChevronRight, Home, Briefcase, Palette, FileText, BookOpen, Settings, LogIn, Gauge, Users, Megaphone, LogOut, SquareArrowOutUpRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canAccessDesignSystem } from '@/lib/design-system-access'
 import { CategoryType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -380,6 +381,21 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       <Megaphone className="h-4 w-4 flex-shrink-0" />
                       <span className="flex-1 text-sm">공지사항 관리</span>
                     </Link>
+                    {canAccessDesignSystem(session?.user?.email) && (
+                      <Link
+                        href="/admin/design-system"
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
+                          pathname.startsWith('/admin/design-system')
+                            ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
+                            : 'hover:bg-accent hover:text-accent-foreground'
+                        )}
+                        onClick={handleAdminMenuClick}
+                      >
+                        <Palette className="h-4 w-4 flex-shrink-0" />
+                        <span className="flex-1 text-sm">디자인 시스템</span>
+                      </Link>
+                    )}
                   </div>
                 )
               }
