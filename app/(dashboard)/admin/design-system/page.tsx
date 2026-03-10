@@ -374,7 +374,7 @@ export default function DesignSystemPage() {
           <CardHeader>
             <CardTitle className='text-lg'>Page Access Permission</CardTitle>
             <CardDescription>
-              프로젝트 &gt; lib &gt; <span className='text-penta-blue'>design-system-access.ts</span> 파일에서 사용자 email을 추가 및 삭제하여 페이지 접근권한 설정을 할 수 있습니다.
+              현재 tiper 사용자에게만 이 페이지 접근권한이 설정되어 있습니다. 프로젝트 &gt; lib &gt; <span className='text-penta-blue'>design-system-access.ts</span> 파일에서 사용자 email을 추가 및 삭제하여 &quot;디자인 시스템&quot; 페이지 접근권한 설정을 할 수 있습니다.
             </CardDescription>
           </CardHeader>
         </Card>        

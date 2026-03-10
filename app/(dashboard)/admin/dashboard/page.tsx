@@ -49,7 +49,7 @@ export default function DashboardPage() {
     : 'https://supabase.com/dashboard'
 
   // Backblaze B2 대시보드 URL
-  const b2DashboardUrl = 'https://tree-phx1-0000.secure.backblaze.com/b2_browse_files2.htm?bucketId=fcc961200ce077dc9eb20213'
+  const b2DashboardUrl = 'https://secure.backblaze.com/b2_caps_alerts.htm'
 
   // Cloudflare R2 대시보드 URL
   const r2DashboardUrl = 'https://dash.cloudflare.com/ea37da5b38aff81fbd82412db6049212/r2/overview'
