@@ -364,6 +364,7 @@ export function PostUploadDialog({
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
+        data-gallery-edit-dialog
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}

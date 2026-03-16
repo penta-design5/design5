@@ -39,6 +39,16 @@ export function PostNavigation({
   // 키보드 네비게이션 (상/하 방향키 또는 좌/우 방향키)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 수정 다이얼로그 전체 영역에 포커스가 있으면 방향키로 썸네일 전환하지 않음
+      const editDialog = document.querySelector('[data-gallery-edit-dialog]')
+      if (
+        editDialog &&
+        document.activeElement &&
+        editDialog.contains(document.activeElement)
+      ) {
+        return
+      }
+
       if (horizontal) {
         // 수평 레이아웃: 좌/우 방향키
         if (e.key === 'ArrowLeft' && prevPost) {
