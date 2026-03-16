@@ -24,10 +24,11 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, X, File } from 'lucide-react'
+import { Loader2, X, File, ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
+import { cn } from '@/lib/utils'
 
 const postSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
@@ -56,6 +57,7 @@ interface Post {
   subtitle?: string | null
   concept?: string | null
   tool?: string | null
+  thumbnailUrl?: string | null
   images?: PostImage[] | null | any
   tags?: Array<{ tag: { id: string; name: string; slug: string } }>
   producedAt?: Date | string | null
@@ -84,6 +86,10 @@ export function PostUploadDialog({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [existingImages, setExistingImages] = useState<PostImage[]>([])
   const [originalImages, setOriginalImages] = useState<PostImage[]>([]) // 원본 이미지 보관
+  /** 썸네일로 사용할 이미지 인덱스 (0 = 첫 번째). 이미지 1개일 때는 0 고정, 2개 이상일 때 선택 가능 */
+  const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0)
+  /** 선택한 파일의 미리보기 URL (썸네일 선택 UI용, URL.createObjectURL) */
+  const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const isSubmittingRef = useRef(false) // 중복 제출 방지
@@ -128,6 +134,15 @@ export function PostUploadDialog({
       setExistingImages(images)
       setOriginalImages(images) // 원본 이미지도 저장
 
+      // 수정 모드: 기존 게시물의 thumbnailUrl에 해당하는 이미지 인덱스를 썸네일 기본값으로
+      const thumbUrl = post.thumbnailUrl
+      if (thumbUrl && images.length > 0) {
+        const idx = images.findIndex((img) => img.url === thumbUrl || img.thumbnailUrl === thumbUrl)
+        setSelectedThumbnailIndex(idx >= 0 ? idx : 0)
+      } else {
+        setSelectedThumbnailIndex(0)
+      }
+
       // 태그를 쉼표로 구분된 문자열로 변환
       const tagsString = post.tags
         ? post.tags.map(({ tag }) => tag.name).join(', ')
@@ -157,8 +172,29 @@ export function PostUploadDialog({
       })
       setExistingImages([])
       setSelectedFiles([])
+      setSelectedThumbnailIndex(0)
     }
   }, [isEditMode, post, form])
+
+  const totalImageCount = (isEditMode ? existingImages.length : 0) + selectedFiles.length
+  useEffect(() => {
+    if (totalImageCount > 0 && selectedThumbnailIndex >= totalImageCount) {
+      setSelectedThumbnailIndex(0)
+    }
+  }, [totalImageCount, selectedThumbnailIndex])
+
+  // 선택한 파일에 대한 미리보기 URL 생성/해제 (썸네일 선택 영역 표시용)
+  useEffect(() => {
+    if (selectedFiles.length === 0) {
+      setFilePreviewUrls([])
+      return
+    }
+    const urls = selectedFiles.map((file) => URL.createObjectURL(file))
+    setFilePreviewUrls(urls)
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [selectedFiles])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -221,13 +257,20 @@ export function PostUploadDialog({
           throw new Error('업로드된 이미지가 없습니다.')
         }
 
-        finalImages = data.images as PostImage[]
+        const uploadedImages = data.images as PostImage[]
+        if (isEditMode && existingImages.length > 0) {
+          finalImages = [...existingImages, ...uploadedImages]
+        } else {
+          finalImages = uploadedImages
+        }
       } else if (isEditMode) {
-        // 수정 모드이고 새 파일이 없으면 기존 이미지 사용
         finalImages = existingImages
       }
 
       setUploading(false)
+
+      const thumbnailUrl =
+        finalImages.length > 0 ? finalImages[selectedThumbnailIndex]?.url ?? finalImages[0].url : undefined
 
       // 태그 문자열을 배열로 변환
       const tags = values.tags
@@ -248,6 +291,7 @@ export function PostUploadDialog({
             title: values.title,
             subtitle: values.subtitle || null,
             images: finalImages,
+            thumbnailUrl: thumbnailUrl ?? null,
             concept: values.concept || null,
             tool: values.tool || null,
             tags,
@@ -271,6 +315,7 @@ export function PostUploadDialog({
             subtitle: values.subtitle || null,
             categoryId,
             images: finalImages,
+            thumbnailUrl: thumbnailUrl ?? null,
             concept: values.concept || null,
             tool: values.tool || null,
             tags,
@@ -310,7 +355,16 @@ export function PostUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerDownOutside={() => onClose()}
+        overlayProps={{
+          onClick: onClose,
+          onPointerDown: onClose,
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEditMode ? '게시물 수정' : '게시물 추가'}</DialogTitle>
           <DialogDescription>
@@ -468,6 +522,78 @@ export function PostUploadDialog({
                   <p className="text-xs text-muted-foreground">
                     이미지에 마우스를 올리면 삭제 버튼이 표시됩니다. 새 이미지를 선택하면 기존 이미지에 추가됩니다.
                   </p>
+                </div>
+              )}
+
+              {/* 썸네일 선택 (이미지 2개 이상일 때만) */}
+              {totalImageCount >= 2 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <p className="text-sm font-medium">썸네일로 사용할 이미지 선택</p>
+                  <p className="text-xs text-muted-foreground">
+                    목록·카드에 표시될 대표 이미지를 선택하세요.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {existingImages.map((image, index) => (
+                      <button
+                        key={`ex-${index}`}
+                        type="button"
+                        onClick={() => setSelectedThumbnailIndex(index)}
+                        className={cn(
+                          'relative w-14 h-14 rounded-md overflow-hidden border-2 transition-colors shrink-0',
+                          selectedThumbnailIndex === index
+                            ? 'border-primary ring-2 ring-primary ring-offset-2'
+                            : 'border-transparent hover:border-muted-foreground/30'
+                        )}
+                      >
+                        <Image
+                          src={getB2ImageSrc(image.url)}
+                          alt={image.name}
+                          fill
+                          unoptimized={isB2WorkerUrl(getB2ImageSrc(image.url))}
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                        {selectedThumbnailIndex === index && (
+                          <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5">
+                            썸네일
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    {selectedFiles.map((file, index) => {
+                      const previewUrl = filePreviewUrls[index]
+                      return (
+                        <button
+                          key={`new-${index}`}
+                          type="button"
+                          onClick={() => setSelectedThumbnailIndex(existingImages.length + index)}
+                          className={cn(
+                            'relative w-14 h-14 rounded-md border-2 overflow-hidden shrink-0 transition-colors',
+                            selectedThumbnailIndex === existingImages.length + index
+                              ? 'border-primary ring-2 ring-primary ring-offset-2'
+                              : 'border-muted-foreground/30 hover:border-muted-foreground/50'
+                          )}
+                        >
+                          {previewUrl ? (
+                            <img
+                              src={previewUrl}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="w-full h-full bg-muted flex items-center justify-center">
+                              <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                            </span>
+                          )}
+                          {selectedThumbnailIndex === existingImages.length + index && (
+                            <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5">
+                              썸네일
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 

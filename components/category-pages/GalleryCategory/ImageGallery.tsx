@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { ZoomIn } from 'lucide-react'
 import Image from 'next/image'
@@ -19,10 +19,14 @@ interface ImageGalleryProps {
   images: PostImage[]
 }
 
+const COLLAPSED_WIDTH = 600
+
 export function ImageGallery({ images }: ImageGalleryProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(new Map())
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
 
   // images가 JSON 타입일 수 있으므로 타입 확인 및 변환
   let validImages: PostImage[] = []
@@ -88,6 +92,17 @@ export function ImageGallery({ images }: ImageGalleryProps) {
     setLoadedImages((prev) => new Set(prev).add(index))
   }
 
+  // 확대/축소 시 중앙 기준으로 하기 위해 컨테이너 너비 측정
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => setContainerWidth(el.clientWidth)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // early return은 useEffect 이후에 배치
   if (!validImages || validImages.length === 0) {
     return (
@@ -98,21 +113,41 @@ export function ImageGallery({ images }: ImageGalleryProps) {
   }
 
   return (
-    <div className="space-y-4 pt-20 pr-6 pb-6 pl-6 md:pt-6 flex flex-col items-center">
+    <div ref={containerRef} className="space-y-4 pt-20 pr-6 pb-6 pl-6 md:pt-6 flex flex-col items-center w-full">
       {sortedImages.map((image, index) => {
         const isExpanded = expandedIndex === index
         const isLoaded = loadedImages.has(index)
         const blurDataURL = image.blurDataURL
         const dimensions = imageDimensions.get(index)
+        const scale = containerWidth > 0 ? containerWidth / COLLAPSED_WIDTH : 1
+        // 확대 시 레이아웃 상의 높이 (origin-top이므로 아래로만 커짐). 아래 이미지가 겹치지 않도록 여백 계산
+        const layoutHeight = dimensions
+          ? COLLAPSED_WIDTH * (dimensions.height / dimensions.width)
+          : 450 // fallback 4:3
+        const expandMarginBottom = isExpanded && scale > 1 ? layoutHeight * (scale - 1) : 0
 
         return (
-          <div key={index} className="relative group w-full flex justify-center">
+          <div
+            key={index}
+            className="relative group w-full flex justify-center overflow-visible transition-[margin-bottom] duration-300"
+            style={{
+              marginBottom: expandMarginBottom,
+              zIndex: isExpanded ? 10 : undefined,
+            }}
+          >
             <div
               className={cn(
-                'relative transition-all duration-300',
-                isExpanded ? 'cursor-zoom-out w-full' : 'cursor-zoom-in w-[600px]'
+                'relative transition-all duration-300 origin-top',
+                isExpanded ? 'cursor-zoom-out' : 'cursor-zoom-in'
               )}
-              onClick={() => setExpandedIndex(isExpanded ? null : index)}
+              style={{
+                width: COLLAPSED_WIDTH,
+                transform: isExpanded ? `scale(${scale})` : 'scale(1)',
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setExpandedIndex(isExpanded ? null : index)
+              }}
             >
               {/* Skeleton Placeholder - blur보다 먼저 표시 */}
               {!isLoaded && !blurDataURL && (
@@ -140,11 +175,8 @@ export function ImageGallery({ images }: ImageGalleryProps) {
               )}
               {/* 메인 이미지 (원본) */}
               {dimensions ? (
-                <div 
-                  className={cn(
-                    'relative transition-all duration-300',
-                    isExpanded ? 'w-full' : 'w-[600px]'
-                  )}
+                <div
+                  className="relative transition-all duration-300 w-full"
                   style={{
                     aspectRatio: `${dimensions.width} / ${dimensions.height}`,
                   }}
@@ -156,9 +188,8 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                     height={dimensions.height}
                     unoptimized={isB2WorkerUrl(getImageSrc(image.url))}
                     className={cn(
-                      'object-contain transition-opacity duration-300',
-                      !isLoaded ? 'opacity-0' : 'opacity-100',
-                      isExpanded ? 'w-full h-auto' : 'w-full h-auto max-w-[600px]'
+                      'object-contain transition-opacity duration-300 w-full h-auto',
+                      !isLoaded ? 'opacity-0' : 'opacity-100'
                     )}
                     style={{ cursor: isExpanded ? 'zoom-out' : 'zoom-in' }}
                     loading={index === 0 ? 'eager' : 'lazy'}
@@ -169,11 +200,8 @@ export function ImageGallery({ images }: ImageGalleryProps) {
                 </div>
               ) : (
                 // 이미지 크기를 아직 모를 때는 fill 사용
-                <div 
-                  className={cn(
-                    'relative transition-all duration-300',
-                    isExpanded ? 'w-full' : 'w-[600px]'
-                  )}
+                <div
+                  className="relative transition-all duration-300 w-full"
                   style={{ aspectRatio: '4 / 3', minHeight: '300px' }}
                 >
                   <Image

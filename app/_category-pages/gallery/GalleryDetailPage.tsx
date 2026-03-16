@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { cn } from '@/lib/utils'
 
 interface Category {
   id: string
@@ -127,7 +128,17 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   }
 
   const handleClose = () => {
-    router.push(`/${category.slug}`)
+    // 목록으로 이동 시 refresh 파라미터로 목록 재조회하여 썸네일 변경 등 즉시 반영
+    router.push(`/${category.slug}?refresh=${Date.now()}`)
+  }
+
+  /** 배경 클릭 시: 다이얼로그가 열려 있으면 다이얼로그만 닫고, 아니면 목록으로 이동 */
+  const handleBackdropClick = () => {
+    if (editDialogOpen) {
+      setEditDialogOpen(false)
+    } else {
+      handleClose()
+    }
   }
 
   const handleEdit = () => {
@@ -170,19 +181,31 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   }
 
   const handleEditSuccess = () => {
-    // 게시물 정보 새로고침
-    const fetchPost = async () => {
+    // 게시물 + 네비게이션(우측 썸네일 리스트) 새로고침 (캐시 무시하여 썸네일 등 변경 사항 즉시 반영)
+    const refreshData = async () => {
       try {
-        const postResponse = await fetch(`/api/posts/${postId}`)
+        const ts = Date.now()
+        const [postResponse, navResponse] = await Promise.all([
+          fetch(`/api/posts/${postId}?t=${ts}`, { cache: 'no-store' }),
+          fetch(`/api/posts/${postId}/navigation?categorySlug=${category.slug}&t=${ts}`, {
+            cache: 'no-store',
+          }),
+        ])
         if (postResponse.ok) {
           const postData = await postResponse.json()
           setPost(postData.post)
         }
+        if (navResponse.ok) {
+          const navData = await navResponse.json()
+          setPrevPost(navData.prevPost ?? null)
+          setNextPost(navData.nextPost ?? null)
+          if (navData.allPosts) setAllPosts(navData.allPosts)
+        }
       } catch (error) {
-        console.error('Error fetching post:', error)
+        console.error('Error refreshing post/navigation:', error)
       }
     }
-    fetchPost()
+    refreshData()
     setEditDialogOpen(false)
   }
 
@@ -227,9 +250,16 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   const images = getImages()
 
   return (
-    <div className="fixed inset-0 top-0 left-0 md:left-56 bg-background overflow-hidden flex flex-col">
+    <div
+      className={cn(
+        'fixed inset-0 top-0 left-0 md:left-56 bg-background overflow-hidden flex flex-col',
+        editDialogOpen && 'z-0'
+      )}
+      onClick={handleBackdropClick}
+      role="presentation"
+    >
       {/* 데스크톱: 닫기 버튼 */}
-      <div className="hidden md:block absolute top-4 right-[35rem] z-10">
+      <div className="hidden md:block absolute top-4 right-[35rem] z-10" onClick={(e) => e.stopPropagation()}>
         <Button
           variant="ghost"
           size="icon"
@@ -241,7 +271,7 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
       </div>
 
       {/* 모바일: 정보 패널 토글 버튼 및 닫기 버튼 */}
-      <div className="md:hidden absolute top-4 left-6 z-10 flex justify-between w-[calc(100%-50px)] gap-2">
+      <div className="md:hidden absolute top-4 left-6 z-10 flex justify-between w-[calc(100%-50px)] gap-2" onClick={(e) => e.stopPropagation()}>
         <Button
           variant="ghost"
           size="icon"
@@ -261,20 +291,20 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
       </div>
 
       <div className="flex h-full flex-col md:flex-row">
-        {/* 좌측: 이미지 갤러리 */}
+        {/* 좌측: 이미지 갤러리 (배경 영역 클릭 시 목록으로 이동) */}
         <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-900 md:pb-0 pb-24">
           <ImageGallery images={images} />
         </div>
 
         {/* 데스크톱: 우측 상세 정보 */}
-        <div className="hidden md:flex w-[28rem] flex-col">
+        <div className="hidden md:flex w-[28rem] flex-col" onClick={(e) => e.stopPropagation()}>
           <div className="flex-1 overflow-y-auto p-6">
             <PostInfo post={post} onEdit={handleEdit} onDelete={handleDelete} />
           </div>
         </div>
 
         {/* 데스크톱: 우측 끝 네비게이션 썸네일 */}
-        <div className="hidden md:block">
+        <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
           <PostNavigation
             allPosts={allPosts}
             currentPostId={postId}
@@ -284,7 +314,7 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
         </div>
 
         {/* 모바일: 하단 네비게이션 썸네일 */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-20">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-20" onClick={(e) => e.stopPropagation()}>
           <PostNavigation
             allPosts={allPosts}
             currentPostId={postId}
@@ -302,17 +332,19 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
         </SheetContent>
       </Sheet>
 
-      {/* 수정 다이얼로그 */}
+      {/* 수정 다이얼로그 - 다이얼로그 내부 클릭이 배경으로 전달되지 않도록 래퍼에서 전파 차단 */}
       {post && (
-        <PostUploadDialog
-          open={editDialogOpen}
-          onClose={() => setEditDialogOpen(false)}
-          categorySlug={category.slug}
-          categoryId={category.id}
-          postId={postId}
-          post={post}
-          onSuccess={handleEditSuccess}
-        />
+        <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+          <PostUploadDialog
+            open={editDialogOpen}
+            onClose={() => setEditDialogOpen(false)}
+            categorySlug={category.slug}
+            categoryId={category.id}
+            postId={postId}
+            post={post}
+            onSuccess={handleEditSuccess}
+          />
+        </div>
       )}
 
       {/* 삭제 확인 다이얼로그 */}

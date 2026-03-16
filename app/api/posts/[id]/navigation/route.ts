@@ -103,13 +103,14 @@ export async function GET(
       },
     })
 
-    // 썸네일 URL 추출 (images 배열의 첫 번째 또는 thumbnailUrl)
+    // 썸네일 URL 추출 (저장된 thumbnailUrl 우선, 없으면 images 첫 번째)
     const getThumbnailUrl = (post: any) => {
       if (!post) return null
+      if (post.thumbnailUrl) return post.thumbnailUrl
       if (post.images && Array.isArray(post.images) && post.images.length > 0) {
         return post.images[0].url
       }
-      return post.thumbnailUrl
+      return null
     }
 
     // 전체 게시물 목록을 썸네일 정보로 변환

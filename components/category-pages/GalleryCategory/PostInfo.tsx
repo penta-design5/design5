@@ -84,7 +84,7 @@ export function PostInfo({ post, onEdit, onDelete }: PostInfoProps) {
         {post.concept && (
           <div>
             <span className="text-[10px] font-medium text-muted-foreground">CONCEPT</span>
-            <p className="mt-1">{post.concept}</p>
+            <p className="mt-1 whitespace-pre-wrap">{post.concept}</p>
           </div>
         )}
 

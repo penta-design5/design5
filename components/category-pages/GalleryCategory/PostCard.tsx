@@ -67,8 +67,19 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
       }
     }
 
+    // 선택된 썸네일이 있으면 해당 이미지를 카드에 표시 (목록 페이지 카드와 편집 화면 썸네일 일치)
+    if (post.thumbnailUrl) {
+      const match = images.find(
+        (img) => img.url === post.thumbnailUrl || img.thumbnailUrl === post.thumbnailUrl
+      )
+      return {
+        url: post.thumbnailUrl,
+        thumbnailUrl: match?.thumbnailUrl,
+        blurDataURL: match?.blurDataURL,
+      }
+    }
+
     if (images.length > 0) {
-      // order로 정렬
       const sortedImages = [...images].sort((a, b) => (a.order || 0) - (b.order || 0))
       const firstImage = sortedImages[0]
       if (firstImage && firstImage.url) {
@@ -79,12 +90,10 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
         }
       }
     }
-    
-    // fallback: post의 thumbnailUrl 또는 fileUrl 사용
-    const fallbackUrl = post.thumbnailUrl || post.fileUrl
-    if (fallbackUrl) {
+
+    if (post.fileUrl) {
       return {
-        url: fallbackUrl,
+        url: post.fileUrl,
         thumbnailUrl: undefined,
         blurDataURL: undefined,
       }

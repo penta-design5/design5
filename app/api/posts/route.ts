@@ -29,6 +29,7 @@ const createPostSchema = z.object({
   description: z.string().optional().nullable(),
   categoryId: z.string().min(1, '카테고리를 선택해주세요.'),
   images: z.array(imageSchema).min(1, '최소 1개의 이미지가 필요합니다.'),
+  thumbnailUrl: z.string().url().optional().nullable(), // 썸네일로 사용할 이미지 URL (미지정 시 첫 번째 이미지)
   concept: z.string().optional().nullable(),
   tool: z.string().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
@@ -733,10 +734,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validatedData = createPostSchema.parse(body)
 
-    // 첫 번째 이미지를 thumbnailUrl과 fileUrl로 설정 (하위 호환성)
+    // 썸네일: 요청에 지정된 URL 우선, 없으면 첫 번째 이미지
     const firstImage = validatedData.images[0]
-    // 썸네일이 있으면 썸네일 URL 사용, 없으면 원본 URL 사용
-    const thumbnailUrl = firstImage.thumbnailUrl || firstImage.url
+    const thumbnailUrl =
+      validatedData.thumbnailUrl != null
+        ? validatedData.thumbnailUrl
+        : firstImage.thumbnailUrl || firstImage.url
 
     // 태그 처리
     const tagConnections = []

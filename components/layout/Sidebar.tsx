@@ -132,10 +132,10 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       <div key={category.id} className='pr-4'>
         <div
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 transition-colors', // 메뉴 활성화 상태 
+            'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md', // 메뉴: 선택/호버 시 텍스트 색상만 변경, 배경 유지
             isActive
-              ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
-              : 'hover:bg-accent hover:text-accent-foreground rounded-md',
+              ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+              : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky',
             level > 0 && 'ml-4'
           )}
         >
@@ -262,7 +262,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       {/* 메뉴 영역 */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 pt-0">
-          <nav className="space-y-4">
+          <nav className="space-y-6">
             {categoryOrder.map((type) => {
               const cats = groupedCategories[type] || []
               
@@ -285,8 +285,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
                         isEdmActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={onLinkClick}
                     >
@@ -297,8 +297,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
                         isPdfExtractorActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={onLinkClick}
                     >
@@ -309,8 +309,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
                         isChartGeneratorActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={onLinkClick}
                     >
@@ -347,8 +347,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
                         pathname.startsWith('/admin/dashboard')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={handleAdminMenuClick}
                     >
@@ -360,8 +360,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       className={cn(
                         'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
                         pathname.startsWith('/admin/users')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={handleAdminMenuClick}
                     >
@@ -371,10 +371,10 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/admin/notices"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5  transition-colors rounded-md',
+                        'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
                         pathname.startsWith('/admin/notices')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
-                          : 'hover:bg-accent hover:text-accent-foreground'
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                       )}
                       onClick={handleAdminMenuClick}
                     >
@@ -387,8 +387,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                         className={cn(
                           'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
                           pathname.startsWith('/admin/design-system')
-                            ? 'text-[var(--penta-indigo)] dark:text-penta-sky bg-accent rounded-md'
-                            : 'hover:bg-accent hover:text-accent-foreground'
+                            ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                            : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
                         )}
                         onClick={handleAdminMenuClick}
                       >
