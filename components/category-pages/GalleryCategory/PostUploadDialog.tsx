@@ -236,32 +236,40 @@ export function PostUploadDialog({
 
       let finalImages: PostImage[] = []
 
-      // 새 파일이 있으면 서버 경유 업로드 (CORS 없이 B2 업로드)
+      // 새 파일이 있으면 서버 경유 업로드 (Vercel 4.5MB 제한 회피: 파일별로 1건씩 요청)
       if (selectedFiles.length > 0) {
-        const formData = new FormData()
-        selectedFiles.forEach((file) => formData.append('files', file))
-        formData.append('categorySlug', categorySlug)
+        const allUploadedImages: PostImage[] = []
+        const baseOrder = isEditMode ? existingImages.length : 0
 
-        const uploadResponse = await fetch('/api/posts/upload', {
-          method: 'POST',
-          body: formData,
-        })
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i]
+          const formData = new FormData()
+          formData.append('files', file)
+          formData.append('categorySlug', categorySlug)
 
-        if (!uploadResponse.ok) {
-          const error = await uploadResponse.json().catch(() => ({}))
-          throw new Error((error as { error?: string }).error || '파일 업로드에 실패했습니다.')
+          const uploadResponse = await fetch('/api/posts/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!uploadResponse.ok) {
+            const error = await uploadResponse.json().catch(() => ({}))
+            throw new Error((error as { error?: string }).error || '파일 업로드에 실패했습니다.')
+          }
+
+          const data = await uploadResponse.json()
+          if (!data.images || data.images.length === 0) {
+            throw new Error('업로드된 이미지가 없습니다.')
+          }
+
+          const one = data.images[0] as PostImage
+          allUploadedImages.push({ ...one, order: baseOrder + allUploadedImages.length })
         }
 
-        const data = await uploadResponse.json()
-        if (!data.images || data.images.length === 0) {
-          throw new Error('업로드된 이미지가 없습니다.')
-        }
-
-        const uploadedImages = data.images as PostImage[]
         if (isEditMode && existingImages.length > 0) {
-          finalImages = [...existingImages, ...uploadedImages]
+          finalImages = [...existingImages, ...allUploadedImages]
         } else {
-          finalImages = uploadedImages
+          finalImages = allUploadedImages
         }
       } else if (isEditMode) {
         finalImages = existingImages
