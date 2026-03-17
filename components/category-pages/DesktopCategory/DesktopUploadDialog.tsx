@@ -240,7 +240,7 @@ export function DesktopUploadDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Monitor className="h-4 w-4" />
-              배경 이미지 1 (윈도우용, 16:9, 2560×1440)
+              배경 이미지 1 (윈도우용, 16:9, 2560×1440, 1920x1080)
             </Label>
             {windowsPreview ? (
               <div className="relative inline-block">
@@ -287,7 +287,7 @@ export function DesktopUploadDialog({
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Laptop className="h-4 w-4" />
-              배경 이미지 2 (맥용, 16:10, 2560×1600)
+              배경 이미지 2 (맥용, 16:10, 2560×1600, 1920x1200)
             </Label>
             {macPreview ? (
               <div className="relative inline-block">

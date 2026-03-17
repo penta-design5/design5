@@ -128,11 +128,9 @@ export function DesktopCard({
         <span className="text-sm font-semibold block truncate">
           {wallpaper.title || 'N/A'}
         </span>
-        {wallpaper.description && (
-          <span className="text-xs text-muted-foreground truncate block mt-0.5">
-            {wallpaper.description}
-          </span>
-        )}
+        <span className="text-xs text-muted-foreground truncate block mt-0.5">
+          {wallpaper.description || '설명 없음'}
+        </span>
       </div>
     </div>
   )
