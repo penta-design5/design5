@@ -324,6 +324,19 @@ export function PostUploadDialog({
       return
     }
 
+    // 첨부 이미지 한 개당 4.5MB 초과 여부 검사 (업로드 전 중단 및 안내)
+    const MAX_IMAGE_SIZE_BYTES = 4.5 * 1024 * 1024
+    if (selectedFiles.length > 0) {
+      const overSized = selectedFiles.filter((f) => f.size > MAX_IMAGE_SIZE_BYTES)
+      if (overSized.length > 0) {
+        const names = overSized.map((f) => f.name).join(', ')
+        toast.error(
+          `이미지 파일은 한 개당 4.5MB를 초과할 수 없습니다. 초과된 파일: ${names}`
+        )
+        return
+      }
+    }
+
     try {
       isSubmittingRef.current = true
       setSubmitting(true)
