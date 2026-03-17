@@ -83,6 +83,8 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [infoPanelOpen, setInfoPanelOpen] = useState(false) // 모바일 정보 패널 열림 상태
+  /** 수정 다이얼로그에서 순서 변경 시 좌측 갤러리 미리보기용 (다이얼로그 닫으면 null) */
+  const [previewImages, setPreviewImages] = useState<PostImage[] | null>(null)
 
   // 게시물 상세 조회
   useEffect(() => {
@@ -135,10 +137,12 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   /** 배경 클릭 시: 다이얼로그가 열려 있으면 다이얼로그만 닫고, 아니면 목록으로 이동 */
   const handleBackdropClick = () => {
     if (editDialogOpen) {
-      setEditDialogOpen(false)
-    } else {
-      handleClose()
+      // editDialog가 열려 있을 때는 백드롭 클릭으로 닫지 않음
+      // (다이얼로그 내 Select 드롭다운 → 바깥 클릭 시 이벤트가 여기까지 버블링되는 문제 방지)
+      // 다이얼로그는 X버튼·취소버튼·오버레이 클릭으로만 닫힘
+      return
     }
+    handleClose()
   }
 
   const handleEdit = () => {
@@ -247,7 +251,7 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
     }
   }
   
-  const images = getImages()
+  const images = previewImages ?? getImages()
 
   return (
     <div
@@ -337,12 +341,16 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
         <div onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
           <PostUploadDialog
             open={editDialogOpen}
-            onClose={() => setEditDialogOpen(false)}
+            onClose={() => {
+              setEditDialogOpen(false)
+              setPreviewImages(null)
+            }}
             categorySlug={category.slug}
             categoryId={category.id}
             postId={postId}
             post={post}
             onSuccess={handleEditSuccess}
+            onPreviewOrderChange={(items) => setPreviewImages(items)}
           />
         </div>
       )}

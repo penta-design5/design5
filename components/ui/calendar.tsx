@@ -76,7 +76,7 @@ function Calendar({
             <SelectTrigger className="h-8 w-24 text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[102]">
               {years.map((year) => (
                 <SelectItem key={year} value={year.toString()}>
                   {year}년
@@ -88,7 +88,7 @@ function Calendar({
             <SelectTrigger className="h-8 w-20 text-sm font-medium">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[102]">
               {months.map((monthName, index) => (
                 <SelectItem key={index} value={index.toString()}>
                   {monthName}

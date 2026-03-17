@@ -24,7 +24,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, X, File, ImageIcon } from 'lucide-react'
+import { Loader2, X, File, ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
@@ -63,6 +63,12 @@ interface Post {
   producedAt?: Date | string | null
 }
 
+export interface PreviewImageItem {
+  url: string
+  name: string
+  order: number
+}
+
 interface PostUploadDialogProps {
   open: boolean
   onClose: () => void
@@ -71,6 +77,8 @@ interface PostUploadDialogProps {
   onSuccess: () => void
   postId?: string // 수정 모드일 때 게시물 ID
   post?: Post // 수정 모드일 때 게시물 데이터
+  /** 편집 화면 좌측 갤러리 미리보기용: 다이얼로그 내 순서 변경 시 호출 */
+  onPreviewOrderChange?: (images: PreviewImageItem[]) => void
 }
 
 export function PostUploadDialog({
@@ -81,6 +89,7 @@ export function PostUploadDialog({
   onSuccess,
   postId,
   post,
+  onPreviewOrderChange,
 }: PostUploadDialogProps) {
   const isEditMode = !!postId && !!post
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -93,6 +102,8 @@ export function PostUploadDialog({
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const isSubmittingRef = useRef(false) // 중복 제출 방지
+  const onPreviewOrderChangeRef = useRef(onPreviewOrderChange)
+  onPreviewOrderChangeRef.current = onPreviewOrderChange
 
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postSchema),
@@ -196,6 +207,20 @@ export function PostUploadDialog({
     }
   }, [selectedFiles])
 
+  // 편집 화면 좌측 갤러리 미리보기: 다이얼로그에서 순서 변경 시 현재 순서로 부모에 전달 (ref 사용으로 무한 루프 방지)
+  useEffect(() => {
+    if (!open || !onPreviewOrderChangeRef.current) return
+    const list: PreviewImageItem[] = [
+      ...existingImages.map((img, i) => ({ url: img.url, name: img.name, order: i })),
+      ...selectedFiles.map((file, i) => ({
+        url: filePreviewUrls[i] ?? '',
+        name: file.name,
+        order: existingImages.length + i,
+      })),
+    ]
+    onPreviewOrderChangeRef.current(list)
+  }, [open, existingImages, selectedFiles, filePreviewUrls])
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setSelectedFiles(Array.from(e.target.files))
@@ -208,6 +233,76 @@ export function PostUploadDialog({
 
   const handleRemoveExistingImage = (index: number) => {
     setExistingImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const moveExistingImageUp = (index: number) => {
+    if (index <= 0) return
+    setExistingImages((prev) => {
+      const next = [...prev]
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      return next
+    })
+    setSelectedThumbnailIndex((prev) => {
+      if (prev === index) return index - 1
+      if (prev === index - 1) return index
+      return prev
+    })
+  }
+
+  const moveExistingImageDown = (index: number) => {
+    if (index >= existingImages.length - 1) return
+    setExistingImages((prev) => {
+      const next = [...prev]
+      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+      return next
+    })
+    setSelectedThumbnailIndex((prev) => {
+      if (prev === index) return index + 1
+      if (prev === index + 1) return index
+      return prev
+    })
+  }
+
+  const moveSelectedFileUp = (index: number) => {
+    if (index <= 0) return
+    setSelectedFiles((prev) => {
+      const next = [...prev]
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      return next
+    })
+    setFilePreviewUrls((prev) => {
+      if (prev.length <= index) return prev
+      const next = [...prev]
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      return next
+    })
+    const base = existingImages.length
+    setSelectedThumbnailIndex((prev) => {
+      if (prev === base + index) return base + index - 1
+      if (prev === base + index - 1) return base + index
+      return prev
+    })
+  }
+
+  const moveSelectedFileDown = (index: number) => {
+    if (index >= selectedFiles.length - 1) return
+    setSelectedFiles((prev) => {
+      const next = [...prev]
+      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+      return next
+    })
+    setFilePreviewUrls((prev) => {
+      if (prev.length <= index + 1) return prev
+      const next = [...prev]
+      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+      return next
+    })
+    const base = existingImages.length
+    setSelectedThumbnailIndex((prev) => {
+      if (prev === base + index) return base + index + 1
+      if (prev === base + index + 1) return base + index
+      return prev
+    })
   }
 
   const onSubmit = async (values: PostFormValues) => {
@@ -362,13 +457,15 @@ export function PostUploadDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleClose} modal={false}>
       <DialogContent
         data-gallery-edit-dialog
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
-        onPointerDownOutside={() => onClose()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         overlayProps={{
           onClick: onClose,
           onPointerDown: onClose,
@@ -500,7 +597,7 @@ export function PostUploadDialog({
               {/* 기존 이미지 목록 (수정 모드) */}
               {isEditMode && existingImages.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">기존 이미지:</p>
+                  <p className="text-xs text-muted-foreground">기존 이미지 (순서 변경 가능):</p>
                   <div className="grid grid-cols-3 gap-2">
                     {existingImages.map((image, index) => (
                       <div
@@ -515,6 +612,30 @@ export function PostUploadDialog({
                           className="object-cover"
                           sizes="(max-width: 768px) 33vw, 150px"
                         />
+                        <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => moveExistingImageUp(index)}
+                            disabled={index === 0 || uploading || submitting}
+                            title="위로 이동"
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => moveExistingImageDown(index)}
+                            disabled={index === existingImages.length - 1 || uploading || submitting}
+                            title="아래로 이동"
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <Button
                           type="button"
                           variant="destructive"
@@ -529,7 +650,7 @@ export function PostUploadDialog({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    이미지에 마우스를 올리면 삭제 버튼이 표시됩니다. 새 이미지를 선택하면 기존 이미지에 추가됩니다.
+                    이미지에 마우스를 올리면 순서 변경·삭제 버튼이 표시됩니다. 새 이미지를 선택하면 기존 이미지 뒤에 추가됩니다.
                   </p>
                 </div>
               )}
@@ -610,26 +731,50 @@ export function PostUploadDialog({
               {selectedFiles.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">
-                    {isEditMode ? '새로 추가할 이미지:' : '선택된 이미지:'}
+                    {isEditMode ? '새로 추가할 이미지 (순서 변경 가능):' : '선택된 이미지 (순서 변경 가능):'}
                   </p>
                   {selectedFiles.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-2 border rounded-md bg-muted/50"
+                      className="flex items-center justify-between gap-2 p-2 border rounded-md bg-muted/50"
                     >
-                      <div className="flex items-center gap-2">
-                        <File className="h-4 w-4" />
-                        <span className="text-sm">{file.name}</span>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <File className="h-4 w-4 shrink-0" />
+                        <span className="text-sm truncate">{file.name}</span>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveFile(index)}
-                        disabled={uploading || submitting}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => moveSelectedFileUp(index)}
+                          disabled={index === 0 || uploading || submitting}
+                          title="위로 이동"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => moveSelectedFileDown(index)}
+                          disabled={index === selectedFiles.length - 1 || uploading || submitting}
+                          title="아래로 이동"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveFile(index)}
+                          disabled={uploading || submitting}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground">

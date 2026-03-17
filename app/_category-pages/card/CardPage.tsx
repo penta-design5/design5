@@ -144,7 +144,7 @@ export function CardPage({ category }: CardPageProps) {
 
   return (
     <div className="w-full h-full flex flex-col overflow-y-auto">
-      <div className="px-8 pt-8 pb-8">
+      <div className="px-8 pt-0 pb-8">
         <div className="flex justify-between items-end mb-6">
           <div>
             <h1 className="text-3xl font-bold">{category.name}</h1>

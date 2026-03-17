@@ -187,8 +187,8 @@ export function IconPropertyPanel({
               )
             }
 
-            {/* 포맷 선택 버튼 - 단일 선택일 때만 표시 */}
-            {isSingleSelected && (
+            {/* 포맷 선택 버튼 - 단일/다중 선택 시 표시 */}
+            {(isSingleSelected || isMultipleSelected) && (
               <>
                 <div className="flex justify-between items-center gap-2">
                   <Button
@@ -238,19 +238,18 @@ export function IconPropertyPanel({
                 </div>
                 <div className='pb-4'>
                   <p className='text-xs font-light text-muted-foreground'>
-                    <span className='font-semibold mr-1'>PNG </span>: 배경투명
-                    <span className='font-semibold ml-4 mr-1'>JPG </span>: 배경불투명
-                    <span className='font-semibold ml-4'>SVG </span>: 벡터 (ai 파일대체)
+                    {isSingleSelected ? (
+                      <>
+                        <span className='font-semibold mr-1'>PNG </span>: 배경투명
+                        <span className='font-semibold ml-4 mr-1'>JPG </span>: 배경불투명
+                        <span className='font-semibold ml-4'>SVG </span>: 벡터 (ai 파일대체)
+                      </>
+                    ) : (
+                      <>여러 아이콘 선택 시 선택한 포맷(PNG, JPG, SVG)으로 ZIP 파일로 다운로드됩니다.</>
+                    )}
                   </p>
                 </div>
               </>
-            )}
-            {isMultipleSelected && (
-              <div className='pb-4'>
-                <p className='text-xs font-light text-muted-foreground'>
-                  여러 아이콘 선택 시 SVG 포맷의 ZIP 파일로 다운로드됩니다.
-                </p>
-              </div>
             )}
 
             <div className='pt-10 border-t'>
@@ -259,9 +258,8 @@ export function IconPropertyPanel({
                 onClick={async () => {
                   try {
                     setDownloading(true)
-                    // 여러 개 선택 시 항상 SVG로 다운로드
-                    const format = isMultipleSelected ? 'svg' : downloadFormat
-                    await onDownload(format)
+                    // 단일/다중 모두 선택한 포맷으로 다운로드 (다중 시 ZIP)
+                    await onDownload(downloadFormat)
                   } catch (error) {
                     console.error('Download error:', error)
                   } finally {

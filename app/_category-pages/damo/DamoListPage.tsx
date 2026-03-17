@@ -465,8 +465,13 @@ export function DamoListPage({ category }: DamoListPageProps) {
       {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <h1 className="text-3xl font-bold">{category.name}</h1>
+              <p className="text-muted-foreground mt-2">
+                업로드된 게시물은 디자인팀의 최신 버전이며, 회사 공식 버전은 마케팅 또는 기획에 문의하시기 바랍니다.
+              </p>
+            </div>
             {isAdmin && (
               <Button onClick={() => setUploadDialogOpen(true)}>
                 게시물 추가

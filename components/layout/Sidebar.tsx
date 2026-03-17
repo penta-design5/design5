@@ -132,7 +132,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       <div key={category.id} className='pr-4'>
         <div
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md', // 메뉴: 선택/호버 시 텍스트 색상만 변경, 배경 유지
+            'flex items-center gap-2 px-3 py-1 transition-colors rounded-md', // 메뉴: 선택/호버 시 텍스트 색상만 변경, 배경 유지
             isActive
               ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
               : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky',
@@ -283,7 +283,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/edm"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
+                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isEdmActive
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -295,7 +295,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/pdf-extractor"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
+                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isPdfExtractorActive
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -307,7 +307,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/chart-generator"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors',
+                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isChartGeneratorActive
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -345,7 +345,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/admin/dashboard"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
+                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/dashboard')
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -358,7 +358,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/admin/users"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
+                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/users')
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -371,7 +371,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     <Link
                       href="/admin/notices"
                       className={cn(
-                        'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
+                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/notices')
                           ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                           : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
@@ -385,7 +385,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       <Link
                         href="/admin/design-system"
                         className={cn(
-                          'flex items-center gap-2 px-3 py-1.5 transition-colors rounded-md',
+                          'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                           pathname.startsWith('/admin/design-system')
                             ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
                             : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'

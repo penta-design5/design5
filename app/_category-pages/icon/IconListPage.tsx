@@ -389,40 +389,66 @@ export function IconListPage({ category }: IconListPageProps) {
           }
         }
       } else {
-        // 여러 아이콘 ZIP 다운로드 (SVG만 지원)
+        // 여러 아이콘 ZIP 다운로드 (PNG / JPG / SVG 선택 가능)
         const zip = new JSZip()
 
-        // 각 SVG 파일 다운로드 및 속성 적용
-        for (const post of selectedPosts) {
-          if (!post.fileUrl) continue
+        if (format === 'svg') {
+          // SVG: 클라이언트에서 SVG fetch 후 속성 적용하여 ZIP에 추가
+          for (const post of selectedPosts) {
+            if (!post.fileUrl) continue
 
-          try {
-            // SVG 파일 가져오기
-            const response = await fetch(post.fileUrl)
-            if (!response.ok) throw new Error(`Failed to fetch ${post.title}`)
-            
-            let svgContent = await response.text()
-            
-            // 속성 적용
-            svgContent = changeIconSvgProperties(svgContent, color, strokeWidth, size)
-            
-            // 파일명 생성 (확장자 포함)
-            const fileName = `${post.title}.svg`
-            
-            // ZIP에 추가
-            zip.file(fileName, svgContent)
-          } catch (error) {
-            console.error(`Error processing ${post.title}:`, error)
-            // 개별 파일 실패해도 계속 진행
+            try {
+              const response = await fetch(post.fileUrl)
+              if (!response.ok) throw new Error(`Failed to fetch ${post.title}`)
+
+              let svgContent = await response.text()
+              svgContent = changeIconSvgProperties(svgContent, color, strokeWidth, size)
+              zip.file(`${post.title}.svg`, svgContent)
+            } catch (error) {
+              console.error(`Error processing ${post.title}:`, error)
+            }
+          }
+        } else {
+          // PNG / JPG: API 호출로 변환 후 ZIP에 추가
+          for (const post of selectedPosts) {
+            if (!post.id) continue
+
+            try {
+              const queryParams = new URLSearchParams({
+                format,
+                size: size.toString(),
+                color,
+                strokeWidth: strokeWidth.toString(),
+              })
+              const response = await fetch(
+                `/api/posts/${post.id}/icon/download?${queryParams.toString()}`
+              )
+              if (!response.ok) throw new Error(`Failed to fetch ${post.title}`)
+
+              const blob = await response.blob()
+              zip.file(`${post.title}.${format}`, blob)
+            } catch (error) {
+              console.error(`Error processing ${post.title}:`, error)
+            }
           }
         }
 
-        // ZIP 파일 생성 및 다운로드
         const zipBlob = await zip.generateAsync({ type: 'blob' })
         const url = URL.createObjectURL(zipBlob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `icons_${Date.now()}.zip`
+        const now = new Date()
+        const datePart = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0'),
+        ].join('')
+        const timePart = [
+          String(now.getHours()).padStart(2, '0'),
+          String(now.getMinutes()).padStart(2, '0'),
+          String(now.getSeconds()).padStart(2, '0'),
+        ].join('')
+        a.download = `icons_${datePart}_${timePart}.zip`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
