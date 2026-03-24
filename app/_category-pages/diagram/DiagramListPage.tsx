@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface Diagram {
   id: string
@@ -38,6 +39,7 @@ const DIAGRAM_CARD_WIDTH = 320
 export function DiagramListPage() {
   const router = useRouter()
   const { data: session } = useSession()
+  const isMobileViewport = useIsMobileViewport()
   
   const [diagrams, setDiagrams] = useState<Diagram[]>([])
   const [hasMore, setHasMore] = useState(true)
@@ -284,8 +286,16 @@ export function DiagramListPage() {
                       <div>
                         <DiagramCard
                           diagram={diagram}
-                          onEdit={() => handleEdit(diagram.id)}
-                          onDelete={() => handleDeleteClick(diagram.id)}
+                          onEdit={
+                            !isMobileViewport
+                              ? () => handleEdit(diagram.id)
+                              : undefined
+                          }
+                          onDelete={
+                            !isMobileViewport
+                              ? () => handleDeleteClick(diagram.id)
+                              : undefined
+                          }
                         />
                       </div>
                     </Flipped>

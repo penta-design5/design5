@@ -19,11 +19,12 @@ interface DiagramCardProps {
     createdAt: Date
     updatedAt: Date
   }
-  onEdit: () => void
-  onDelete: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
+  const showHoverActions = onEdit != null && onDelete != null
   const [imageLoaded, setImageLoaded] = useState(false)
   const imageUrlRef = useRef<string | null>(null)
 
@@ -96,26 +97,28 @@ export function DiagramCard({ diagram, onEdit, onDelete }: DiagramCardProps) {
           </div>
         )}
         
-        {/* 호버 시 액션 버튼 */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onEdit}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {/* 호버 시 액션 버튼 (모바일에서는 목록 페이지에서 비활성화) */}
+        {showHoverActions && (
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onEdit}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete?.()
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <CardContent className="p-4 border-t">

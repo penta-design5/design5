@@ -8,6 +8,7 @@ import { Layout, Pencil, Trash2 } from 'lucide-react'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import type { CardTemplate } from '@/lib/card-schemas'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface CardGalleryProps {
   templates: CardTemplate[]
@@ -35,6 +36,7 @@ export function CardGallery({
   onEditTemplate,
   onDeleteTemplate,
 }: CardGalleryProps) {
+  const isMobileViewport = useIsMobileViewport()
   const [columns, setColumns] = useState<CardTemplate[][]>([])
   const containerRef = useRef<HTMLDivElement>(null)
   const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -146,16 +148,20 @@ export function CardGallery({
                           <Layout className="h-12 w-12 text-muted-foreground/50" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-auto">
-                        <Button variant="secondary" size="sm" onClick={() => onSelectTemplate(template)}>
-                          편집하기
-                        </Button>
-                      </div>
+                      {!isMobileViewport && (
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-auto">
+                          <Button variant="secondary" size="sm" onClick={() => onSelectTemplate(template)}>
+                            편집하기
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4 border-t">
                       <h3 className="font-semibold text-lg truncate text-center">{template.name}</h3>
                     </div>
-                    {isAdmin && (onEditTemplate || onDeleteTemplate) && (
+                    {isAdmin &&
+                      (onEditTemplate || onDeleteTemplate) &&
+                      !isMobileViewport && (
                       <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                         {onEditTemplate && (
                           <Button

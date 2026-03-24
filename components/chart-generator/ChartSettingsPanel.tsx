@@ -38,6 +38,7 @@ import { toast } from 'sonner'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 
 import { ChartExportControls } from './ChartExportControls'
+import { cn } from '@/lib/utils'
 
 // 저장된 프리셋 타입
 interface SavedChartPreset {
@@ -79,6 +80,7 @@ interface ChartSettingsPanelProps {
   onChartTypeSettingsChange: (settings: ChartTypeSettings) => void
   onTitleChange: (title: string) => void
   onDescriptionChange: (description: string) => void
+  variant?: 'sidebar' | 'sheet'
 }
 
 export function ChartSettingsPanel({
@@ -93,7 +95,9 @@ export function ChartSettingsPanel({
   onChartTypeSettingsChange,
   onTitleChange,
   onDescriptionChange,
+  variant = 'sidebar',
 }: ChartSettingsPanelProps) {
+  const isSheet = variant === 'sheet'
   const { confirm } = useConfirmDialog()
   const [colorPickerOpen, setColorPickerOpen] = useState<number | null>(null)
   const [hoveredColorIndex, setHoveredColorIndex] = useState<number | null>(null)
@@ -271,7 +275,14 @@ export function ChartSettingsPanel({
   }
 
   return (
-    <div className="w-[410px] h-full bg-background border-l overflow-y-auto p-6 space-y-6">
+    <div
+      className={cn(
+        'space-y-6 overflow-y-auto bg-background p-6',
+        isSheet
+          ? 'h-full min-h-0 w-full'
+          : 'h-full w-[410px] border-l'
+      )}
+    >
       {/* 헤더: 제목 + 저장/불러오기 버튼 */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">차트 설정</h2>

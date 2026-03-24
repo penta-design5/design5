@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ImageGallery } from '@/components/category-pages/GalleryCategory/ImageGallery'
 import { PostInfo } from '@/components/category-pages/GalleryCategory/PostInfo'
@@ -83,8 +83,14 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [infoPanelOpen, setInfoPanelOpen] = useState(false) // 모바일 정보 패널 열림 상태
+  /** 수정 다이얼로그 열림 — 배경 클릭 가드용(setState 직후 동일 이벤트 루프에서 ref가 먼저 true가 되도록) */
+  const editDialogOpenRef = useRef(false)
   /** 수정 다이얼로그에서 순서 변경 시 좌측 갤러리 미리보기용 (다이얼로그 닫으면 null) */
   const [previewImages, setPreviewImages] = useState<PostImage[] | null>(null)
+
+  useEffect(() => {
+    editDialogOpenRef.current = editDialogOpen
+  }, [editDialogOpen])
 
   // 게시물 상세 조회
   useEffect(() => {
@@ -134,18 +140,17 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
     router.push(`/${category.slug}?refresh=${Date.now()}`)
   }
 
-  /** 배경 클릭 시: 다이얼로그가 열려 있으면 다이얼로그만 닫고, 아니면 목록으로 이동 */
+  /** 배경 클릭 시: 수정 다이얼로그가 열려 있으면 목록 이동 안 함 (ref는 state보다 먼저 갱신) */
   const handleBackdropClick = () => {
-    if (editDialogOpen) {
-      // editDialog가 열려 있을 때는 백드롭 클릭으로 닫지 않음
-      // (다이얼로그 내 Select 드롭다운 → 바깥 클릭 시 이벤트가 여기까지 버블링되는 문제 방지)
-      // 다이얼로그는 X버튼·취소버튼·오버레이 클릭으로만 닫힘
+    if (editDialogOpenRef.current) {
       return
     }
     handleClose()
   }
 
   const handleEdit = () => {
+    setInfoPanelOpen(false)
+    editDialogOpenRef.current = true
     setEditDialogOpen(true)
   }
 
@@ -210,6 +215,7 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
       }
     }
     refreshData()
+    editDialogOpenRef.current = false
     setEditDialogOpen(false)
   }
 
@@ -259,7 +265,6 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
         'fixed inset-0 top-0 left-0 md:left-56 bg-background overflow-hidden flex flex-col',
         editDialogOpen && 'z-0'
       )}
-      onClick={handleBackdropClick}
       role="presentation"
     >
       {/* 데스크톱: 닫기 버튼 */}
@@ -295,8 +300,12 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
       </div>
 
       <div className="flex h-full flex-col md:flex-row">
-        {/* 좌측: 이미지 갤러리 (배경 영역 클릭 시 목록으로 이동) */}
-        <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-900 md:pb-0 pb-24">
+        {/* 좌측: 이미지 갤러리 — 배경(갤러리 영역) 클릭만 목록으로. 루트에 두면 시트/다이얼로그와 무관한 고스트 클릭까지 잡힐 수 있음 */}
+        <div
+          className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-900 md:pb-0 pb-24"
+          onClick={handleBackdropClick}
+          role="presentation"
+        >
           <ImageGallery images={images} />
         </div>
 
@@ -342,6 +351,7 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
           <PostUploadDialog
             open={editDialogOpen}
             onClose={() => {
+              editDialogOpenRef.current = false
               setEditDialogOpen(false)
               setPreviewImages(null)
             }}

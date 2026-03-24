@@ -7,6 +7,7 @@ import { Layout, Pencil, Trash2 } from 'lucide-react'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import { WelcomeBoardCanvas } from './WelcomeBoardCanvas'
 import type { WelcomeBoardTemplate, UserEditData } from '@/lib/welcomeboard-schemas'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface WelcomeBoardGalleryProps {
   templates: WelcomeBoardTemplate[]
@@ -28,6 +29,7 @@ export function WelcomeBoardGallery({
   onEditTemplate,
   onDeleteTemplate,
 }: WelcomeBoardGalleryProps) {
+  const isMobileViewport = useIsMobileViewport()
   // 기본 userEditData (텍스트는 기본값 사용, 로고 없음)
   const defaultUserEditData: UserEditData = useMemo(() => ({
     textValues: {},
@@ -166,16 +168,18 @@ export function WelcomeBoardGallery({
                       </div>
                     )}
 
-                    {/* 오버레이 - 선택 버튼 */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-auto">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onSelectTemplate(template)}
-                      >
-                        편집하기
-                      </Button>
-                    </div>
+                    {/* 오버레이 - 선택 버튼 (모바일에서는 편집 진입 비활성화) */}
+                    {!isMobileViewport && (
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-auto">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onSelectTemplate(template)}
+                        >
+                          편집하기
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 템플릿 정보 */}
@@ -192,7 +196,9 @@ export function WelcomeBoardGallery({
                   </div>
 
                   {/* 관리자 액션 버튼 */}
-                  {isAdmin && (onEditTemplate || onDeleteTemplate) && (
+                  {isAdmin &&
+                    (onEditTemplate || onDeleteTemplate) &&
+                    !isMobileViewport && (
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30">
                       {onEditTemplate && (
                         <Button

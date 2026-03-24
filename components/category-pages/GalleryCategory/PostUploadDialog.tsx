@@ -469,8 +469,16 @@ export function PostUploadDialog({
     onClose()
   }
 
+  /** Radix onOpenChange는 열릴 때 true·닫힐 때 false 모두 호출됨. true에서 handleClose를 호출하면 열자마자 닫힘 */
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      handleClose()
+    }
+  }
+
+  // modal=false면 오버레이가 포인터를 막지 않아 클릭이 아래(갤러리 배경)로 통과할 수 있음
   return (
-    <Dialog open={open} onOpenChange={handleClose} modal={false}>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal>
       <DialogContent
         data-gallery-edit-dialog
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
@@ -479,10 +487,6 @@ export function PostUploadDialog({
         onPointerDownOutside={(e) => e.preventDefault()}
         onFocusOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        overlayProps={{
-          onClick: onClose,
-          onPointerDown: onClose,
-        }}
       >
         <DialogHeader>
           <DialogTitle>{isEditMode ? '게시물 수정' : '게시물 추가'}</DialogTitle>

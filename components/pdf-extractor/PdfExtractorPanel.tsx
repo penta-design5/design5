@@ -24,9 +24,17 @@ interface PdfExtractorPanelProps {
   pdfFile: File | null
   numPages: number
   setNumPages: (numPages: number) => void
+  /** sidebar: 우측 고정(기본). sheet: 모바일 하단 시트 내부 */
+  variant?: 'sidebar' | 'sheet'
 }
 
-export function PdfExtractorPanel({ pdfFile, numPages, setNumPages }: PdfExtractorPanelProps) {
+export function PdfExtractorPanel({
+  pdfFile,
+  numPages,
+  setNumPages,
+  variant = 'sidebar',
+}: PdfExtractorPanelProps) {
+  const isSheet = variant === 'sheet'
   const [selectedPages, setSelectedPages] = useState<Set<number>>(new Set())
   const [startPage, setStartPage] = useState<string>('')
   const [endPage, setEndPage] = useState<string>('')
@@ -287,7 +295,13 @@ export function PdfExtractorPanel({ pdfFile, numPages, setNumPages }: PdfExtract
 
   if (!pdfFile) {
     return (
-      <div className="w-[410px] h-full bg-background fixed right-0 top-0 bottom-0 flex items-center justify-center">
+      <div
+        className={
+          isSheet
+            ? 'flex min-h-[200px] w-full items-center justify-center bg-background'
+            : 'fixed bottom-0 right-0 top-0 flex h-full w-[410px] items-center justify-center bg-background'
+        }
+      >
         <p className="text-muted-foreground">PDF 파일을 업로드하세요</p>
       </div>
     )
@@ -296,8 +310,14 @@ export function PdfExtractorPanel({ pdfFile, numPages, setNumPages }: PdfExtract
   const sortedSelectedPages = Array.from(selectedPages).sort((a, b) => a - b)
 
   return (
-    <div className="w-[410px] h-full bg-background fixed right-0 top-0 bottom-0 overflow-y-auto">
-      <div className="px-8 pt-14 pb-8 space-y-6">
+    <div
+      className={
+        isSheet
+          ? 'w-full min-h-0 overflow-y-auto bg-background'
+          : 'fixed bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
+      }
+    >
+      <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-6' : 'space-y-6 px-8 pb-8 pt-14'}>
         {/* PDF 페이지 수 로드 (숨김) */}
         {pdfFile && (
           <div className="hidden">

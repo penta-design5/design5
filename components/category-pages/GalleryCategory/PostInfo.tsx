@@ -61,7 +61,10 @@ export function PostInfo({ post, onEdit, onDelete }: PostInfoProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onEdit}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit?.()
+                }}
                 className="h-8 w-8"
               >
                 <Pencil className="h-4 w-4" />
@@ -69,7 +72,10 @@ export function PostInfo({ post, onEdit, onDelete }: PostInfoProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onDelete}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete?.()
+                }}
                 className="h-8 w-8 text-destructive hover:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />

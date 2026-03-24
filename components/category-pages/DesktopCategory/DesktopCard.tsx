@@ -18,6 +18,8 @@ interface DesktopCardProps {
   onEdit?: (wallpaper: DesktopWallpaperPost) => void
   onDelete?: (wallpaperId: string) => void
   showActions?: boolean
+  /** 모바일에서는 편집 유도 문구 숨김 */
+  showHoverEditLabel?: boolean
 }
 
 export function DesktopCard({
@@ -27,6 +29,7 @@ export function DesktopCard({
   onEdit,
   onDelete,
   showActions = false,
+  showHoverEditLabel = true,
 }: DesktopCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const imageUrlRef = useRef<string | null>(null)
@@ -82,9 +85,11 @@ export function DesktopCard({
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageLoaded(true)}
             />
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-none">
-              <span className="text-white text-sm font-medium">편집하기</span>
-            </div>
+            {showHoverEditLabel && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-none">
+                <span className="text-white text-sm font-medium">편집하기</span>
+              </div>
+            )}
           </>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface Category {
   id: string
@@ -55,6 +56,7 @@ export function WelcomeBoardListPage({ category }: WelcomeBoardListPageProps) {
   const searchParams = useSearchParams()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'ADMIN'
+  const isMobileViewport = useIsMobileViewport()
 
   const [posts, setPosts] = useState<Post[]>([])
   const [hasMore, setHasMore] = useState(true)
@@ -442,9 +444,17 @@ export function WelcomeBoardListPage({ category }: WelcomeBoardListPageProps) {
                               }}
                               isSelected={selectedPostId === post.id}
                               onClick={handlePostClick}
-                              onEdit={isAdmin ? handleEdit : undefined}
-                              onDelete={isAdmin ? handleDeleteClick : undefined}
-                              showActions={isAdmin}
+                              onEdit={
+                                isAdmin && !isMobileViewport
+                                  ? handleEdit
+                                  : undefined
+                              }
+                              onDelete={
+                                isAdmin && !isMobileViewport
+                                  ? handleDeleteClick
+                                  : undefined
+                              }
+                              showActions={isAdmin && !isMobileViewport}
                             />
                           </div>
                         </Flipped>

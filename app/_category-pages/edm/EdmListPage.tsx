@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { EdmGuideDialog } from '@/components/category-pages/EdmCategory/EdmGuideDialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 interface Edm {
   id: string
   title: string
@@ -41,6 +42,7 @@ export function EdmListPage() {
   const { data: session } = useSession()
   const currentUserId = session?.user?.id ?? null
   const isAdmin = session?.user?.role === 'ADMIN'
+  const isMobileViewport = useIsMobileViewport()
 
   const [edms, setEdms] = useState<Edm[]>([])
   const [hasMore, setHasMore] = useState(true)
@@ -280,7 +282,8 @@ export function EdmListPage() {
                   }}
                 >
                   {column.map((edm) => {
-                    const canEdit = edm.authorId === currentUserId
+                    const canEdit =
+                      edm.authorId === currentUserId && !isMobileViewport
                     const authorName = edm.author?.name ?? null
                     const isOtherUser = isAdmin && edm.authorId !== currentUserId
                     return (

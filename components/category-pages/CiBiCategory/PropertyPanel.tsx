@@ -20,6 +20,8 @@ interface PropertyPanelProps {
   onColorChange: (color: string) => void
   onSizeChange: (width?: number, height?: number) => void
   onDownload: (format: 'png' | 'jpg' | 'svg') => Promise<void>
+  /** sidebar: 우측 고정 패널(기본). sheet: 모바일 하단 시트 내부용(고정 위치 해제) */
+  variant?: 'sidebar' | 'sheet'
 }
 
 const CI_COLORS = [
@@ -47,7 +49,9 @@ export function PropertyPanel({
   onColorChange,
   onSizeChange,
   onDownload,
+  variant = 'sidebar',
 }: PropertyPanelProps) {
+  const isSheet = variant === 'sheet'
   const [width, setWidth] = useState<number | undefined>(undefined)
   const [height, setHeight] = useState<number | undefined>(undefined)
   const [aspectRatio, setAspectRatio] = useState<number | null>(null)
@@ -223,15 +227,27 @@ export function PropertyPanel({
 
   if (!post) {
     return (
-      <div className="w-[410px] h-full bg-background fixed right-0 top-0 bottom-0 flex items-center justify-center">
+      <div
+        className={
+          isSheet
+            ? 'flex min-h-[200px] w-full items-center justify-center bg-background'
+            : 'fixed bottom-0 right-0 top-0 flex h-full w-[410px] items-center justify-center bg-background'
+        }
+      >
         <p className="text-muted-foreground">게시물을 선택하세요</p>
       </div>
     )
   }
 
   return (
-    <div className="w-[410px] h-full bg-background fixed right-0 top-0 bottom-0 overflow-y-auto">
-      <div className="px-8 pt-14 pb-8 space-y-6">
+    <div
+      className={
+        isSheet
+          ? 'w-full min-h-0 overflow-y-auto bg-background'
+          : 'fixed bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
+      }
+    >
+      <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-6' : 'space-y-6 px-8 pb-8 pt-14'}>
         {/* 제목 및 타입 */}
         <div className="space-y-5 pb-8 border-b">
           <h2 className="text-xl font-bold">{post.title}</h2>

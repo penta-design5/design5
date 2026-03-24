@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface Category {
   id: string
@@ -72,6 +74,9 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
   const [deleting, setDeleting] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<string>('ALL') // 필터 상태
   const [columns, setColumns] = useState<Post[][]>([])
+  /** 모바일: 하단 시트로 속성 패널 표시 */
+  const [mobilePropertySheetOpen, setMobilePropertySheetOpen] = useState(false)
+  const isMobileViewport = useIsMobileViewport()
   // 하이브리드 캐싱: 최근 3개 필터의 데이터를 메모리에 저장 (useRef 사용으로 무한 루프 방지)
   const filterCacheRef = useRef<Record<string, Post[]>>({})
   const filterCacheOrderRef = useRef<string[]>([]) // 캐시 순서 추적 (LRU 방식)
@@ -81,6 +86,12 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
   const resizeTimeoutRef = useRef<NodeJS.Timeout>()
   const isInitialMountRef = useRef(true) // 초기 마운트 플래그
   const fetchInProgressRef = useRef(false) // fetch 진행 중 플래그
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [isMobileViewport])
 
   // 무한 스크롤 구현
   useEffect(() => {
@@ -248,14 +259,20 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
       if (post) {
         setSelectedPostId(postIdParam)
         setSelectedPost(post)
-        // 선택된 게시물의 타입에 따라 기본 색상 설정
         const defaultColor = post.concept === 'CI' ? 'CI_COLOR_SET' : '#000000'
         setSelectedColor(defaultColor)
-        // URL에서 postId 파라미터 제거 (선택적으로)
+        setMobilePropertySheetOpen(true)
         router.replace(`/${category.slug}`, { scroll: false })
       }
     }
   }, [searchParams, posts, category.slug, router])
+
+  // 선택 해제 시 모바일 시트 닫기
+  useEffect(() => {
+    if (!selectedPost) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [selectedPost])
 
   // 페이지 변경 시 추가 로드
   useEffect(() => {
@@ -322,13 +339,19 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
   // 게시물 선택
   const handlePostClick = (postId: string) => {
     const post = posts.find((p) => p.id === postId)
-    if (post) {
-      setSelectedPostId(postId)
-      setSelectedPost(post)
-      // 선택된 게시물의 타입에 따라 기본 색상 설정
-      const defaultColor = post.concept === 'CI' ? 'CI_COLOR_SET' : '#000000'
-      setSelectedColor(defaultColor)
+    if (!post) return
+
+    // 같은 카드를 다시 탭하면 모바일 시트만 다시 열기
+    if (selectedPostId === postId) {
+      setMobilePropertySheetOpen(true)
+      return
     }
+
+    setSelectedPostId(postId)
+    setSelectedPost(post)
+    const defaultColor = post.concept === 'CI' ? 'CI_COLOR_SET' : '#000000'
+    setSelectedColor(defaultColor)
+    setMobilePropertySheetOpen(true)
   }
 
   // 색상 변경
@@ -605,7 +628,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      {/* 우측: 속성 패널 (데스크톱만) */}
       <div className="hidden md:block">
         <PropertyPanel
           post={selectedPost}
@@ -615,6 +638,30 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
           onDownload={handleDownload}
         />
       </div>
+
+      {/* 모바일: 하단 시트(Portal — open은 isMobileViewport와 함께만 true) */}
+      <Sheet
+        open={Boolean(
+          isMobileViewport && mobilePropertySheetOpen && selectedPost
+        )}
+        onOpenChange={(open) => {
+          setMobilePropertySheetOpen(open)
+        }}
+      >
+        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+          <SheetTitle className="sr-only">게시물 속성</SheetTitle>
+          {selectedPost && (
+            <PropertyPanel
+              variant="sheet"
+              post={selectedPost}
+              selectedColor={selectedColor}
+              onColorChange={handleColorChange}
+              onSizeChange={handleSizeChange}
+              onDownload={handleDownload}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

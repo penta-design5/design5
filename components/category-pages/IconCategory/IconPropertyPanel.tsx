@@ -17,6 +17,7 @@ interface IconPropertyPanelProps {
   onSizeChange: (size: number) => void
   onReset: () => void
   onDownload: (format: 'png' | 'jpg' | 'svg') => Promise<void>
+  variant?: 'sidebar' | 'sheet'
 }
 
 // 선택 가능한 색상 목록
@@ -46,7 +47,9 @@ export function IconPropertyPanel({
   onSizeChange,
   onReset,
   onDownload,
+  variant = 'sidebar',
 }: IconPropertyPanelProps) {
+  const isSheet = variant === 'sheet'
   const [downloadFormat, setDownloadFormat] = useState<'png' | 'jpg' | 'svg'>('svg')
   const [downloading, setDownloading] = useState(false)
 
@@ -70,8 +73,14 @@ export function IconPropertyPanel({
   }
 
   return (
-    <div className="w-[410px] h-full bg-background fixed right-0 top-0 bottom-0 overflow-y-auto">
-      <div className="px-8 pt-14 pb-8 space-y-6">
+    <div
+      className={
+        isSheet
+          ? 'w-full min-h-0 overflow-y-auto bg-background'
+          : 'fixed bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
+      }
+    >
+      <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-6' : 'space-y-6 px-8 pb-8 pt-14'}>
         {/* 제목 */}
         <div className="space-y-2 pb-6 border-b">
           <div className="flex justify-between items-center">

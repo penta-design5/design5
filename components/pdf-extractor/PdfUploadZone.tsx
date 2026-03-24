@@ -10,9 +10,16 @@ interface PdfUploadZoneProps {
   onFileSelect: (file: File) => void
   selectedFile: File | null
   onFileRemove: () => void
+  /** 모바일: 하단 시트로 추출 패널을 열 때 */
+  onOpenExtractPanel?: () => void
 }
 
-export function PdfUploadZone({ onFileSelect, selectedFile, onFileRemove }: PdfUploadZoneProps) {
+export function PdfUploadZone({
+  onFileSelect,
+  selectedFile,
+  onFileRemove,
+  onOpenExtractPanel,
+}: PdfUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false)
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -107,9 +114,22 @@ export function PdfUploadZone({ onFileSelect, selectedFile, onFileRemove }: PdfU
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-sm text-muted-foreground text-center md:hidden">
+                  아래에서 추출 설정을 열어 페이지를 선택하고 추출하세요.
+                </p>
+                <p className="text-sm text-muted-foreground text-center hidden md:block">
                   우측 패널에서 페이지를 선택하고 추출하세요.
                 </p>
+                {onOpenExtractPanel && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full max-w-md md:hidden"
+                    onClick={onOpenExtractPanel}
+                  >
+                    추출 설정 열기
+                  </Button>
+                )}
               </>
             ) : (
               <>

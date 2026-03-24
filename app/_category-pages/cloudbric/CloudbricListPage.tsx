@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface Category {
   id: string
@@ -82,6 +84,8 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
   const [deleting, setDeleting] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<string>('ALL') // 필터 상태
   const [columns, setColumns] = useState<Post[][]>([])
+  const [mobilePropertySheetOpen, setMobilePropertySheetOpen] = useState(false)
+  const isMobileViewport = useIsMobileViewport()
   // 하이브리드 캐싱: 최근 3개 필터의 데이터를 메모리에 저장 (useRef 사용으로 무한 루프 방지)
   const filterCacheRef = useRef<Record<string, Post[]>>({})
   const filterCacheOrderRef = useRef<string[]>([]) // 캐시 순서 추적 (LRU 방식)
@@ -111,6 +115,12 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
       observer.disconnect()
     }
   }, [hasMore, loading])
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [isMobileViewport])
 
   // 게시물 목록 조회 (selectedFilter를 파라미터로 받도록 변경)
   const fetchPosts = useCallback(
@@ -250,11 +260,17 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
       if (post) {
         setSelectedPostId(postIdParam)
         setSelectedPost(post)
-        // URL에서 postId 파라미터 제거 (선택적으로)
+        setMobilePropertySheetOpen(true)
         router.replace(`/${category.slug}`, { scroll: false })
       }
     }
   }, [searchParams, posts, category.slug, router])
+
+  useEffect(() => {
+    if (!selectedPost) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [selectedPost])
 
   // 페이지 변경 시 추가 로드
   useEffect(() => {
@@ -321,10 +337,14 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
   // 게시물 선택
   const handlePostClick = (postId: string) => {
     const post = posts.find((p) => p.id === postId)
-    if (post) {
-      setSelectedPostId(postId)
-      setSelectedPost(post)
+    if (!post) return
+    if (selectedPostId === postId) {
+      setMobilePropertySheetOpen(true)
+      return
     }
+    setSelectedPostId(postId)
+    setSelectedPost(post)
+    setMobilePropertySheetOpen(true)
   }
 
   // 다운로드
@@ -581,7 +601,7 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      {/* 우측: 속성 패널 (데스크톱) */}
       <div className="hidden md:block">
         <CloudbricPropertyPanel
           post={selectedPost ? {
@@ -591,6 +611,27 @@ export function CloudbricListPage({ category }: CloudbricListPageProps) {
           onDownload={handleDownload}
         />
       </div>
+
+      <Sheet
+        open={Boolean(
+          isMobileViewport && mobilePropertySheetOpen && selectedPost
+        )}
+        onOpenChange={setMobilePropertySheetOpen}
+      >
+        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+          <SheetTitle className="sr-only">게시물 속성</SheetTitle>
+          {selectedPost && (
+            <CloudbricPropertyPanel
+              variant="sheet"
+              post={{
+                ...selectedPost,
+                fileUrl: getFileUrl(selectedPost),
+              }}
+              onDownload={handleDownload}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

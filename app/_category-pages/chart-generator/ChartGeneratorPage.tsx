@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { ChartTypeSelector } from '@/components/chart-generator/ChartTypeSelector'
 import { ChartDataForm } from '@/components/chart-generator/ChartDataForm'
 import { ChartPreview } from '@/components/chart-generator/ChartPreview'
 import { ChartSettingsPanel } from '@/components/chart-generator/ChartSettingsPanel'
 import { ChartType, ChartSettings, ChartTypeSettings, DEFAULT_CHART_TYPE_SETTINGS } from '@/lib/chart-schemas'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { SlidersHorizontal } from 'lucide-react'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 export function ChartGeneratorPage() {
   const [chartType, setChartType] = useState<ChartType>('bar')
@@ -35,6 +39,14 @@ export function ChartGeneratorPage() {
   const [chartTypeSettings, setChartTypeSettings] = useState<ChartTypeSettings>(DEFAULT_CHART_TYPE_SETTINGS)
   
   const chartRef = useRef<HTMLDivElement>(null)
+  const [mobileSettingsSheetOpen, setMobileSettingsSheetOpen] = useState(false)
+  const isMobileViewport = useIsMobileViewport()
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobileSettingsSheetOpen(false)
+    }
+  }, [isMobileViewport])
 
   const handleChartTypeChange = useCallback((type: ChartType) => {
     setChartType(type)
@@ -57,11 +69,22 @@ export function ChartGeneratorPage() {
       {/* 좌측: 차트 생성 영역 (모바일에서는 우측 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
-          <div className="mb-6">
-            <h1 className="page-header-title">Chart Generator</h1>
-            <p className="text-muted-foreground mt-2">
-              차트 타입을 선택하고 데이터를 입력하여 차트를 생성하고 다운로드하세요.
-            </p>
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="page-header-title">Chart Generator</h1>
+              <p className="text-muted-foreground mt-2">
+                차트 타입을 선택하고 데이터를 입력하여 차트를 생성하고 다운로드하세요.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 md:hidden"
+              onClick={() => setMobileSettingsSheetOpen(true)}
+            >
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              차트 설정
+            </Button>
           </div>
 
           <div className="space-y-6">
@@ -102,7 +125,7 @@ export function ChartGeneratorPage() {
         </div>
       </div>
 
-      {/* 우측: 설정 패널 (모바일 너비에서는 숨김) */}
+      {/* 우측: 설정 패널 (데스크톱) */}
       <div className="hidden md:block fixed right-0 top-0 bottom-0">
         <ChartSettingsPanel
           settings={settings}
@@ -118,6 +141,29 @@ export function ChartGeneratorPage() {
           onDescriptionChange={setDescription}
         />
       </div>
+
+      <Sheet
+        open={Boolean(isMobileViewport && mobileSettingsSheetOpen)}
+        onOpenChange={setMobileSettingsSheetOpen}
+      >
+        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+          <SheetTitle className="sr-only">차트 설정</SheetTitle>
+          <ChartSettingsPanel
+            variant="sheet"
+            settings={settings}
+            chartType={chartType}
+            chartTypeSettings={chartTypeSettings}
+            data={chartData}
+            title={title}
+            description={description}
+            chartRef={chartRef}
+            onSettingsChange={handleSettingsChange}
+            onChartTypeSettingsChange={handleChartTypeSettingsChange}
+            onTitleChange={setTitle}
+            onDescriptionChange={setDescription}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

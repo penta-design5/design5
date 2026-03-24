@@ -22,6 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 interface Category {
   id: string
@@ -59,6 +61,8 @@ export function IconListPage({ category }: IconListPageProps) {
   const [downloading, setDownloading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [mobilePropertySheetOpen, setMobilePropertySheetOpen] = useState(false)
+  const isMobileViewport = useIsMobileViewport()
 
   // 속성 상태
   const [color, setColor] = useState(DEFAULT_COLOR)
@@ -121,6 +125,18 @@ export function IconListPage({ category }: IconListPageProps) {
       observer.disconnect()
     }
   }, [hasMore, loading])
+
+  useEffect(() => {
+    if (!isMobileViewport) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [isMobileViewport])
+
+  useEffect(() => {
+    if (selectedPostIds.size === 0) {
+      setMobilePropertySheetOpen(false)
+    }
+  }, [selectedPostIds])
 
   // 게시물 목록 조회
   const fetchPosts = useCallback(
@@ -199,9 +215,8 @@ export function IconListPage({ category }: IconListPageProps) {
     if (postIdParam && posts.length > 0) {
       const post = posts.find((p) => p.id === postIdParam)
       if (post) {
-        // 해당 게시물을 선택
         setSelectedPostIds(new Set([postIdParam]))
-        // URL에서 postId 파라미터 제거
+        setMobilePropertySheetOpen(true)
         router.replace(`/${category.slug}`, { scroll: false })
       }
     }
@@ -224,6 +239,11 @@ export function IconListPage({ category }: IconListPageProps) {
       } else {
         next.add(postId)
       }
+      if (next.size > 0) {
+        queueMicrotask(() => setMobilePropertySheetOpen(true))
+      } else {
+        queueMicrotask(() => setMobilePropertySheetOpen(false))
+      }
       return next
     })
   }
@@ -232,8 +252,10 @@ export function IconListPage({ category }: IconListPageProps) {
   const handleSelectAll = () => {
     if (selectedPostIds.size === filteredPosts.length) {
       setSelectedPostIds(new Set())
+      setMobilePropertySheetOpen(false)
     } else {
-      setSelectedPostIds(new Set(filteredPosts.map(p => p.id)))
+      setSelectedPostIds(new Set(filteredPosts.map((p) => p.id)))
+      setMobilePropertySheetOpen(true)
     }
   }
 
@@ -545,6 +567,19 @@ export function IconListPage({ category }: IconListPageProps) {
               </Button>
             )}
           </div>
+
+          {selectedPostIds.size > 0 && (
+            <div className="mt-3 md:hidden">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={() => setMobilePropertySheetOpen(true)}
+              >
+                속성 패널 열기
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* 아이콘 그리드 */}
@@ -587,7 +622,7 @@ export function IconListPage({ category }: IconListPageProps) {
         </div>
       </div>
 
-      {/* 우측: 속성 패널 (모바일 너비에서는 숨김) */}
+      {/* 우측: 속성 패널 (데스크톱) */}
       <div className="hidden md:block">
         <IconPropertyPanel
           color={color}
@@ -601,6 +636,31 @@ export function IconListPage({ category }: IconListPageProps) {
           onDownload={handlePropertyPanelDownload}
         />
       </div>
+
+      <Sheet
+        open={Boolean(
+          isMobileViewport &&
+            mobilePropertySheetOpen &&
+            selectedPostIds.size > 0
+        )}
+        onOpenChange={setMobilePropertySheetOpen}
+      >
+        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+          <SheetTitle className="sr-only">아이콘 속성</SheetTitle>
+          <IconPropertyPanel
+            variant="sheet"
+            color={color}
+            strokeWidth={strokeWidth}
+            size={size}
+            selectedCount={selectedPostIds.size}
+            onColorChange={setColor}
+            onStrokeWidthChange={setStrokeWidth}
+            onSizeChange={setSize}
+            onReset={handleReset}
+            onDownload={handlePropertyPanelDownload}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* 업로드 다이얼로그 */}
       {isAdmin && (

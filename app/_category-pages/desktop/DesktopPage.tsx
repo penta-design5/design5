@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 
 const CARD_WIDTH = 320
 
@@ -40,6 +41,7 @@ export function DesktopPage({ category }: DesktopPageProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'ADMIN'
+  const isMobileViewport = useIsMobileViewport()
 
   const [wallpapers, setWallpapers] = useState<DesktopWallpaperPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,9 +103,10 @@ export function DesktopPage({ category }: DesktopPageProps) {
 
   const handleCardClick = useCallback(
     (wallpaperId: string) => {
+      if (isMobileViewport) return
       router.push(`/${category.slug}/${wallpaperId}`)
     },
-    [category.slug, router]
+    [category.slug, router, isMobileViewport]
   )
 
   const handleEdit = useCallback((wp: DesktopWallpaperPost) => {
@@ -202,9 +205,16 @@ export function DesktopPage({ category }: DesktopPageProps) {
                         <DesktopCard
                           wallpaper={wp}
                           onClick={handleCardClick}
-                          onEdit={isAdmin ? handleEdit : undefined}
-                          onDelete={isAdmin ? handleDeleteClick : undefined}
-                          showActions={isAdmin}
+                          onEdit={
+                            isAdmin && !isMobileViewport ? handleEdit : undefined
+                          }
+                          onDelete={
+                            isAdmin && !isMobileViewport
+                              ? handleDeleteClick
+                              : undefined
+                          }
+                          showActions={isAdmin && !isMobileViewport}
+                          showHoverEditLabel={!isMobileViewport}
                         />
                       </div>
                     </Flipped>
