@@ -363,14 +363,14 @@ export default function NoticesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col md:flex-row items-end justify-between">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">공지사항 관리</h1>
+            <h1 className="page-header-title">공지사항 관리</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               공지사항을 등록, 수정, 삭제할 수 있습니다.
             </p>
           </div>
-          <Button disabled>
+          <Button disabled className="page-header-action-btn">
             <Plus className="h-4 w-4" />
             공지사항 추가
           </Button>
@@ -406,14 +406,17 @@ export default function NoticesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row items-end justify-between">
-        <div className='w-full md:w-auto'>
-          <h1 className="text-3xl font-bold">공지사항 관리</h1>
+      <div className="page-header-stack">
+        <div className="w-full md:w-auto">
+          <h1 className="page-header-title">공지사항 관리</h1>
           <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
             공지사항을 등록, 수정, 삭제할 수 있습니다.
           </p>
         </div>
-        <Button onClick={handleOpenCreateDialog}>
+        <Button
+          onClick={handleOpenCreateDialog}
+          className="page-header-action-btn w-full md:w-auto shrink-0"
+        >
           <Plus className="h-4 w-4" />
           공지사항 추가
         </Button>

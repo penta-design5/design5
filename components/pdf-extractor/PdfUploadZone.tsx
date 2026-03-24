@@ -72,7 +72,7 @@ export function PdfUploadZone({ onFileSelect, selectedFile, onFileRemove }: PdfU
     <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
       <div className="px-8 pt-16 pb-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">PDF Extractor</h1>
+          <h1 className="page-header-title">PDF Extractor</h1>
           <p className="text-muted-foreground mt-2">
             PDF 파일을 업로드하고 원하는 페이지 범위를 선택하여 추출하세요.
           </p>

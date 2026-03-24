@@ -379,10 +379,13 @@ export function PptListPage({ category }: PptListPageProps) {
       {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+          <div className="page-header-row">
+            <h1 className="page-header-title">{category.name}</h1>
             {isAdmin && (
-              <Button onClick={() => setUploadDialogOpen(true)}>
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="page-header-action-btn"
+              >
                 게시물 추가
               </Button>
             )}

@@ -79,7 +79,7 @@ export default async function PostDetailPage({
       // TODO: EditorDetailPage 구현 시 추가
       return (
         <div className="container mx-auto px-8 py-6">
-          <h1 className="text-3xl font-bold">{category.name}</h1>
+          <h1 className="page-header-title">{category.name}</h1>
           <p className="text-muted-foreground mt-4">
             편집 타입 상세 페이지는 아직 구현되지 않았습니다.
           </p>
@@ -90,7 +90,7 @@ export default async function PostDetailPage({
     default:
       return (
         <div className="container mx-auto px-8 py-6">
-          <h1 className="text-3xl font-bold">{category.name}</h1>
+          <h1 className="page-header-title">{category.name}</h1>
           <p className="text-muted-foreground mt-4">
             기본 상세 페이지는 아직 구현되지 않았습니다.
           </p>

@@ -331,7 +331,7 @@ export default function ProfilePage() {
     // <div className="container mx-auto py-8 px-4 max-w-4xl">
     <div className="w-full">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">프로필 설정</h1>
+        <h1 className="page-header-title mb-2">프로필 설정</h1>
         <p className="text-muted-foreground">
           아바타, 이름, 비밀번호를 변경할 수 있습니다.
         </p>

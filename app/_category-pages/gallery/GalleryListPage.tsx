@@ -224,10 +224,13 @@ export function GalleryListPage({ category }: GalleryListPageProps) {
 
   return (
     <div className="w-full px-0 py-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{category.name}</h1>
+      <div className="page-header-row">
+        <h1 className="page-header-title">{category.name}</h1>
         {isAdmin && (
-          <Button onClick={() => setUploadDialogOpen(true)}>
+          <Button
+            onClick={() => setUploadDialogOpen(true)}
+            className="page-header-action-btn"
+          >
             게시물 추가
           </Button>
         )}
@@ -242,8 +245,8 @@ export function GalleryListPage({ category }: GalleryListPageProps) {
               onClick={() => setSelectedFilter(filter)}
               className={`shrink-0 px-0 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedFilter === filter
-                  ? 'text-primary font-semibold hover:bg-muted'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  ? 'text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {filter}

@@ -226,15 +226,15 @@ export function DiagramListPage() {
   return (
     <div className="w-full min-h-screen bg-background">
       <div className="pb-8">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">다이어그램</h1>
+            <h1 className="page-header-title">다이어그램</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               도형과 텍스트를 이용하여 나만의 다이어그램을 만들고 다양한 포맷으로 내보내세요.<br />
               <sub>기본 다이어그램 템플릿을 다운받아 이미 만들어진 다양한 다이어그램을 편집하여 사용할 수 있습니다.</sub>
             </p>
           </div>
-          <Button onClick={handleCreateNew}>
+          <Button onClick={handleCreateNew} className="page-header-action-btn">
             다이어그램 추가
           </Button>
         </div>

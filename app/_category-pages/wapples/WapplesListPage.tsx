@@ -464,15 +464,18 @@ export function WapplesListPage({ category }: WapplesListPageProps) {
       {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+          <div className="page-header-stack">
             <div>
-              <h1 className="text-3xl font-bold">{category.name}</h1>
+              <h1 className="page-header-title">{category.name}</h1>
               <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
                 업로드된 게시물은 디자인팀의 최신 버전이며, 회사 공식 버전은 마케팅 또는 기획에 문의하시기 바랍니다.
               </p>
             </div>
             {isAdmin && (
-              <Button onClick={() => setUploadDialogOpen(true)}>
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="page-header-action-btn"
+              >
                 게시물 추가
               </Button>
             )}
@@ -487,8 +490,8 @@ export function WapplesListPage({ category }: WapplesListPageProps) {
                   onClick={() => setSelectedFilter(filter)}
                   className={`shrink-0 pl-0 pr-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     selectedFilter === filter
-                      ? 'text-primary font-semibold hover:bg-muted'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'text-primary font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {filter}

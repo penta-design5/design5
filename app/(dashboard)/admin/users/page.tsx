@@ -123,7 +123,7 @@ export default function UsersPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">회원 관리</h1>
+          <h1 className="page-header-title">회원 관리</h1>
           <p className="text-muted-foreground mt-2">
             등록된 모든 회원의 정보를 관리하고 권한을 부여합니다.
           </p>
@@ -160,7 +160,7 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">회원 관리</h1>
+        <h1 className="page-header-title">회원 관리</h1>
         <p className="text-muted-foreground mt-2">
           등록된 모든 회원의 정보를 관리하고 권한을 부여합니다.
         </p>

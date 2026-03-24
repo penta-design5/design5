@@ -203,9 +203,9 @@ export function EdmListPage() {
   return (
     <div className="w-full min-h-screen bg-background">
       <div className="pb-8">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">eDM Code Generator</h1>
+            <h1 className="page-header-title">eDM Code Generator</h1>
             <p className="relative text-muted-foreground mt-2 mb-2 md:mb-0 md:flex md:items-center md:gap-2 md:flex-wrap">
               이미지를 업로드하고 그리드를 이용하여 셀로 구분한 후 링크를 추가하여 HTML 코드를 생성합니다.
               <Tooltip>
@@ -223,7 +223,9 @@ export function EdmListPage() {
               </Tooltip>
             </p>
           </div>
-          <Button onClick={handleCreateNew}>eDM 추가</Button>
+          <Button onClick={handleCreateNew} className="page-header-action-btn">
+            eDM 추가
+          </Button>
         </div>
 
         {loading && edms.length === 0 && (

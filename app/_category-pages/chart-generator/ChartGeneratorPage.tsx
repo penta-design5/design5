@@ -58,7 +58,7 @@ export function ChartGeneratorPage() {
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold">Chart Generator</h1>
+            <h1 className="page-header-title">Chart Generator</h1>
             <p className="text-muted-foreground mt-2">
               차트 타입을 선택하고 데이터를 입력하여 차트를 생성하고 다운로드하세요.
             </p>

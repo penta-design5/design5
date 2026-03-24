@@ -44,7 +44,7 @@ export default function DesignSystemPage() {
   return (
     <div className="space-y-10 pb-10">
       <div>
-        <h1 className="text-3xl font-bold">디자인 시스템</h1>
+        <h1 className="page-header-title">디자인 시스템</h1>
         <p className="text-muted-foreground mt-2">
           LAYERARY에서 사용하는 색상, 타이포그래피, 간격 등 디자인 가이드 및 기본 UI 컴포넌트에 대한 사용 규칙입니다.
         </p>
@@ -122,8 +122,10 @@ export default function DesignSystemPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">text-3xl font-bold (페이지 제목)</p>
-              <p className="text-3xl font-bold">페이지 제목 예시</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                page-header-title (모바일: app-page-title / md: app-page-title-md)
+              </p>
+              <p className="page-header-title">페이지 제목 예시</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">text-2xl font-semibold (섹션 제목)</p>

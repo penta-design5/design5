@@ -145,15 +145,20 @@ export function CardPage({ category }: CardPageProps) {
   return (
     <div className="w-full h-full flex flex-col overflow-y-auto">
       <div className="px-8 pt-0 pb-8">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+            <h1 className="page-header-title">{category.name}</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               템플릿을 선택하여 감사/연말 카드를 제작하세요. 배경을 선택하고 제목·인사말·로고를 편집한 뒤 이미지 또는 PDF로 내보낼 수 있습니다.
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => setAdminDialogOpen(true)}>템플릿 추가</Button>
+            <Button
+              onClick={() => setAdminDialogOpen(true)}
+              className="page-header-action-btn"
+            >
+              템플릿 추가
+            </Button>
           )}
         </div>
         <CardGallery

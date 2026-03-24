@@ -463,10 +463,13 @@ export function CharacterListPage({ category }: CharacterListPageProps) {
       {/* 좌측: 게시물 목록 (모바일에서 masonry가 부모 100% 넘지 않도록 min-w-0) */}
       <div className="flex-1 min-w-0 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="w-full min-w-0 box-border px-8 pt-16 pb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+          <div className="page-header-row">
+            <h1 className="page-header-title">{category.name}</h1>
             {isAdmin && (
-              <Button onClick={() => setUploadDialogOpen(true)}>
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="page-header-action-btn"
+              >
                 게시물 추가
               </Button>
             )}
@@ -481,8 +484,8 @@ export function CharacterListPage({ category }: CharacterListPageProps) {
                   onClick={() => setSelectedFilter(filter)}
                   className={`shrink-0 pl-0 pr-3 md:px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     selectedFilter === filter
-                      ? 'text-primary font-semibold hover:bg-muted'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'text-primary font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {filter}

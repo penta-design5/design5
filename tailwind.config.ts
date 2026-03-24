@@ -82,6 +82,12 @@ const config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontSize: {
+        /** 모바일 페이지 제목 (Penta Design 등과 동일) */
+        "app-page-title": ["27px", { lineHeight: "1.25" }],
+        /** md 이상 페이지 제목 (text-3xl과 동일) */
+        "app-page-title-md": ["1.875rem", { lineHeight: "1" }],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

@@ -79,6 +79,22 @@
   }    
 }
 
+@layer components {
+  /* 페이지 상단 제목 + 헤더 액션 버튼 (모바일에서 축소) — tailwind theme: app-page-title / app-page-title-md */
+  .page-header-title {
+    @apply text-app-page-title font-bold md:text-app-page-title-md;
+  }
+  .page-header-row {
+    @apply flex justify-between items-center gap-3 mb-6;
+  }
+  .page-header-stack {
+    @apply flex flex-col md:flex-row justify-between items-end gap-3 mb-6;
+  }
+  .page-header-action-btn {
+    @apply h-8 shrink-0 px-3 text-xs md:h-10 md:px-4 md:text-sm;
+  }
+}
+
 /* Pinterest 스타일 Masonry 레이아웃 */
 .masonry-container {
   display: flex;

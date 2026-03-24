@@ -58,7 +58,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">대시보드</h1>
+          <h1 className="page-header-title">대시보드</h1>
           <p className="text-muted-foreground mt-2">
             프로젝트 통계 및 리소스 관리
           </p>
@@ -93,7 +93,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">대시보드</h1>
+        <h1 className="page-header-title">대시보드</h1>
         <p className="text-muted-foreground mt-2">
           프로젝트 통계 및 리소스 관리
         </p>

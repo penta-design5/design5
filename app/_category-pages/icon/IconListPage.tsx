@@ -480,10 +480,13 @@ export function IconListPage({ category }: IconListPageProps) {
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         {/* 헤더 */}
         <div className="flex-none px-8 pt-16 pb-4 bg-neutral-50 dark:bg-neutral-900">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+          <div className="page-header-row">
+            <h1 className="page-header-title">{category.name}</h1>
             {isAdmin && (
-              <Button onClick={() => setUploadDialogOpen(true)}>
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="page-header-action-btn"
+              >
                 아이콘 추가
               </Button>
             )}

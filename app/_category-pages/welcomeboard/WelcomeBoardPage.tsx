@@ -178,15 +178,18 @@ export function WelcomeBoardPage({ category }: WelcomeBoardPageProps) {
     <div className="w-full h-full flex flex-col overflow-y-auto">
       <div className="px-8 pt-0 pb-8">
         {/* 헤더 */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+            <h1 className="page-header-title">{category.name}</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               템플릿을 선택하여 웰컴보드를 제작하세요. 텍스트와 로고를 편집하고 이미지 또는 PDF로 내보낼 수 있습니다.
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => setAdminDialogOpen(true)}>
+            <Button
+              onClick={() => setAdminDialogOpen(true)}
+              className="page-header-action-btn"
+            >
               템플릿 추가
             </Button>
           )}

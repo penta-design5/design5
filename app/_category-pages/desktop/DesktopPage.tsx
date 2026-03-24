@@ -143,15 +143,21 @@ export function DesktopPage({ category }: DesktopPageProps) {
   return (
     <div className="w-full h-full flex flex-col overflow-y-auto">
       <div className="px-8 pt-0 pb-8">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-6">
+        <div className="page-header-stack">
           <div>
-            <h1 className="text-3xl font-bold">{category.name}</h1>
+            <h1 className="page-header-title">{category.name}</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               관리자가 업로드한 바탕화면을 선택하여 제목, 설명, 캘린더를 추가하고 배경 이미지로 다운로드하세요.
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => { setEditingWallpaper(null); setUploadOpen(true); }}>
+            <Button
+              onClick={() => {
+                setEditingWallpaper(null)
+                setUploadOpen(true)
+              }}
+              className="page-header-action-btn"
+            >
               바탕화면 추가
             </Button>
           )}
