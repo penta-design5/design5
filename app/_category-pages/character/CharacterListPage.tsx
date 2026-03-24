@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { useSession } from 'next-auth/react'
 import { CharacterUploadDialog } from '@/components/category-pages/CharacterCategory/CharacterUploadDialog'
 import { CharacterCard } from '@/components/category-pages/CharacterCategory/CharacterCard'
@@ -471,22 +472,24 @@ export function CharacterListPage({ category }: CharacterListPageProps) {
             )}
           </div>
 
-          {/* 필터 메뉴 */}
-          <div className="flex items-center gap-0 mb-3 flex-wrap">
-            {CHARACTER_FILTERS.map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setSelectedFilter(filter)}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedFilter === filter
-                    ? 'text-primary font-semibold hover:bg-muted'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
+          {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}
+          <HorizontalScrollEdgeFades className="mb-3">
+            <div className="flex flex-nowrap items-center gap-0">
+              {CHARACTER_FILTERS.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setSelectedFilter(filter)}
+                  className={`shrink-0 pl-0 pr-3 md:px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedFilter === filter
+                      ? 'text-primary font-semibold hover:bg-muted'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </HorizontalScrollEdgeFades>
 
           {/* 로딩 중 Skeleton 표시 */}
           {loading && posts.length === 0 && (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { useSession } from 'next-auth/react'
 import { DamoUploadDialog } from '@/components/category-pages/DamoCategory/DamoUploadDialog'
 import { DamoCard } from '@/components/category-pages/DamoCategory/DamoCard'
@@ -465,10 +466,10 @@ export function DamoListPage({ category }: DamoListPageProps) {
       {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
         <div className="px-8 pt-16 pb-8">
-          <div className="flex justify-between items-end mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-6">
             <div>
               <h1 className="text-3xl font-bold">{category.name}</h1>
-              <p className="text-muted-foreground mt-2">
+              <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
                 업로드된 게시물은 디자인팀의 최신 버전이며, 회사 공식 버전은 마케팅 또는 기획에 문의하시기 바랍니다.
               </p>
             </div>
@@ -479,22 +480,24 @@ export function DamoListPage({ category }: DamoListPageProps) {
             )}
           </div>
 
-          {/* 필터 메뉴 */}
-          <div className="flex items-center gap-0 mb-3 flex-wrap">
-            {DAMO_FILTERS.map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setSelectedFilter(filter)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedFilter === filter
-                    ? 'text-primary font-semibold hover:bg-muted'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
+          {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}
+          <HorizontalScrollEdgeFades className="mb-3">
+            <div className="flex flex-nowrap items-center gap-0">
+              {DAMO_FILTERS.map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setSelectedFilter(filter)}
+                  className={`shrink-0 pl-0 pr-3 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedFilter === filter
+                      ? 'text-primary font-semibold hover:bg-muted'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </HorizontalScrollEdgeFades>
 
           {/* 로딩 중 Skeleton 표시 */}
           {loading && posts.length === 0 && (

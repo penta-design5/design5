@@ -99,11 +99,14 @@ export function PostGrid({ posts, categorySlug, loading, onPostClick }: PostGrid
     }
 
     return (
-      <div ref={containerRef} className="masonry-container justify-center md:justify-start">
+      <div
+        ref={containerRef}
+        className="masonry-container masonry-container--gallery justify-center md:justify-start"
+      >
         {skeletonColumns.map((column, columnIndex) => (
           <div key={columnIndex} className="masonry-column">
             {column.map((index) => (
-              <PostCardSkeleton key={index} width={285} />
+              <PostCardSkeleton key={index} responsiveWidth />
             ))}
           </div>
         ))}
@@ -138,7 +141,10 @@ export function PostGrid({ posts, categorySlug, loading, onPostClick }: PostGrid
         }}
         decisionData={columns}
       >
-        <div ref={containerRef} className="masonry-container justify-center md:justify-start">
+        <div
+          ref={containerRef}
+          className="masonry-container masonry-container--gallery justify-center md:justify-start"
+        >
           {columns.map((column, columnIndex) => (
             <div key={columnIndex} className="masonry-column">
               {column.map((post) => {

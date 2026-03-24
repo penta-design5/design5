@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { useSession } from 'next-auth/react'
 import { CiBiUploadDialog } from '@/components/category-pages/CiBiCategory/CiBiUploadDialog'
 import { CiBiCard } from '@/components/category-pages/CiBiCategory/CiBiCard'
@@ -505,22 +506,24 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
             )}
           </div>
 
-          {/* 필터 메뉴 (모바일에서 줄바꿈) */}
-          <div className="flex flex-wrap items-center gap-4 mb-3">
-            {['ALL', 'CI', 'D.AMO', 'WAPPLES', 'iSIGN', 'Cloudbric', 'etc'].map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setSelectedFilter(filter)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedFilter === filter
-                    ? 'text-primary font-semibold hover:bg-muted'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {filter === 'etc' ? 'etc.' : filter}
-              </button>
-            ))}
-          </div>
+          {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}
+          <HorizontalScrollEdgeFades className="mb-3">
+            <div className="flex flex-nowrap items-center gap-4">
+              {['ALL', 'CI', 'D.AMO', 'WAPPLES', 'iSIGN', 'Cloudbric', 'etc'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setSelectedFilter(filter)}
+                  className={`shrink-0 px-0 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedFilter === filter
+                      ? 'text-primary font-semibold hover:bg-muted'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {filter === 'etc' ? 'etc.' : filter}
+                </button>
+              ))}
+            </div>
+          </HorizontalScrollEdgeFades>
 
           {/* 로딩 중 Skeleton 표시 */}
           {loading && posts.length === 0 && (

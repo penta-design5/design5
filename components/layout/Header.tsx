@@ -174,7 +174,7 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden flex justify-end"
             onClick={() => setMobileSearchOpen(true)}
             aria-label="검색"
           >

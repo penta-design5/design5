@@ -166,15 +166,15 @@ export function DiagramZipSection() {
   }
 
   return (
-    <div className="p-4 border rounded-lg bg-card flex justify-start items-center gap-2">
+    <div className="p-4 border rounded-lg bg-card flex flex-col md:flex-row justify-start items-start md:items-center gap-2">
       <div className="flex items-center gap-2">
         <FileArchive className="h-5 w-5 text-muted-foreground" />
         <h3 className="font-semibold">기본 다이어그램 템플릿 : </h3>
       </div>
 
       {zipInfo ? (
-        <div className="flex flex-1 justify-between items-center gap-2">
-          <div className="text-sm flex items-center gap-2">
+        <div className="flex flex-1 flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div className="text-sm flex items-center gap-2 w-full md:w-auto">
             <p className="font-medium">{zipInfo.fileName}</p>
             <p className="text-muted-foreground">
               {formatFileSize(zipInfo.fileSize)}
@@ -219,7 +219,7 @@ export function DiagramZipSection() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 justify-between items-center gap-2">
+        <div className="flex flex-1 flex-col md:flex-row justify-between items-start md:items-center gap-2">
           <p className="text-sm text-muted-foreground">
             {isAdmin
               ? '템플릿 파일이(zip) 없습니다. 파일을 업로드해주세요.'

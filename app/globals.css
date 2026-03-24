@@ -121,6 +121,20 @@
   }
 }
 
+/* Penta Design(갤러리) 목록: 모바일에서 카드 열 100% (부모 콘텐츠 영역 너비에 맞춤) */
+@media (max-width: 767px) {
+  .masonry-container--gallery {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .masonry-container--gallery .masonry-column {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
 /* 모바일 수평 네비게이션 스크롤바 숨기기 */
 .horizontal-nav-scroll::-webkit-scrollbar {
   display: none;

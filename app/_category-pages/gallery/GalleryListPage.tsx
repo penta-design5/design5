@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { PostUploadDialog } from '@/components/category-pages/GalleryCategory/PostUploadDialog'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 
 interface Category {
   id: string
@@ -232,22 +233,24 @@ export function GalleryListPage({ category }: GalleryListPageProps) {
         )}
       </div>
 
-      {/* 필터 메뉴 (모바일에서 줄바꿈) */}
-      <div className="flex flex-wrap items-center gap-4 mb-3">
-        {yearFilters.map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setSelectedFilter(filter)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              selectedFilter === filter
-                ? 'text-primary font-semibold hover:bg-muted'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            {filter}
-          </button>
-        ))}
-      </div>
+      {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}
+      <HorizontalScrollEdgeFades className="mb-3" edgeFadeVariant="background">
+        <div className="flex flex-nowrap items-center gap-4">
+          {yearFilters.map((filter) => (
+            <button
+              key={filter}
+              onClick={() => setSelectedFilter(filter)}
+              className={`shrink-0 px-0 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedFilter === filter
+                  ? 'text-primary font-semibold hover:bg-muted'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+      </HorizontalScrollEdgeFades>
 
       <PostGrid posts={posts} categorySlug={category.slug} loading={loading} onPostClick={handlePostClick} />
 

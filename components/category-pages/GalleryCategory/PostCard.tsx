@@ -222,7 +222,7 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
 
   return (
     <div
-      className="w-[285px] cursor-pointer group flex-shrink-0"
+      className="w-full md:w-[285px] cursor-pointer group flex-shrink-0"
       onClick={handleClick}
     >
       <div 
@@ -272,7 +272,7 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
           onError={() => {
             setImageLoaded(true)
           }}
-          sizes="285px" // 카드 너비에 맞춤
+          sizes="(max-width: 767px) 100vw, 285px"
         />
         {/* 호버 시 어두운 오버레이 */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300" />
