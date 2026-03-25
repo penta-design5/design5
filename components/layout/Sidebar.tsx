@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeLogo } from '@/components/ThemeLogo'
+import { BRAND_KO } from '@/lib/brand'
 
 interface Category {
   id: string
@@ -248,6 +249,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         <Link 
           href={session?.user?.role === 'ADMIN' ? '/admin/home' : '/'} 
           className="flex items-center" 
+          title={`${BRAND_KO} 홈`}
           onClick={onLinkClick}
         >
           <ThemeLogo

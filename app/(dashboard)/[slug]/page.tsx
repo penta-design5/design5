@@ -1,6 +1,8 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getCategoryBySlug } from '@/lib/categories'
 import { CategoryType } from '@prisma/client'
+import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryListPage } from '@/app/_category-pages/gallery/GalleryListPage'
 import { CiBiListPage } from '@/app/_category-pages/ci-bi/CiBiListPage'
 import { CharacterListPage } from '@/app/_category-pages/character/CharacterListPage'
@@ -27,6 +29,37 @@ function getDefaultPageType(categoryType: CategoryType): string {
 }
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string }
+}): Promise<Metadata> {
+  const category = await getCategoryBySlug(params.slug)
+  if (!category) {
+    return {}
+  }
+
+  const descFromDb = category.description?.trim()
+  const description = descFromDb
+    ? `${descFromDb} — ${BRAND_KO}에서 제공합니다.`
+    : `${category.name} 카테고리. ${DEFAULT_DESCRIPTION}`
+
+  const ogTitle = `${category.name} | ${BRAND_KO}`
+
+  return {
+    title: category.name,
+    description,
+    openGraph: {
+      title: ogTitle,
+      description,
+    },
+    twitter: {
+      title: ogTitle,
+      description,
+    },
+  }
+}
 
 export default async function CategoryPage({
   params,

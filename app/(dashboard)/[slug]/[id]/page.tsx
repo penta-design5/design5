@@ -1,6 +1,9 @@
+import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getCategoryBySlug } from '@/lib/categories'
 import { CategoryType } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryDetailPage } from '@/app/_category-pages/gallery/GalleryDetailPage'
 import { DesktopEditorPage } from '@/app/_category-pages/desktop/DesktopEditorPage'
 
@@ -17,6 +20,52 @@ function getDefaultPageType(categoryType: CategoryType): string {
 }
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string; id: string }
+}): Promise<Metadata> {
+  const category = await getCategoryBySlug(params.slug)
+  if (!category) {
+    return {}
+  }
+
+  const pageType = category.pageType || getDefaultPageType(category.type)
+
+  if (pageType === 'gallery') {
+    const post = await prisma.post.findUnique({
+      where: { id: params.id },
+      select: { title: true, subtitle: true, description: true },
+    })
+    if (post) {
+      const description =
+        post.description?.trim() ||
+        post.subtitle?.trim() ||
+        `${post.title} — ${category.name} · ${BRAND_KO}`
+      const ogTitle = `${post.title} | ${BRAND_KO}`
+      return {
+        title: post.title,
+        description,
+        openGraph: { title: ogTitle, description },
+        twitter: { title: ogTitle, description },
+      }
+    }
+  }
+
+  const descFromDb = category.description?.trim()
+  const description = descFromDb
+    ? `${descFromDb} — ${BRAND_KO}에서 제공합니다.`
+    : `${category.name} · ${DEFAULT_DESCRIPTION}`
+  const ogTitle = `${category.name} | ${BRAND_KO}`
+
+  return {
+    title: category.name,
+    description,
+    openGraph: { title: ogTitle, description },
+    twitter: { title: ogTitle, description },
+  }
+}
 
 export default async function PostDetailPage({
   params,

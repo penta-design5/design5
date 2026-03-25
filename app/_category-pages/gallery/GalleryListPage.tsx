@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { PostUploadDialog } from '@/components/category-pages/GalleryCategory/PostUploadDialog'
 import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
+import { BRAND_KO, SITE_TAGLINE } from '@/lib/brand'
 
 interface Category {
   id: string
@@ -224,8 +225,13 @@ export function GalleryListPage({ category }: GalleryListPageProps) {
 
   return (
     <div className="w-full px-0 py-0">
-      <div className="page-header-row">
-        <h1 className="page-header-title">{category.name}</h1>
+      <div className="page-header-row items-start">
+        <div>
+          <h1 className="page-header-title">{category.name}</h1>
+          {/* <p className="text-muted-foreground text-sm mt-1">
+            {SITE_TAGLINE} {BRAND_KO}
+          </p> */}
+        </div>
         {isAdmin && (
           <Button
             onClick={() => setUploadDialogOpen(true)}

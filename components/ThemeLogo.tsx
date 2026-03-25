@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useTheme } from 'next-themes'
+import { LOGO_ALT } from '@/lib/brand'
 
 interface ThemeLogoProps {
   width?: number
@@ -26,7 +27,7 @@ export function ThemeLogo({ width = 160, height = 40, className, priority = fals
   return (
     <Image
       src={logoSrc}
-      alt="Layerary logo"
+      alt={LOGO_ALT}
       width={width}
       height={height}
       className={className}

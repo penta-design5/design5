@@ -2,40 +2,51 @@ import type { Metadata } from "next";
 import "./pretendard.css";
 import "./globals.css";
 import { Providers } from "./providers";
+import {
+  BRAND_KO,
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  OG_TITLE,
+  SEO_KEYWORDS,
+  getOrganizationJsonLd,
+} from "@/lib/brand";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL
   ? new URL(process.env.NEXT_PUBLIC_APP_URL)
   : new URL("https://layerary.com");
 
-const title = "LAYERARY";
-const description =
-  "펜타시큐리티의 디자인 작업물을 리뷰하고 리소스를 검색, 편집, 다운로드할 수 있는 중앙 집중식 플랫폼";
+const jsonLd = getOrganizationJsonLd(baseUrl.toString());
 
 export const metadata: Metadata = {
   metadataBase: baseUrl,
-  title,
-  description,
+  title: {
+    default: DEFAULT_TITLE,
+    template: `%s | ${BRAND_KO}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  keywords: SEO_KEYWORDS,
   icons: {
     icon: "/img/favicon.png",
   },
   // --- 네이버 및 기타 소유권 확인 섹션 추가 ---
   verification: {
     other: {
-      'naver-site-verification': 'e00d701407f773c78740d07c043fb6b0bf57c340',
+      "naver-site-verification":
+        "e00d701407f773c78740d07c043fb6b0bf57c340",
     },
-  },  
+  },
   openGraph: {
-    title: "LAYERARY | 펜타시큐리티 디자인 플랫폼",
-    description,
+    title: OG_TITLE,
+    description: DEFAULT_DESCRIPTION,
     url: baseUrl.toString(),
-    siteName: "LAYERARY",
+    siteName: BRAND_KO,
     locale: "ko_KR",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LAYERARY | 펜타시큐리티 디자인 플랫폼",
-    description,
+    title: OG_TITLE,
+    description: DEFAULT_DESCRIPTION,
   },
 };
 
@@ -47,8 +58,14 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning className="font-sans">
       <body className={`font-sans antialiased min-h-screen bg-background`}>
-        <Providers>{children}</Providers></body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(jsonLd),
+          }}
+        />
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
-
