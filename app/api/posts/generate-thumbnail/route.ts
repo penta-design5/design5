@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
-import { uploadFile, downloadFile } from '@/lib/b2'
+import { uploadFile, downloadFile, buildGalleryThumbnailBuffer } from '@/lib/b2'
 import sharp from 'sharp'
 
 export const dynamic = 'force-dynamic'
@@ -22,14 +22,7 @@ export async function POST(request: Request) {
     // 원본 이미지 다운로드
     const { fileBuffer, contentType } = await downloadFile(fileUrl)
 
-    // 썸네일 생성 (JPEG로 변환하여 용량 최적화)
-    const thumbnail = await sharp(fileBuffer)
-      .resize(400, 400, {
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 85 })
-      .toBuffer()
+    const thumbnail = await buildGalleryThumbnailBuffer(fileBuffer, 400)
 
     const thumbnailFileName = `thumbnails/${fileName.replace(/\.[^/.]+$/, '.jpg')}`
     

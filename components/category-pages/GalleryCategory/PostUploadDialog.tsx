@@ -383,6 +383,9 @@ export function PostUploadDialog({
         finalImages = existingImages
       }
 
+      // ImageGallery·저장 데이터 모두 images[].order 기준으로 순서를 쓰므로 목록 순서와 일치시킴
+      finalImages = finalImages.map((img, index) => ({ ...img, order: index }))
+
       setUploading(false)
 
       const thumbnailUrl =

@@ -51,6 +51,7 @@ interface Post {
   images?: PostImage[] | null | any // Prisma JSON 필드는 any 타입일 수 있음
   viewCount: number
   createdAt: string
+  producedAt?: string | Date | null
   tags?: Array<{ tag: Tag }>
   author?: {
     name: string | null

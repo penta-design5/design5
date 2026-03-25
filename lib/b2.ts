@@ -123,6 +123,35 @@ export async function uploadFile(
 }
 
 /**
+ * 갤러리 썸네일 JPEG 버퍼: 세로형(세로 > 가로)은 가로를 thumbnailSize로 맞추고 세로는 정비율,
+ * 그 외(가로형·정사각)는 thumbnailSize × thumbnailSize 박스 안에 맞춤 (fit: inside).
+ */
+export async function buildGalleryThumbnailBuffer(
+  file: Buffer,
+  thumbnailSize: number = 400
+): Promise<Buffer> {
+  const meta = await sharp(file).metadata()
+  const w = meta.width ?? 0
+  const h = meta.height ?? 0
+  const isPortrait = h > w && w > 0 && h > 0
+
+  if (isPortrait) {
+    return sharp(file)
+      .resize({ width: thumbnailSize, withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+  }
+
+  return sharp(file)
+    .resize(thumbnailSize, thumbnailSize, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 85 })
+    .toBuffer()
+}
+
+/**
  * 이미지 파일을 업로드하고 썸네일 생성
  */
 export async function uploadImageWithThumbnail(
@@ -135,13 +164,7 @@ export async function uploadImageWithThumbnail(
   const originalResult = await uploadFile(file, fileName, contentType)
 
   // 썸네일 생성 (JPEG로 변환하여 용량 최적화)
-  const thumbnail = await sharp(file)
-    .resize(thumbnailSize, thumbnailSize, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .jpeg({ quality: 85 }) // JPEG로 변환하여 용량 최적화
-    .toBuffer()
+  const thumbnail = await buildGalleryThumbnailBuffer(file, thumbnailSize)
 
   const thumbnailFileName = `thumbnails/${fileName.replace(/\.[^/.]+$/, '.jpg')}`
   const thumbnailResult = await uploadFile(

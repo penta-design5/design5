@@ -19,6 +19,7 @@ interface Post {
   tool?: string | null
   viewCount: number
   createdAt: string
+  producedAt?: string | Date | null
   tags?: Array<{ tag: Tag }>
   author?: {
     name: string | null
@@ -36,8 +37,8 @@ export function PostInfo({ post, onEdit, onDelete }: PostInfoProps) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'ADMIN'
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('ko-KR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -132,6 +133,10 @@ export function PostInfo({ post, onEdit, onDelete }: PostInfoProps) {
             작성자: {post.author?.name || post.author?.email || '알 수 없음'}
           </div>
           <div>작성일: {formatDate(post.createdAt)}</div>
+          <div>
+            제작일:{' '}
+            {post.producedAt != null ? formatDate(post.producedAt) : '—'}
+          </div>
           <div>조회수: {post.viewCount}</div>
         </div>
       )}

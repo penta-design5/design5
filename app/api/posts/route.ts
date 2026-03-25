@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { CategoryType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { z } from 'zod'
@@ -126,6 +127,10 @@ export async function GET(request: Request) {
     const isDamoCategory = category?.pageType === 'damo'
     const isIsignCategory = category?.pageType === 'isign'
     const isCloudbricCategory = category?.pageType === 'cloudbric'
+    // Penta Design 등: WORK 타입이고 pageType 미지정 시 UI 기본값이 gallery ([slug]/page.tsx)
+    const isGalleryCategory =
+      category?.pageType === 'gallery' ||
+      (category?.pageType == null && category?.type === CategoryType.WORK)
     const isAllFilter = !validatedQuery.concept && !validatedQuery.tag
 
     let posts: any[]
@@ -646,6 +651,52 @@ export async function GET(request: Request) {
       // 페이지네이션 적용
       total = totalCount
       posts = sortedPosts.slice(skip, skip + validatedQuery.limit)
+      hasMore = skip + posts.length < total
+    } else if (isGalleryCategory) {
+      // Penta Design(갤러리): 제작일 최신순, 제작일 없음 → 생성일로 보조 정렬
+      const [fetchedPosts, totalCount] = await Promise.all([
+        prisma.post.findMany({
+          where,
+          skip,
+          take: validatedQuery.limit,
+          orderBy: [
+            { producedAt: { sort: 'desc', nulls: 'last' } },
+            { createdAt: 'desc' },
+          ],
+          include: {
+            category: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                type: true,
+              },
+            },
+            author: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            tags: {
+              include: {
+                tag: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+        prisma.post.count({ where }),
+      ])
+
+      total = totalCount
+      posts = fetchedPosts
       hasMore = skip + posts.length < total
     } else {
       // 일반 정렬 (최신순)
