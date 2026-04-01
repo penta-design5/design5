@@ -138,7 +138,7 @@ function LoginForm() {
               </div>
             )}
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="email">이메일</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -168,7 +168,7 @@ function LoginForm() {
                   required
                 />
               </div>
-            </div>
+            </div> */}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? '로그인 중...' : '로그인'}
