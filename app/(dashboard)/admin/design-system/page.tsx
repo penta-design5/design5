@@ -46,7 +46,7 @@ export default function DesignSystemPage() {
       <div>
         <h1 className="page-header-title">디자인 시스템</h1>
         <p className="text-muted-foreground mt-2">
-          LAYERARY에서 사용하는 색상, 타이포그래피, 간격 등 디자인 가이드 및 기본 UI 컴포넌트에 대한 사용 규칙입니다.
+          Desing5에서 사용하는 색상, 타이포그래피, 간격 등 디자인 가이드 및 기본 UI 컴포넌트에 대한 사용 규칙입니다.
         </p>
       </div>
 

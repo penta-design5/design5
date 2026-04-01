@@ -255,7 +255,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
           <ThemeLogo
             width={160}
             height={40}
-            className="h-[18px] w-auto"
+            className="h-[22px] w-auto"
             priority
           />
         </Link>

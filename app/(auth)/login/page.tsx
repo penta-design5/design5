@@ -76,7 +76,7 @@ function LoginForm() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">로그인</CardTitle>
           <CardDescription className="text-center">
-            LAYERARY에 오신 것을 환영합니다
+            Desing5에 오신 것을 환영합니다
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -93,7 +93,7 @@ function LoginForm() {
           </div>
           <div className='py-4'>
             <p className='text-center text-sm font-light text-penta-indigo leading-relaxed'>
-              Layeray는 펜타시큐리티 임직원을 위한 서비스로, <br />
+              Desing5는 펜타시큐리티 임직원을 위한 서비스로, <br />
               펜타시큐리티 이메일 계정으로만 로그인이 가능합니다.
             </p>
           </div>

@@ -106,7 +106,7 @@ export default function RegisterPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">회원가입</CardTitle>
           <CardDescription className="text-center">
-            LAYERARY 계정을 만들어보세요
+            Desing5 계정을 만들어보세요
           </CardDescription>
         </CardHeader>
         <CardContent>
