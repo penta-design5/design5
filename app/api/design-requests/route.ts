@@ -163,7 +163,8 @@ export async function POST(request: Request) {
       },
     })
 
-    void notifyDesignRequestCreated(created)
+    // 서버리스 환경에서 백그라운드 작업이 끊기지 않도록 발송 완료까지 대기 (SMTP는 Promise.all로 병렬)
+    await notifyDesignRequestCreated(created)
 
     return NextResponse.json({ item: created }, { status: 201 })
   } catch (error: unknown) {

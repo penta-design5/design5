@@ -41,6 +41,7 @@ function escapeHtml(s: string): string {
 
 /**
  * 디자인 의뢰 등록 직후 관리자·의뢰자에게 알림 메일.
+ * 호출부에서 await 할 것(Vercel 등 서버리스에서 발송이 끝나기 전 프로세스가 정리되는 것 방지).
  * 내부에서 오류를 삼키고 로그만 남김 — API 응답에는 영향 없음.
  */
 export async function notifyDesignRequestCreated(
@@ -116,21 +117,23 @@ export async function notifyDesignRequestCreated(
 본 메일이 스팸으로 분류될 경우, tiper@pentasecurity.com을 주소록에 추가하시면 정상 수신됩니다.</p>`
 
     const from = `"${BRAND_EN}" <${gmailUser}>`
-
-    for (const to of recipientMap.values()) {
-      try {
-        await transporter.sendMail({
-          from,
-          to,
-          replyTo: gmailUser,
-          subject,
-          text,
-          html,
-        })
-      } catch (err) {
-        console.error('[mail] design request notification failed for', to, err)
-      }
+    const mailOptions = {
+      from,
+      replyTo: gmailUser,
+      subject,
+      text,
+      html,
     }
+
+    await Promise.all(
+      [...recipientMap.values()].map(async (to) => {
+        try {
+          await transporter.sendMail({ ...mailOptions, to })
+        } catch (err) {
+          console.error('[mail] design request notification failed for', to, err)
+        }
+      })
+    )
   } catch (e) {
     console.error('[mail] notifyDesignRequestCreated', e)
   }
