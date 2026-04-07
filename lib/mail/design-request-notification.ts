@@ -39,6 +39,20 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+/** 메일 제목용: 줄바꿈·제어문자 제거, 공백 정리, 길이 상한(스레드 묶임·표시 깨짐 완화) */
+const SUBJECT_TITLE_MAX_LEN = 70
+
+function formatTitleForEmailSubject(raw: string): string {
+  let s = raw
+    .trim()
+    .replace(/\r\n|\r|\n/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .trim()
+  if (s.length <= SUBJECT_TITLE_MAX_LEN) return s
+  return `${s.slice(0, SUBJECT_TITLE_MAX_LEN - 1)}…`
+}
+
 /**
  * 디자인 의뢰 등록 직후 관리자·의뢰자에게 알림 메일.
  * 호출부에서 await 할 것(Vercel 등 서버리스에서 발송이 끝나기 전 프로세스가 정리되는 것 방지).
@@ -86,7 +100,9 @@ export async function notifyDesignRequestCreated(
       return
     }
 
-    const subject = `[${BRAND_EN}] 신규 디자인 의뢰가 등록되었습니다`
+    const titleForSubject =
+      formatTitleForEmailSubject(created.title) || '신규 디자인 의뢰'
+    const subject = `[${BRAND_EN}] ${titleForSubject}`
     const dueStr = formatDueYmdUtc(created.dueDate)
     const authorLabel =
       created.author.name?.trim() || created.author.email || '의뢰자'
