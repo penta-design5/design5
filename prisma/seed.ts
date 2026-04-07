@@ -44,6 +44,14 @@ async function main() {
       order: 1,
       description: '기 제작된 디자인 산출물',
     },
+    {
+      name: '디자인 의뢰',
+      slug: 'design-request',
+      type: CategoryType.WORK,
+      pageType: 'design-request',
+      order: 2,
+      description: '디자인 의뢰 게시판',
+    },
     // SOURCE 카테고리
     {
       name: 'CI/BI',

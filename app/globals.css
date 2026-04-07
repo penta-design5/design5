@@ -161,6 +161,17 @@
   scrollbar-width: none;
 }
 
+/* 카테고리 필터 등 HorizontalScrollEdgeFades: 모바일에서만 수평 스크롤바 숨김 (스크롤은 유지) */
+@media (max-width: 767px) {
+  .horizontal-scroll-edge-fades-track::-webkit-scrollbar {
+    display: none;
+  }
+  .horizontal-scroll-edge-fades-track {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 /* Skeleton Shimmer 애니메이션 */
 @keyframes shimmer {
   0% {

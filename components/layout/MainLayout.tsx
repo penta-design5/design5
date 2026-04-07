@@ -22,19 +22,36 @@ interface MainLayoutProps {
   categories: Category[]
 }
 
+/** [slug]/page.tsx getDefaultPageType 과 동일 — 헤더 숨김 여부 판단용 */
+function resolveCategoryPageType(category: Category): string {
+  if (category.pageType) return category.pageType
+  switch (category.type) {
+    case CategoryType.WORK:
+      return 'gallery'
+    case CategoryType.TEMPLATE:
+      return 'editor'
+    default:
+      return 'list'
+  }
+}
+
 export function MainLayout({ children, categories }: MainLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   
-  // Penta Design 상세 페이지인지 확인
-  // /admin으로 시작하는 경로는 제외하고, 카테고리 slug와 id 형식인 경우만
-  const isGalleryDetailPage = pathname && 
-    !pathname.startsWith('/admin') && 
-    /^\/[^/]+\/[^/]+$/.test(pathname) &&
-    categories.some(cat => {
-      const match = pathname.match(/^\/([^/]+)\//)
-      return match && match[1] === cat.slug
-    })
+  // 갤러리형(Penta Design 등) 상세만 전역 헤더 숨김 — design-request·desktop 등은 헤더 유지
+  const isGalleryDetailPage = Boolean(
+    pathname &&
+      !pathname.startsWith('/admin') &&
+      /^\/[^/]+\/[^/]+$/.test(pathname) &&
+      categories.some((cat) => {
+        const match = pathname.match(/^\/([^/]+)\//)
+        return (
+          Boolean(match && match[1] === cat.slug) &&
+          resolveCategoryPageType(cat) === 'gallery'
+        )
+      })
+  )
 
   // CI/BI 페이지인지 확인 (pathname 기반으로 우선 감지)
   const isCiBiPage = Boolean(pathname && 

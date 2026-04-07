@@ -131,7 +131,7 @@ function LoginForm() {
           </div>  */}
 
           {/* 이메일/패스워드 로그인 폼 */}
-          {/* <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
             {error && (
               <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
                 {error}
@@ -173,7 +173,7 @@ function LoginForm() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? '로그인 중...' : '로그인'}
             </Button>
-          </form> */}
+          </form>
 
           {/* 회원가입 링크 */}
           {/* <div className="text-center text-sm">

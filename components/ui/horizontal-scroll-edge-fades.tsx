@@ -74,7 +74,7 @@ export function HorizontalScrollEdgeFades({
       <div
         ref={scrollRef}
         className={cn(
-          'overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]',
+          'horizontal-scroll-edge-fades-track overflow-x-auto overflow-y-hidden [-webkit-overflow-scrolling:touch]',
           scrollClassName
         )}
       >

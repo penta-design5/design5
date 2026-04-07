@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryDetailPage } from '@/app/_category-pages/gallery/GalleryDetailPage'
 import { DesktopEditorPage } from '@/app/_category-pages/desktop/DesktopEditorPage'
+import { DesignRequestDetailPage } from '@/app/_category-pages/design-request/DesignRequestDetailPage'
 
 // 카테고리 타입별 기본 pageType 반환
 function getDefaultPageType(categoryType: CategoryType): string {
@@ -46,6 +47,25 @@ export async function generateMetadata({
       const ogTitle = `${post.title} | ${BRAND_KO}`
       return {
         title: post.title,
+        description,
+        openGraph: { title: ogTitle, description },
+        twitter: { title: ogTitle, description },
+      }
+    }
+  }
+
+  if (pageType === 'design-request') {
+    const dr = await prisma.designRequest.findUnique({
+      where: { id: params.id },
+      select: { title: true, content: true },
+    })
+    if (dr) {
+      const description =
+        dr.content?.trim().slice(0, 160) ||
+        `${dr.title} — ${category.name} · ${BRAND_KO}`
+      const ogTitle = `${dr.title} | ${BRAND_KO}`
+      return {
+        title: dr.title,
         description,
         openGraph: { title: ogTitle, description },
         twitter: { title: ogTitle, description },
@@ -123,6 +143,11 @@ export default async function PostDetailPage({
     case 'icon':
       // ICON은 리스트 페이지로 리다이렉트 (게시물 ID를 query parameter로 전달)
       redirect(`/${params.slug}?postId=${params.id}`)
+
+    case 'design-request':
+      return (
+        <DesignRequestDetailPage category={category} requestId={params.id} />
+      )
 
     case 'editor':
       // TODO: EditorDetailPage 구현 시 추가

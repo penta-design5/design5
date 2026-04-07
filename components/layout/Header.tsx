@@ -6,7 +6,11 @@ import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchResultsDialog } from '@/components/search/SearchResultsDialog'
-import { SearchFilterDropdown, type SearchCategoryOption } from '@/components/search/SearchFilterDropdown'
+import {
+  SearchFilterDropdown,
+  SearchFilterPanel,
+  type SearchCategoryOption,
+} from '@/components/search/SearchFilterDropdown'
 import type { SearchResult } from '@/app/api/search/route'
 import {
   Sheet,
@@ -32,6 +36,16 @@ interface HeaderProps {
 }
 
 const EXCLUDED_CATEGORY_SLUGS = ['edm']
+
+/** Sheet(Dialog) 안의 Popover/Select 등 포털 레이어는 '바깥'으로 간주되어 시트가 닫히거나 포커스가 막힘 → 방지 */
+function isInsideRadixFloatingLayer(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof Element)) return false
+  return Boolean(
+    target.closest('[data-radix-popper-content-wrapper]') ||
+      target.closest('[data-radix-select-viewport]') ||
+      target.closest('[data-radix-dropdown-menu-content]')
+  )
+}
 
 function buildSearchCategoryOptions(categories: Category[] = []): SearchCategoryOption[] {
   const flattened: Category[] = []
@@ -62,8 +76,13 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
   const [resultsDialogOpen, setResultsDialogOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileDetailSearchOpen, setMobileDetailSearchOpen] = useState(false)
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!mobileSearchOpen) setMobileDetailSearchOpen(false)
+  }, [mobileSearchOpen])
 
   const categoryOptions = buildSearchCategoryOptions(categories)
 
@@ -133,7 +152,7 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
         WebkitBackdropFilter: 'blur(12px)',
       }}
     >
-      <div className="flex h-16 items-center justify-between px-8 w-full">
+      <div className="relative z-[60] flex h-16 w-full items-center justify-between px-8">
         <div className="flex items-center gap-4 -ml-3">
           <Button
             variant="ghost"
@@ -183,40 +202,86 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
         </div>
       </div>
 
-      {/* 모바일 검색 시트 */}
-      <Sheet open={mobileSearchOpen} onOpenChange={setMobileSearchOpen}>
-        <SheetContent side="top" className="h-auto">
+      {/* 모바일 검색 시트 — modal=false: 모달 Dialog의 hideOthers/포커스 락이 포털 Popover(상세검색)를 막지 않도록 함. 딤은 별도 레이어. */}
+      <Sheet modal={false} open={mobileSearchOpen} onOpenChange={setMobileSearchOpen}>
+        {mobileSearchOpen ? (
+          <button
+            type="button"
+            className="fixed inset-0 z-[45] bg-black/80 md:hidden"
+            aria-label="검색 닫기"
+            onClick={() => setMobileSearchOpen(false)}
+          />
+        ) : null}
+        <SheetContent
+          side="top"
+          className="z-[50] h-auto"
+          onPointerDownOutside={(e) => {
+            if (isInsideRadixFloatingLayer(e.detail.originalEvent.target)) {
+              e.preventDefault()
+            }
+          }}
+          onInteractOutside={(e) => {
+            const orig = (e as CustomEvent<{ originalEvent: FocusEvent | PointerEvent }>).detail
+              ?.originalEvent
+            if (!orig) return
+            if (orig instanceof FocusEvent) {
+              if (isInsideRadixFloatingLayer(orig.relatedTarget)) e.preventDefault()
+            } else if (isInsideRadixFloatingLayer(orig.target)) {
+              e.preventDefault()
+            }
+          }}
+          onFocusOutside={(e) => {
+            const orig = (e as CustomEvent<{ originalEvent: FocusEvent }>).detail
+              ?.originalEvent
+            if (isInsideRadixFloatingLayer(orig?.relatedTarget ?? null)) {
+              e.preventDefault()
+            }
+          }}
+        >
           <SheetHeader>
             <SheetTitle>통합 검색</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-4">
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="전체 리소스 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <SearchFilterDropdown
-                open={filterDropdownOpen}
-                onOpenChange={setFilterDropdownOpen}
-                searchQuery={searchQuery}
-                onSearch={handleFilterSearch}
-                categoryOptions={categoryOptions}
-                trigger={
-                  <Button type="button" variant="outline" size="icon" aria-label="상세 검색 조건">
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </Button>
-                }
-              />
-              <Button type="submit" disabled={!searchQuery.trim()}>
-                검색
+            <div className="flex gap-2">
+              <form
+                onSubmit={handleSubmit}
+                className="flex min-w-0 flex-1 gap-2"
+              >
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="전체 리소스 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button type="submit" disabled={!searchQuery.trim()}>
+                  검색
+                </Button>
+              </form>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                aria-label="상세 검색 조건"
+                aria-expanded={mobileDetailSearchOpen}
+                onClick={() => setMobileDetailSearchOpen((v) => !v)}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
               </Button>
-            </form>
+            </div>
+            {mobileDetailSearchOpen ? (
+              <SearchFilterPanel
+                searchQuery={searchQuery}
+                categoryOptions={categoryOptions}
+                onSearch={handleFilterSearch}
+                onApplied={() => setMobileDetailSearchOpen(false)}
+                className="rounded-md border bg-muted/30 p-4"
+              />
+            ) : null}
           </div>
         </SheetContent>
       </Sheet>

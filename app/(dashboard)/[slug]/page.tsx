@@ -15,6 +15,7 @@ import { IconListPage } from '@/app/_category-pages/icon/IconListPage'
 import { WelcomeBoardPage } from '@/app/_category-pages/welcomeboard/WelcomeBoardPage'
 import { DesktopPage } from '@/app/_category-pages/desktop/DesktopPage'
 import { CardPage } from '@/app/_category-pages/card/CardPage'
+import { DesignRequestListPage } from '@/app/_category-pages/design-request/DesignRequestListPage'
 
 // 카테고리 타입별 기본 pageType 반환
 function getDefaultPageType(categoryType: CategoryType): string {
@@ -111,6 +112,9 @@ export default async function CategoryPage({
 
     case 'icon':
       return <IconListPage category={category} />
+
+    case 'design-request':
+      return <DesignRequestListPage category={category} />
 
     case 'editor':
       // TODO: EditorListPage 구현 시 추가

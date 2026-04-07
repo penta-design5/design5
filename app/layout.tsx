@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import {
   BRAND_KO,
+  BRAND_EN,
   DEFAULT_DESCRIPTION,
   DEFAULT_TITLE,
   OG_TITLE,
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   metadataBase: baseUrl,
   title: {
     default: DEFAULT_TITLE,
-    template: `%s | ${BRAND_KO}`,
+    template: `%s | ${BRAND_EN}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: SEO_KEYWORDS,
@@ -35,6 +36,7 @@ export const metadata: Metadata = {
         "e00d701407f773c78740d07c043fb6b0bf57c340",
     },
   },
+  // 페이스북이 만든 웹페이지를 “카드”로 공유할 때 쓰는 메타데이터 규격
   openGraph: {
     title: OG_TITLE,
     description: DEFAULT_DESCRIPTION,
@@ -43,6 +45,7 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     type: "website",
   },
+  // twitter가 만든 웹페이지를 “카드”로 공유할 때 쓰는 메타데이터 규격
   twitter: {
     card: "summary_large_image",
     title: OG_TITLE,
