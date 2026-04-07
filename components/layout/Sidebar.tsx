@@ -97,8 +97,10 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     }
   }
 
-  // edm 카테고리는 가이드 영상 API용으로만 사용하고 사이드바 메뉴에는 표시하지 않음 (LABs 아래 하드코딩 링크 사용)
-  const categoriesForMenu = categories.filter((c) => c.slug !== 'edm')
+  // edm: 가이드 영상 API용만 — LABs 하드코딩 링크 사용. diagram: 비공개 처리로 메뉴 비표시
+  const categoriesForMenu = categories.filter(
+    (c) => c.slug !== 'edm' && c.slug !== 'diagram'
+  )
   const groupedCategories = categoriesForMenu.reduce((acc, category) => {
     // 최상위 카테고리만 그룹화 (children이 이미 포함되어 있음)
     if (!acc[category.type]) {
@@ -206,6 +208,9 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     CategoryType.ADMIN,
   ]
 
+  /** TEMPLATE 메뉴 표시 순서 (DB/캐시와 무관). eDM(slug edm)은 메뉴에서 제외되어 LABs만 사용 */
+  const templateMenuSlugOrder = ['ppt', 'wallpaper', 'welcome-board', 'card'] as const
+
   const getInitials = (name?: string | null, email?: string) => {
     if (name) {
       return name.substring(0, 2).toUpperCase()
@@ -267,7 +272,19 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
           <nav className="space-y-6">
             {categoryOrder.map((type) => {
               const cats = groupedCategories[type] || []
-              
+              const displayCats =
+                type === CategoryType.TEMPLATE
+                  ? [...cats].sort((a, b) => {
+                      const ia = templateMenuSlugOrder.indexOf(
+                        a.slug as (typeof templateMenuSlugOrder)[number]
+                      )
+                      const ib = templateMenuSlugOrder.indexOf(
+                        b.slug as (typeof templateMenuSlugOrder)[number]
+                      )
+                      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+                    })
+                  : cats
+
               // SOURCE 카테고리는 일반 카테고리로 처리
               // (ICON은 Supabase 카테고리로 관리됨)
 
@@ -403,7 +420,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
               }
 
               // 일반 카테고리 (WORK, SOURCE, TEMPLATE, BROCHURE)
-              if (cats.length === 0) return null
+              if (displayCats.length === 0) return null
 
               // 카테고리 텍스트 랜더링 
               return (
@@ -411,7 +428,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                   <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     {getCategoryLabel(type)}
                   </div>
-                  {cats.map((category) => renderCategory(category))}
+                  {displayCats.map((category) => renderCategory(category))}
                 </div>
               )
             })}

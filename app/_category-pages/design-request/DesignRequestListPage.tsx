@@ -388,7 +388,7 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="container mx-auto px-0 py-0">
+    <div className="mx-auto px-0 py-0">
     {/* <div className="container mx-auto px-4 py-6 md:px-8"> */}
       <div className="mb-6 flex flex-row gap-4 items-center justify-between">
         <h1 className="page-header-title">{category.name}</h1>

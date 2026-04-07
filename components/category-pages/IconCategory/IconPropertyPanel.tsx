@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { RotateCcw, Loader2 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface IconPropertyPanelProps {
   color: string
@@ -20,6 +21,9 @@ interface IconPropertyPanelProps {
   variant?: 'sidebar' | 'sheet'
 }
 
+/** 아이콘 프리셋 붉은색 (삭제 버튼 등과 맞춤, globals.css `--destructive` 라이트 테마와 동일 HSL) */
+const ICON_PRESET_DESTRUCTIVE_HEX = '#DD524C' // 실제 색상 박스에는 #CD5C52 로 보임 
+
 // 선택 가능한 색상 목록
 const COLOR_OPTIONS = [
   '#0060A9',
@@ -27,6 +31,7 @@ const COLOR_OPTIONS = [
   '#0C73EF',
   '#2DA6FA',
   '#5DD6D5',
+  ICON_PRESET_DESTRUCTIVE_HEX,
   '#FECC09',
   '#999B9E',
   '#000000',
@@ -114,21 +119,22 @@ export function IconPropertyPanel({
         {/* 색상 선택 */}
         <div className="space-y-4 pb-6">
           <Label className="text-xs text-muted-foreground">색상</Label>
-          <div className="grid grid-cols-9 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {COLOR_OPTIONS.map((colorOption) => (
               <button
                 key={colorOption}
                 type="button"
-                className={`
-                  w-8 h-8 rounded border border-1 transition-all
-                  ${color === colorOption
-                    ? 'border-primary ring-2 ring-primary ring-offset-2'
-                    : 'border-border hover:border-primary/50'
-                  }
-                `}
+                className={cn(
+                  'box-border h-8 w-8 shrink-0 appearance-none rounded border border-solid p-0',
+                  'transition-[box-shadow,border-color]',
+                  color === colorOption
+                    ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    : 'border-border hover:border-primary/50',
+                )}
                 style={{
                   backgroundColor: colorOption,
-                  borderColor: colorOption === '#FFFFFF' ? '#e5e7eb' : colorOption,
+                  borderColor:
+                    colorOption === '#FFFFFF' ? '#e5e7eb' : colorOption,
                 }}
                 onClick={() => onColorChange(colorOption)}
                 aria-label={`색상 선택: ${colorOption}`}

@@ -97,19 +97,11 @@ async function main() {
       description: 'PPT 템플릿',
     },
     {
-      name: '감사/연말 카드',
-      slug: 'card',
-      type: CategoryType.TEMPLATE,
-      pageType: 'card',
-      order: 2,
-      description: '감사/연말 카드 템플릿',
-    },
-    {
       name: '바탕화면',
       slug: 'wallpaper',
       type: CategoryType.TEMPLATE,
       pageType: 'desktop',
-      order: 3,
+      order: 2,
       description: '바탕화면 템플릿',
     },
     {
@@ -117,8 +109,16 @@ async function main() {
       slug: 'welcome-board',
       type: CategoryType.TEMPLATE,
       pageType: 'welcomeboard',
-      order: 4,
+      order: 3,
       description: '웰컴보드 템플릿',
+    },
+    {
+      name: '감사/연말 카드',
+      slug: 'card',
+      type: CategoryType.TEMPLATE,
+      pageType: 'card',
+      order: 4,
+      description: '감사/연말 카드 템플릿',
     },
     {
       name: 'eDM Code Generator',

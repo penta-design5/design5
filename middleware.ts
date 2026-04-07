@@ -16,9 +16,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 다이어그램 기능 비공개 (페이지)
+  if (pathname === '/diagram' || pathname.startsWith('/diagram/')) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
   // API 라우트는 별도 처리
   if (pathname.startsWith('/api/auth/register')) {
     return NextResponse.next()
+  }
+
+  // 다이어그램 API 비공개
+  if (pathname.startsWith('/api/diagrams')) {
+    return NextResponse.json(
+      { error: '다이어그램 기능은 현재 사용할 수 없습니다.' },
+      { status: 403 }
+    )
   }
 
   // API 라우트는 별도 처리 (인증 필요 시)
