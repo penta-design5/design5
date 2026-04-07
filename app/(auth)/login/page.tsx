@@ -20,12 +20,38 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  /** null = 로딩 중, 로그인 페이지 이메일/비밀번호 영역 노출 여부(서버 설정) */
+  const [showCredentialsLogin, setShowCredentialsLogin] = useState<boolean | null>(
+    null
+  )
 
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
       setSuccess(true)
     }
   }, [searchParams])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/app-settings/public', { credentials: 'omit' })
+        const data = await res.json().catch(() => ({}))
+        if (!cancelled) {
+          setShowCredentialsLogin(
+            typeof data.showCredentialsLogin === 'boolean'
+              ? data.showCredentialsLogin
+              : true
+          )
+        }
+      } catch {
+        if (!cancelled) setShowCredentialsLogin(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,50 +156,56 @@ function LoginForm() {
             </div>
           </div>  */}
 
-          {/* 이메일/패스워드 로그인 폼 */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="이메일을 입력하세요"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+          {/* 이메일/비밀번호 로그인 — AppSettings 로 켜고 끔 */}
+          {showCredentialsLogin === null ? (
+            <div className="flex justify-center py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
             </div>
+          ) : showCredentialsLogin ? (
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+              {error && (
+                <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+                  {error}
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="비밀번호를 입력하세요"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+              <div className="space-y-2">
+                <Label htmlFor="email">이메일</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="이메일을 입력하세요"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? '로그인 중...' : '로그인'}
-            </Button>
-          </form>
+              <div className="space-y-2">
+                <Label htmlFor="password">비밀번호</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="비밀번호를 입력하세요"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? '로그인 중...' : '로그인'}
+              </Button>
+            </form>
+          ) : null}
 
           {/* 회원가입 링크 */}
           {/* <div className="text-center text-sm">

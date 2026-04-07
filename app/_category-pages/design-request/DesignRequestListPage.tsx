@@ -41,6 +41,7 @@ import {
 import { DesignRequestFormDialog } from '@/components/design-request/DesignRequestFormDialog'
 import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
 import { formatDueDateLine } from '@/lib/design-request-dates'
+import { DESIGN_REQUEST_STATUS_OPTIONS } from '@/lib/design-request-constants'
 import { DesignRequestStatus } from '@prisma/client'
 import {
   ChevronLeft,
@@ -179,6 +180,7 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
 
   const isAdmin = session?.user?.role === 'ADMIN'
 
@@ -305,6 +307,28 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
     setFilterDueTo(dateToYmd(detailFilterDraft.dueTo))
     setPage(1)
     setFilterPopoverOpen(false)
+  }
+
+  const updateRowStatus = async (id: string, newStatus: DesignRequestStatus) => {
+    setStatusUpdatingId(id)
+    try {
+      const res = await fetch(`/api/design-requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || '상태 변경에 실패했습니다.')
+      }
+      toast.success('상태가 변경되었습니다.')
+      load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : '상태 변경 실패')
+    } finally {
+      setStatusUpdatingId(null)
+    }
   }
 
   const handleBulkDelete = async () => {
@@ -549,11 +573,11 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
                 </TableHead>
               )}
               <TableHead className="w-14 text-right">No.</TableHead>
-              <TableHead className='text-center'>의뢰 제목</TableHead>
-              <TableHead className='text-center'>의뢰자명</TableHead>
-              <TableHead className='text-center'>의뢰 부서/팀</TableHead>
-              <TableHead className='text-center'>의뢰일</TableHead>
-              <TableHead className='text-center'>마감일</TableHead>
+              <TableHead>의뢰 제목</TableHead>
+              <TableHead>의뢰자명</TableHead>
+              <TableHead>의뢰 부서/팀</TableHead>
+              <TableHead>의뢰일</TableHead>
+              <TableHead>마감일</TableHead>
               <TableHead className='text-center'>상태</TableHead>
             </TableRow>
           </TableHeader>
@@ -645,7 +669,40 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
                       {formatDueDateLine(due)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <DesignRequestStatusBadge status={row.status} />
+                      {isAdmin ? (
+                        <div
+                          className="flex justify-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {statusUpdatingId === row.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Select
+                              value={row.status}
+                              onValueChange={(v) =>
+                                updateRowStatus(row.id, v as DesignRequestStatus)
+                              }
+                            >
+                              <SelectTrigger className="h-8 w-[80px] shrink-0 text-xs px-2">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="w-[90px] min-w-[90px] max-w-[90px]">
+                                {DESIGN_REQUEST_STATUS_OPTIONS.map((o) => (
+                                  <SelectItem
+                                    key={o.value}
+                                    value={o.value}
+                                    className="pr-1 pl-6"
+                                  >
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      ) : (
+                        <DesignRequestStatusBadge status={row.status} />
+                      )}
                     </TableCell>
                   </TableRow>
                 )

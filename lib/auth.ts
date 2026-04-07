@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google"
 import { prisma } from "./prisma"
 import * as bcrypt from "bcryptjs"
 import { UserRole } from "@prisma/client"
+import { getShowCredentialsLogin } from "./app-settings"
 
 // 이메일 도메인 검증 함수
 function isValidEmailDomain(email: string): boolean {
@@ -34,6 +35,13 @@ export const authOptions: NextAuthConfig = {
 
         const email = credentials.email as string
         const password = credentials.password as string
+
+        const credentialsLoginEnabled = await getShowCredentialsLogin()
+        if (!credentialsLoginEnabled) {
+          throw new Error(
+            '이메일/비밀번호 로그인은 현재 비활성화되어 있습니다.'
+          )
+        }
 
         // 이메일 도메인 검증
         if (!isValidEmailDomain(email)) {

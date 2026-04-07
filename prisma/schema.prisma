@@ -290,3 +290,12 @@ model DesignRequest {
   @@index([status])
   @@map("design_requests")
 }
+
+// 전역 앱 설정 (단일 행)
+model AppSettings {
+  id                   String   @id @default("default")
+  showCredentialsLogin Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
+
+  @@map("app_settings")
+}

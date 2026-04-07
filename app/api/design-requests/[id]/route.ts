@@ -96,7 +96,10 @@ export async function PATCH(
       update.departmentTeam = data.departmentTeam.trim()
     if (data.dueDate !== undefined) update.dueDate = parseDateOnlyUtc(data.dueDate)
     if (data.content !== undefined) update.content = data.content.trim()
-    if (data.status !== undefined) update.status = data.status
+    /** 비관리자가 보낸 status는 무시 (권한 없음). 관리자만 반영 */
+    if (data.status !== undefined && user.role === UserRole.ADMIN) {
+      update.status = data.status
+    }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: '수정할 항목이 없습니다.' }, { status: 400 })

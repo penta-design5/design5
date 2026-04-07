@@ -180,6 +180,13 @@ async function main() {
     console.log(`✅ Category created: ${created.name}`)
   }
 
+  await prisma.appSettings.upsert({
+    where: { id: 'default' },
+    create: { id: 'default', showCredentialsLogin: true },
+    update: {},
+  })
+  console.log('✅ AppSettings ensured')
+
   console.log('🎉 Seeding completed!')
 }
 

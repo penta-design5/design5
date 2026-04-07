@@ -11,6 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { X, User, Save, Trash2, AlertTriangle, Loader2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { isPrivilegedLoginSettingsEmail } from '@/lib/privileged-admin'
 
 export default function ProfilePage() {
   const { data: session, update } = useSession()
@@ -35,6 +37,12 @@ export default function ProfilePage() {
   const [showDeleteAccountDialog, setShowDeleteAccountDialog] = useState(false)
   const [isRemovingPassword, setIsRemovingPassword] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+
+  const canEditLoginSettings = isPrivilegedLoginSettingsEmail(session?.user?.email)
+  const [showCredLoginSetting, setShowCredLoginSetting] = useState<boolean | null>(
+    null
+  )
+  const [credLoginSaving, setCredLoginSaving] = useState(false)
 
   // 최신 사용자 정보 가져오기 (세션 정보로 덮어쓰지 않음)
   const fetchUserProfile = useCallback(async (skipStateUpdate = false) => {
@@ -98,6 +106,55 @@ export default function ProfilePage() {
     }
     checkPassword()
   }, [])
+
+  useEffect(() => {
+    if (!canEditLoginSettings) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/app-settings/credentials-login', {
+          credentials: 'include',
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!cancelled && res.ok && typeof data.showCredentialsLogin === 'boolean') {
+          setShowCredLoginSetting(data.showCredentialsLogin)
+        } else if (!cancelled) {
+          setShowCredLoginSetting(true)
+        }
+      } catch {
+        if (!cancelled) setShowCredLoginSetting(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [canEditLoginSettings])
+
+  const handleCredLoginToggle = async (checked: boolean) => {
+    setCredLoginSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/app-settings/credentials-login', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ showCredentialsLogin: checked }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '설정 저장에 실패했습니다.')
+      setShowCredLoginSetting(checked)
+      setSuccess(
+        checked
+          ? '로그인 페이지에 이메일/비밀번호 영역이 표시됩니다.'
+          : '로그인 페이지에서 이메일/비밀번호 영역이 숨겨집니다.'
+      )
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '설정 저장 중 오류')
+    } finally {
+      setCredLoginSaving(false)
+    }
+  }
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click()
@@ -415,6 +472,47 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {canEditLoginSettings ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>로그인 화면 설정</CardTitle>
+              <CardDescription>
+                로그인 페이지에 이메일·비밀번호 입력란을 표시할지 여부입니다. 끄면
+                펜타시큐리티 계정 로그인(구글)만 표시됩니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {showCredLoginSetting === null ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="showCredLogin"
+                    checked={showCredLoginSetting}
+                    disabled={credLoginSaving}
+                    onCheckedChange={(c) => {
+                      if (c === 'indeterminate') return
+                      void handleCredLoginToggle(c)
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="showCredLogin"
+                      className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      이메일 / 비밀번호 로그인 영역 표시
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      꺼 두면 credentials 로그인 시도도 서버에서 거부됩니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* 비밀번호 변경 */}
         {/* <Card>

@@ -25,15 +25,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Loader2 } from 'lucide-react'
-import { DESIGN_REQUEST_STATUS_OPTIONS } from '@/lib/design-request-constants'
+import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
 
 function dateToYmdLocal(d: Date): string {
   const y = d.getFullYear()
@@ -56,9 +49,8 @@ const baseSchema = z.object({
 
 const createSchema = baseSchema
 
-const editSchema = baseSchema.extend({
-  status: z.nativeEnum(DesignRequestStatus),
-})
+/** 수정 시 상태는 API/목록(관리자)에서만 변경 — 폼에서는 제목·내용 등만 */
+const editSchema = baseSchema
 
 export type DesignRequestRow = {
   id: string
@@ -107,7 +99,6 @@ export function DesignRequestFormDialog({
       title: '',
       departmentTeam: '',
       content: '',
-      status: 'REQUESTED',
     },
   })
 
@@ -119,7 +110,6 @@ export function DesignRequestFormDialog({
         departmentTeam: initial.departmentTeam,
         content: initial.content,
         dueDate: apiDueToLocalDate(initial.dueDate),
-        status: initial.status,
       })
     } else if (!isEdit) {
       createForm.reset({
@@ -164,7 +154,6 @@ export function DesignRequestFormDialog({
         departmentTeam: values.departmentTeam,
         content: values.content,
         dueDate: dateToYmdLocal(values.dueDate),
-        status: values.status,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -356,30 +345,17 @@ export function DesignRequestFormDialog({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={editForm.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>상태</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="상태" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {DESIGN_REQUEST_STATUS_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {initial && (
+                <div className="grid gap-2">
+                  <Label>상태</Label>
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      <DesignRequestStatusBadge status={initial.status} className="mr-2.5" />
+                      상태는 관리자만 목록에서 변경할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              )}
               <FormField
                 control={editForm.control}
                 name="content"
