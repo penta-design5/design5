@@ -48,7 +48,6 @@ import {
   ChevronRight,
   SlidersHorizontal,
   Loader2,
-  Plus,
   RotateCcw,
   Search,
 } from 'lucide-react'
@@ -393,7 +392,6 @@ export function DesignRequestListPage({ category }: DesignRequestListPageProps) 
       <div className="mb-6 flex flex-row gap-4 items-center justify-between">
         <h1 className="page-header-title">{category.name}</h1>
         <Button onClick={() => setCreateOpen(true)} className="shrink-0">
-          <Plus className="mr-2 h-4 w-4" />
           의뢰하기
         </Button>
       </div>

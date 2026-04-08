@@ -22,7 +22,7 @@ import {
 } from '@/components/design-request/DesignRequestFormDialog'
 import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
 import { formatDueDateLine } from '@/lib/design-request-dates'
-import { Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 interface Category {
   id: string
@@ -180,11 +180,9 @@ export function DesignRequestDetailPage({
         {canMutate ? (
           <div className="flex flex-wrap gap-2 sm:ml-auto">
             <Button variant="default" onClick={() => setEditOpen(true)}>
-              <Pencil className="mr-2 h-4 w-4" />
               수정하기
             </Button>
             <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="mr-2 h-4 w-4" />
               삭제하기
             </Button>
           </div>

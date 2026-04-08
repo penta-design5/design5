@@ -371,7 +371,6 @@ export default function NoticesPage() {
             </p>
           </div>
           <Button disabled className="page-header-action-btn">
-            <Plus className="h-4 w-4" />
             공지사항 추가
           </Button>
         </div>
