@@ -88,6 +88,8 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
   const editDialogOpenRef = useRef(false)
   /** 수정 다이얼로그에서 순서 변경 시 좌측 갤러리 미리보기용 (다이얼로그 닫으면 null) */
   const [previewImages, setPreviewImages] = useState<PostImage[] | null>(null)
+  /** 이미지 원본 크기 줌 시 우측 패널·썸네일 네비 숨김 */
+  const [galleryImageZoomed, setGalleryImageZoomed] = useState(false)
 
   useEffect(() => {
     editDialogOpenRef.current = editDialogOpen
@@ -269,7 +271,13 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
       role="presentation"
     >
       {/* 데스크톱: 닫기 버튼 */}
-      <div className="hidden md:block absolute top-4 right-[35rem] z-10" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={cn(
+          'hidden md:block absolute top-4 z-10',
+          galleryImageZoomed ? 'right-4' : 'right-[35rem]'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -307,18 +315,31 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
           onClick={handleBackdropClick}
           role="presentation"
         >
-          <ImageGallery images={images} />
+          <ImageGallery
+            images={images}
+            postId={postId}
+            onImageZoomChange={setGalleryImageZoomed}
+          />
         </div>
 
         {/* 데스크톱: 우측 상세 정보 */}
-        <div className="hidden md:flex w-[28rem] flex-col" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={cn(
+            'w-[28rem] flex-col',
+            galleryImageZoomed ? 'hidden' : 'hidden md:flex'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex-1 overflow-y-auto p-6">
             <PostInfo post={post} onEdit={handleEdit} onDelete={handleDelete} />
           </div>
         </div>
 
         {/* 데스크톱: 우측 끝 네비게이션 썸네일 */}
-        <div className="hidden md:block" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={galleryImageZoomed ? 'hidden' : 'hidden md:block'}
+          onClick={(e) => e.stopPropagation()}
+        >
           <PostNavigation
             allPosts={allPosts}
             currentPostId={postId}
@@ -328,7 +349,13 @@ export function GalleryDetailPage({ category, postId }: GalleryDetailPageProps) 
         </div>
 
         {/* 모바일: 하단 네비게이션 썸네일 */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-20" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={cn(
+            'fixed bottom-0 left-0 right-0 z-20 md:hidden',
+            galleryImageZoomed && 'hidden'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
           <PostNavigation
             allPosts={allPosts}
             currentPostId={postId}
