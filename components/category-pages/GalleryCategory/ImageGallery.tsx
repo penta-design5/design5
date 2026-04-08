@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CursorFollowHint } from '@/components/category-pages/GalleryCategory/CursorFollowHint'
 import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
 
 interface PostImage {
@@ -25,7 +25,7 @@ interface ImageGalleryProps {
 const COLLAPSED_WIDTH = 600
 
 const NO_ZOOM_HINT =
-  '600px보다 큰 원본만 확대해서 볼 수 있어요. 이 이미지는 이미 원본 크기로 표시됩니다.'
+  '원본 이미지가 600px보다 클 경우에만 확대되며,\n이 이미지는 이미 원본 크기로 표시되고 있습니다.'
 
 export function ImageGallery({ images, postId, onImageZoomChange }: ImageGalleryProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
@@ -241,12 +241,7 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
         return (
           <div key={index} className="relative flex w-full justify-center overflow-visible">
             {dimensions && !canExpand ? (
-              <Tooltip>
-                <TooltipTrigger asChild>{imageBlock}</TooltipTrigger>
-                <TooltipContent side="top" className="max-w-xs text-center">
-                  {NO_ZOOM_HINT}
-                </TooltipContent>
-              </Tooltip>
+              <CursorFollowHint content={NO_ZOOM_HINT}>{imageBlock}</CursorFollowHint>
             ) : (
               imageBlock
             )}
