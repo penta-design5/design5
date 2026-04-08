@@ -119,7 +119,7 @@ export function IconPropertyPanel({
         {/* 색상 선택 */}
         <div className="space-y-4 pb-6">
           <Label className="text-xs text-muted-foreground">색상</Label>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 w-[70%] gap-2">
             {COLOR_OPTIONS.map((colorOption) => (
               <button
                 key={colorOption}
