@@ -168,6 +168,18 @@ export async function PUT(
       )
     }
 
+    // PPT 썸네일 교체·제거 시 이전 Supabase(ppt-thumbnails) 객체 삭제
+    if (validatedData.thumbnailUrl !== undefined) {
+      const prev = existingPost.thumbnailUrl
+      const next = validatedData.thumbnailUrl
+      if (prev && prev !== next) {
+        const { deletePptThumbnailByPublicUrl } = await import(
+          '@/lib/supabase-ppt-thumbnail'
+        )
+        await deletePptThumbnailByPublicUrl(prev)
+      }
+    }
+
     // 태그 처리
     let tagConnections: any[] = []
     if (validatedData.tags !== undefined) {
@@ -439,6 +451,18 @@ export async function DELETE(
       } catch (supabaseError: any) {
         console.error('Supabase Storage deletion error:', supabaseError.message)
         // 스토리지 삭제 실패해도 DB 삭제는 진행
+      }
+    }
+
+    // PPT 썸네일(Supabase ppt-thumbnails) 삭제
+    if (post.thumbnailUrl) {
+      try {
+        const { deletePptThumbnailByPublicUrl } = await import(
+          '@/lib/supabase-ppt-thumbnail'
+        )
+        await deletePptThumbnailByPublicUrl(post.thumbnailUrl)
+      } catch (pptThumbError: any) {
+        console.error('PPT thumbnail Supabase deletion error:', pptThumbError.message)
       }
     }
 
