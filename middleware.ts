@@ -1,10 +1,30 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
+import { isSiteNoticeMode } from "@/lib/site-notice"
 
 export async function middleware(request: NextRequest) {
-  const session = await auth()
   const { pathname } = request.nextUrl
+
+  /** 공지 모드: `/notice` 및 Next 내부 자원만 허용, 그 외는 `/notice`로 리다이렉트 */
+  if (isSiteNoticeMode()) {
+    if (pathname === "/notice" || pathname.startsWith("/notice/")) {
+      return NextResponse.next()
+    }
+    if (pathname.startsWith("/_next")) {
+      return NextResponse.next()
+    }
+    if (pathname === "/robots.txt" || pathname === "/sitemap.xml") {
+      return NextResponse.next()
+    }
+    // Auth.js 세션 등 JSON 응답 — 리다이렉트 시 SessionProvider가 HTML을 JSON으로 파싱하며 오류 발생
+    if (pathname.startsWith("/api/auth")) {
+      return NextResponse.next()
+    }
+    return NextResponse.redirect(new URL("/notice", request.url))
+  }
+
+  const session = await auth()
 
   // 루트 경로는 항상 접근 가능 (리다이렉트 처리됨)
   if (pathname === '/') {
