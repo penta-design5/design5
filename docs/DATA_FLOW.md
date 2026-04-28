@@ -42,15 +42,15 @@ sequenceDiagram
   participant Admin
   participant Browser
   participant API
-  participant B2
+  participant S3
   participant Prisma
   participant DB
 
   Admin->>Browser: 업로드 폼 제출
   Browser->>API: POST /api/posts (JSON) 또는 /api/posts/upload (FormData)
   Note over API: requireAdmin()
-  API->>B2: uploadFile (이미지 버퍼)
-  B2-->>API: fileUrl
+  API->>S3: uploadFile → S3 PutObject (또는 호환 스토리지)
+  S3-->>API: fileUrl
   API->>Prisma: post.create
   Prisma->>DB: INSERT
   DB-->>Prisma: post
@@ -61,8 +61,8 @@ sequenceDiagram
 
 - **인증**: ADMIN 역할 필수
 - **엔드포인트**: `POST /api/posts`, `POST /api/posts/upload` 등
-- **B2 URL**: 저장된 파일 URL은 `B2_PUBLIC_URL` 설정 시 Cloudflare Worker URL(예: https://assets.layerary.com)로 반환되며, 클라이언트는 해당 URL로 이미지를 로드합니다.
-- **Presigned 업로드**: 일부 카테고리(CI/BI, Character, PPT 등)는 Presigned URL로 브라우저에서 B2에 직접 업로드하며, 이 경우 B2 CORS 설정이 필요합니다.
+- **객체 URL**: `S3_PUBLIC_BASE_URL` 등으로 공개 URL이 잡히면 DB에 해당 URL이 저장됩니다. 레거시 Worker·B2 형식 URL이 DB에 남아 있을 수 있습니다.
+- **Presigned 업로드**: 일부 카테고리는 `/api/posts/upload-presigned`로 받은 URL에 **브라우저 PUT**으로 직접 올립니다. MinIO/S3 **CORS**에 앱 오리진이 필요합니다.
 
 ---
 
@@ -104,7 +104,7 @@ sequenceDiagram
   participant Browser
   participant API
   participant Sharp
-  participant R2
+  participant ObjStore[S3 / MinIO 또는 R2]
   participant Prisma
   participant DB
 
@@ -114,8 +114,8 @@ sequenceDiagram
   API->>Sharp: 이미지 셀별 크롭
   Sharp-->>API: 셀 버퍼들
   loop 각 셀
-    API->>R2: uploadEdmFile (Cloudflare R2 S3 API)
-    R2-->>API: fileUrl / filePath
+    API->>ObjStore: uploadEdmFile (S3 호환 API)
+    ObjStore-->>API: fileUrl / filePath
   end
   API->>API: generateHtmlCode (gridConfig, cellImages, cellLinks)
   API->>Prisma: edm.create
@@ -128,13 +128,12 @@ sequenceDiagram
 
 - **인증**: 로그인 필수
 - **엔드포인트**: `POST /api/edm`
-- **스토리지**: Cloudflare R2 (S3 호환 API, `lib/r2-edm-storage.ts`). `R2_PUBLIC_URL` 설정 시 공개 URL(만료 없음), 미설정 시 Presigned URL(최대 7일). eDM 셀 이미지는 R2, 일반 게시물 이미지는 B2(및 Cloudflare Worker)에 저장됩니다.
+- **스토리지**: `lib/r2-edm-storage.ts` — **`S3_*`(MinIO) edms** 버킷만. 공개 URL은 `S3_PUBLIC_BASE_URL`(+ `NEXT_PUBLIC_S3_PUBLIC_BASE_URL` 클라이언트) 설정 시.
 
 ---
 
-## 5. GitHub Actions 자동화
+## 5. 주기 작업·백업
 
-앱 외부에서 GitHub Actions로 주기적으로 실행되는 자동화입니다.
-
-- **Supabase Keepalive**: 3일마다 배포된 앱의 `GET /api/keepalive`를 호출해 Supabase(DB/Storage)에 접속합니다. 무료 플랜 7일 비활동 일시정지 방지를 위한 자동 API 요청입니다. `.github/workflows/keepalive.yml`, 상세는 [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) 참조.
-- **Backup Supabase to B2**: 매일 UTC 02:00에 Supabase PostgreSQL을 `pg_dump`(custom format)로 덤프한 뒤 B2 CLI로 Backblaze B2 버킷에 업로드하는 자동 백업입니다. `.github/workflows/backup-supabase-to-b2.yml`. 필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME` (선택: `B2_BUCKET_PATH`).
+- **퍼블릿 배포(Vercel 등)**: GitHub Actions `keepalive.yml`이 `APP_URL/api/keepalive`를 호출할 수 있습니다. [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) 참조.
+- **사내망**: GitHub가 앱 URL에 닿지 않으면 **서버 `cron`**으로 동일 API를 호출하는 편이 낫습니다. DB 백업은 `pg_dump` + (선택) MinIO 백업 버킷. [`deploy/rocky/README.md`](../deploy/rocky/README.md)「사내망 운영」.
+- **레거시 워크플로**: `.github/workflows/backup-supabase-to-b2.yml` 등은 클라우드 Supabase+B2 전제이며, 사내망 전용이면 비활성화하고 사내 절차로 대체합니다.

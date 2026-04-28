@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { requireAdmin } from '@/lib/auth-helpers'
-import { createServerSupabaseClient } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
 import { getCategoryBySlug } from '@/lib/categories'
+import {
+  getBucketIcons,
+  getS3Client,
+  publicUrlForS3ObjectKey,
+} from '@/lib/s3/config'
+import { requireS3Json } from '@/lib/s3/require-storage'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
+  const bad = requireS3Json()
+  if (bad) return bad
+
   try {
     const admin = await requireAdmin()
 
@@ -15,10 +24,7 @@ export async function POST(request: Request) {
     const categorySlug = formData.get('categorySlug') as string
 
     if (!files || files.length === 0) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: '파일이 필요합니다.' }, { status: 400 })
     }
 
     if (!categorySlug) {
@@ -28,7 +34,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 카테고리 조회
     const category = await getCategoryBySlug(categorySlug)
     if (!category) {
       return NextResponse.json(
@@ -37,17 +42,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // 파일 검증
     for (const file of files) {
-      // 파일 크기 검증 (1MB)
       if (file.size > 1 * 1024 * 1024) {
         return NextResponse.json(
           { error: `파일 크기는 1MB를 초과할 수 없습니다. (${file.name})` },
           { status: 400 }
         )
       }
-
-      // 파일 타입 검증 (SVG만)
       if (file.type !== 'image/svg+xml' && !file.name.toLowerCase().endsWith('.svg')) {
         return NextResponse.json(
           { error: `SVG 형식만 지원됩니다. (${file.name})` },
@@ -56,46 +57,26 @@ export async function POST(request: Request) {
       }
     }
 
-    const supabase = createServerSupabaseClient()
     const createdPosts = []
+    const bucket = getBucketIcons()
 
-    // 각 SVG 파일을 업로드하고 Post 생성
     for (const file of files) {
-      // 파일명에서 확장자 제거하여 제목으로 사용
       const fileName = file.name.replace(/\.svg$/i, '')
-      
-      // 파일을 ArrayBuffer로 변환
       const arrayBuffer = await file.arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
-
-      // 안전한 파일명 생성
       const safeFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       const filePath = safeFileName
 
-      // Supabase Storage에 업로드
-      const { data, error: uploadError } = await supabase.storage
-        .from('icons')
-        .upload(filePath, buffer, {
-          contentType: 'image/svg+xml',
-          upsert: false,
+      await getS3Client().send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: filePath,
+          Body: buffer,
+          ContentType: 'image/svg+xml',
         })
+      )
+      const fileUrl = publicUrlForS3ObjectKey(filePath)
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError)
-        return NextResponse.json(
-          { error: `파일 업로드에 실패했습니다. (${file.name})` },
-          { status: 500 }
-        )
-      }
-
-      // 공개 URL 생성
-      const { data: urlData } = supabase.storage
-        .from('icons')
-        .getPublicUrl(filePath)
-
-      const fileUrl = urlData.publicUrl
-
-      // Post 생성
       const post = await prisma.post.create({
         data: {
           title: fileName,
@@ -107,7 +88,7 @@ export async function POST(request: Request) {
               order: 0,
             },
           ],
-          thumbnailUrl: fileUrl, // SVG는 썸네일이 원본과 동일
+          thumbnailUrl: fileUrl,
           fileUrl: fileUrl,
           fileSize: file.size,
           fileType: 'svg',
@@ -116,23 +97,13 @@ export async function POST(request: Request) {
         },
         include: {
           category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              type: true,
-            },
+            select: { id: true, name: true, slug: true, type: true },
           },
           author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
+            select: { id: true, name: true, email: true },
           },
         },
       })
-
       createdPosts.push(post)
     }
 
@@ -148,7 +119,6 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
-
     console.error('Icon upload error:', error)
     return NextResponse.json(
       { error: error.message || '아이콘 업로드 중 오류가 발생했습니다.' },

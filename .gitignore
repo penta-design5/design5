@@ -35,9 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
-
 # design resources (디자인 리소스)
 /design_resources
 
@@ -49,3 +46,14 @@ yarn-error.log*
 # cursor debug logs
 .cursor/debug.log
 .cursor/
+
+# local cloud cutover backups (DB dumps, B2/R2/storage archives)
+/data-backup
+
+# 사내망 Rocky 배포용 secrets (deploy/rocky/.env)
+/deploy/rocky/.env
+/deploy/rocky/.env.app
+/deploy/rocky/.env.*
+
+# 로컬 터널용 임시 파일 
+/scripts/storage-url-replacements.internal-tunnel.json

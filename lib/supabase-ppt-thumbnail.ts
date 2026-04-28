@@ -1,13 +1,16 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { getBucketPptThumbnails, getS3Client, isS3StorageConfigured } from '@/lib/s3/config'
+import { s3ObjectKeyFromAnyPublicUrl } from '@/lib/s3/url-helpers'
 
 const BUCKET = 'ppt-thumbnails'
 
 /**
- * 공개 URL에서 ppt-thumbnails 버킷 기준 객체 경로를 추출합니다.
- * 예: .../object/public/ppt-thumbnails/ppt-uuid-123.jpg → ppt-uuid-123.jpg
+ * public URL·스토리지 경로에서 ppt-thumbnails 기준 파일명(키) 추출
  */
 export function getPptThumbnailObjectPathFromPublicUrl(url: string): string | null {
   if (!url || typeof url !== 'string') return null
+  const fromS3 = s3ObjectKeyFromAnyPublicUrl(url, getBucketPptThumbnails())
+  if (fromS3) return fromS3
   try {
     const pathParts = new URL(url).pathname.split('/').filter(Boolean)
     const bucketIndex = pathParts.indexOf(BUCKET)
@@ -18,18 +21,24 @@ export function getPptThumbnailObjectPathFromPublicUrl(url: string): string | nu
   }
 }
 
-/** ppt-thumbnails 버킷에 있는 객체면 삭제합니다. 실패 시 로그만 남깁니다. */
-export async function deletePptThumbnailByPublicUrl(url: string | null | undefined): Promise<void> {
+export async function deletePptThumbnailByPublicUrl(
+  url: string | null | undefined
+): Promise<void> {
   const objectPath = url ? getPptThumbnailObjectPathFromPublicUrl(url) : null
   if (!objectPath) return
 
+  if (!isS3StorageConfigured()) {
+    console.warn('S3 미설정: ppt-thumbnails 삭제 생략')
+    return
+  }
   try {
-    const supabase = createServerSupabaseClient()
-    const { error } = await supabase.storage.from(BUCKET).remove([objectPath])
-    if (error) {
-      console.error('Supabase ppt-thumbnails delete error:', error)
-    }
+    await getS3Client().send(
+      new DeleteObjectCommand({
+        Bucket: getBucketPptThumbnails(),
+        Key: objectPath,
+      })
+    )
   } catch (e) {
-    console.error('Supabase ppt-thumbnails delete failed:', e)
+    console.error('S3 ppt-thumbnails delete error:', e)
   }
 }

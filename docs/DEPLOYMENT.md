@@ -1,156 +1,104 @@
 # 배포 가이드
 
-## 배포 환경
+## 개요
 
-이 프로젝트는 **Vercel** 기준으로 배포를 안내합니다. 커스텀 도메인 사용 시 `[실제 값으로 교체]` 형태의 placeholder를 배포 URL로 변경하세요.
+이 프로젝트는 두 가지 배포 모델을 지원합니다.
 
----
+| 모델 | DB | 객체 스토리지 | 앱 실행 |
+|------|----|----------------|---------|
+| **사내망(권장, 옵션 B)** | 자체 PostgreSQL | MinIO(S3 호환) | 단일 서버·Docker·Nginx 등 자체 호스팅 |
+| **클라우드(레거시, 참고용)** | — | (과거) Supabase / R2 등 | Vercel 등 |
 
-## 사전 준비
+사내망 전용 요약·Rocky 예시: [`deploy/rocky/README.md`](../deploy/rocky/README.md), 디렉터리 규칙: [`deploy/WEBAPPS_LAYOUT.md`](../deploy/WEBAPPS_LAYOUT.md).  
+환경 변수 스펙: 루트 [`env.example.txt`](../env.example.txt), 노트북→내부망: [`env.local.internal.example.txt`](../env.local.internal.example.txt).
 
-- **Supabase 프로젝트**: PostgreSQL 데이터베이스
-- **Backblaze B2 버킷 + (선택) Cloudflare Worker**: 이미지/파일 저장 (다이어그램, 게시물 썸네일, PPT ZIP 등). 버킷을 private으로 두고 Worker가 공개 URL을 제공하도록 연동할 수 있으며, 이 경우 `B2_PUBLIC_URL`을 Worker 도메인(예: `https://assets.layerary.com`)으로 설정합니다.
-- **Cloudflare R2 버킷**: eDM 셀 이미지 저장 (이메일 HTML용)
-- **(선택) Google OAuth 클라이언트**: Google 로그인 사용 시
-
----
-
-## 환경 변수
-
-`env.example.txt`를 참고해 Vercel 환경 변수를 설정하세요.
-
-| 변수 | 필수 | 설명 |
-|------|------|------|
-| `DATABASE_URL` | ✅ | Supabase PostgreSQL 연결 URL (connection_limit=1 권장) |
-| `DIRECT_URL` | ✅ | Supabase 직접 연결 URL (마이그레이션용) |
-| `NEXTAUTH_URL` | ✅ | 배포 URL (예: https://layerary.com) |
-| `NEXTAUTH_SECRET` | ✅ | NextAuth 시크릿 키 |
-| `B2_APPLICATION_KEY_ID` | ✅ | Backblaze B2 |
-| `B2_APPLICATION_KEY` | ✅ | Backblaze B2 |
-| `B2_BUCKET_ID` | ✅ | Backblaze B2 |
-| `B2_BUCKET_NAME` | ✅ | Backblaze B2 |
-| `B2_ENDPOINT` | ✅ | Backblaze B2 엔드포인트 |
-| `B2_PUBLIC_URL` | 권장 | B2 공개 URL (예: Cloudflare Worker `https://assets.layerary.com`). 버킷을 private으로 두고 Worker로 서빙할 때 설정. 설정 시 업로드 후 저장되는 fileUrl이 이 주소를 사용합니다. Worker 미설정 시 B2 기본 공개 URL 사용. |
-| `NEXT_PUBLIC_B2_PUBLIC_URL` | 선택 | 클라이언트용 B2 공개 URL. `B2_PUBLIC_URL`과 동일하게 두면 Worker URL은 프록시 없이 직접 로드됩니다. |
-| `R2_ACCOUNT_ID` | ✅ | Cloudflare R2 (eDM 이미지) |
-| `R2_ACCESS_KEY_ID` | ✅ | Cloudflare R2 |
-| `R2_SECRET_ACCESS_KEY` | ✅ | Cloudflare R2 |
-| `R2_BUCKET_NAME` | ✅ | R2 버킷 이름 (예: `edms`) |
-| `R2_PUBLIC_URL` | 권장 | eDM 이미지 공개 URL (예: `https://cdn.layerary.com`). 설정 시 이메일에서 만료 없이 표시 |
-| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | Supabase URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Supabase service role key (Keepalive 등) |
-| `GOOGLE_CLIENT_ID` | 선택 | Google OAuth |
-| `GOOGLE_CLIENT_SECRET` | 선택 | Google OAuth |
-| `KEEPALIVE_SECRET` | 선택 | Keepalive API 보안용 (GitHub Actions와 동일 값) |
-| `NEXT_PUBLIC_APP_URL` | 권장 | 클라이언트용 앱 URL |
+**데이터 이전·URL 치환:** [`OPERATIONAL_MIGRATION.md`](OPERATIONAL_MIGRATION.md) · **Prisma 마이그레이션 정책:** [`PRISMA_MIGRATIONS.md`](PRISMA_MIGRATIONS.md) · **(선택) 사내 PG RLS:** [`POSTGRES_RLS_INTERNAL.md`](POSTGRES_RLS_INTERNAL.md).
 
 ---
 
-## 빌드 설정
+## 1. 사내망 배포 (PostgreSQL + MinIO)
 
-**Vercel → 프로젝트 → Settings → General → Build & Development Settings**
+### 1.1 데이터 평면
 
-- **Build Command**: `prisma migrate deploy && next build`
-- 배포 시 Prisma 마이그레이션이 자동 실행됩니다.
+1. 서버에 `deploy/rocky/.env`를 준비하고(`deploy/rocky/.env.example` 참고), `DATA_ROOT` 아래에 Postgres·MinIO 데이터가 쌓이도록 합니다.
+2. `docker compose --env-file .env up -d`로 **PostgreSQL 17**과 **MinIO**를 기동합니다. 버킷 초기화는 `docker-compose.yml`의 init 서비스 또는 팀 스크립트를 따릅니다.
+3. MinIO **콘솔(기본 9001)**·API(9000)는 기본이 `127.0.0.1` 바인딩입니다. 다른 PC에서 직접 쓰려면 `.env`의 `HOST_BIND`와 방화벽을 조정합니다.
 
-**마이그레이션 관련**
-- `db push`로 이미 테이블이 생성된 경우, `prisma migrate resolve --applied <migration_name>` 으로 적용 완료 표시 가능
-- `DIRECT_URL`이 마이그레이션용 Transaction 모드 연결로 사용됩니다
+### 1.2 Next.js 앱 환경 변수
 
----
+앱이 읽는 `.env` / `.env.production` 등에 다음을 맞춥니다.
 
-## Backblaze B2 + Cloudflare Worker (파일 서빙)
+- **DB**: `DATABASE_URL`, `DIRECT_URL` — 사내 Postgres 연결 문자열 (`connection_limit=1` 권장).
+- **객체 스토리지(필수)**: `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`, `S3_FORCE_PATH_STYLE`(MinIO는 `true` 권장), 버킷명 `S3_BUCKET_POSTS` 등. 브라우저·이메일에 노출되는 공개 GET URL이 있으면 `S3_PUBLIC_BASE_URL` 및 `NEXT_PUBLIC_S3_PUBLIC_BASE_URL`을 동일 호스트로 둡니다.
+- **인증**: `NEXTAUTH_URL`(실제 사용자가 여는 HTTPS URL), `NEXTAUTH_SECRET`, (선택) Google OAuth.
+- **Keepalive(선택)**: `KEEPALIVE_SECRET` — 사내 `cron`에서 `curl`로 `/api/keepalive` 호출 시 동일 값을 `Authorization: Bearer`로 전달합니다.
 
-B2 버킷을 **private**으로 두고 **Cloudflare Worker**(예: `https://assets.layerary.com`)로 파일을 공개 서빙하는 구성을 권장합니다.
+**객체 스토리지(필수)** — 앱은 **S3/MinIO만** 사용합니다(아바타·아이콘·PPT·eDM·게시물). eDM는 `S3_*` + `S3_BUCKET_EDMS`(또는 기본 `edms`). Supabase Storage REST·R2·B2 앱 API는 제거됨.
 
-- **설정 시**: 업로드 후 반환되는 `fileUrl`이 Worker 기준 URL로 저장됩니다. 클라이언트는 `NEXT_PUBLIC_B2_PUBLIC_URL`로 Worker URL을 판별하고, 해당 URL로 이미지를 직접 로드합니다(Next.js Image의 `unoptimized` 사용 등). 구현: `lib/b2.ts`(업로드·URL 생성), `lib/b2-client-url.ts`(클라이언트 이미지 URL 변환).
-- **Worker 미설정 시**: B2 기본 공개 URL을 사용하거나, 버킷이 private이면 이미지 요청이 `/api/posts/images` 프록시를 통해 처리됩니다.
+### 1.3 Presigned 업로드와 MinIO CORS
 
----
+CI/BI, Character, PPT 등은 `/api/posts/upload-presigned`로 받은 URL에 대해 브라우저가 **HTTP PUT**으로 객체를 직접 올립니다. MinIO 버킷(또는 앞단 Nginx)의 **CORS**에 다음을 허용해야 합니다.
 
-## Backblaze B2 (CORS – Presigned 직접 업로드)
+- 앱 오리진: 예) `https://design.example.corp`, 개발 시 `http://localhost:3000`
+- 메서드: `PUT`, `GET`, (필요 시) `HEAD`
+- `Authorization`, `Content-Type` 등 프리플라이트에 필요한 헤더
 
-**Worker**는 파일 서빙(이미지/파일 URL 접근)용이고, **CORS**는 브라우저에서 B2로 직접 업로드할 때 필요한 허용 정책입니다.
+설정은 MinIO 콘솔, `mc`, 또는 S3 호환 API로 합니다. (이전 B2 전용 `npm run b2:setup-cors` 스크립트는 제거되었습니다.)
 
-CI/BI, Character, PPT, 웰컴보드, Wapples, Isign, Damo, Cloudbric 등은 **Presigned URL**로 브라우저에서 B2에 직접 업로드합니다. 배포 도메인(예: https://layerary.com)에서 이 업로드가 동작하려면 **B2 버킷에 CORS**를 설정해야 합니다.
+### 1.4 Prisma 마이그레이션
 
-CI/BI, Character, PPT, 웰컴보드, Wapples, Isign, Damo, Cloudbric 등은 **Presigned URL**로 브라우저에서 B2에 직접 업로드합니다. 배포 도메인(예: https://layerary.com)에서 이 업로드가 동작하려면 **B2 버킷에 CORS**를 설정해야 합니다.
+배포 파이프라인 또는 수동으로 스키마를 맞춥니다.
 
-1. 로컬에서 B2 인증 정보가 들어 있는 `.env` / `.env.local`을 준비한 뒤:
-2. 다음 명령을 **한 번** 실행하세요.
-   ```bash
-   npm run b2:setup-cors
-   ```
-3. 스크립트에 **https://layerary.com**, **https://www.layerary.com**이 기본으로 포함됩니다. 적용까지 수 분 걸릴 수 있습니다.
-4. 추가 출처가 필요하면 환경 변수 `B2_CORS_ORIGINS`(쉼표 구분)를 설정한 뒤 같은 명령을 다시 실행하세요.
+```bash
+npx prisma migrate deploy
+```
 
-(Penta Design 갤러리는 서버 경유 업로드(`/api/posts/upload`)를 사용하므로 CORS 없이도 동작합니다.)
+팀 정책에 따라 `prisma db push`만 쓰는 경우, 프로덕션 DB와 스키마를 사전에 일치시켜 두어야 합니다.  
+`.gitignore`에 `prisma/migrations`가 있으면 `migrate deploy`를 쓰기 어렵습니다 — 마이그레이션을 Git에 포함할지 팀에서 결정합니다.
 
----
+### 1.5 빌드·실행·리버스 프록시
 
-## Cloudflare R2 (eDM 이미지)
+```bash
+npm ci
+npm run build
+npm run start
+```
 
-eDM(이메일 디렉트 메일)의 셀 이미지와 썸네일은 **Cloudflare R2**에 저장됩니다. R2는 S3 호환 API를 사용하며, 이메일 HTML에서 이미지 URL이 오래 유지되어야 하므로 공개 URL 또는 Presigned URL을 사용합니다.
+프로덕션에서는 **Nginx(또는 동급)** 뒤에 Next를 두고, `X-Forwarded-Proto` 등을 넘겨 `NEXTAUTH_URL`과 실제 URL이 일치하도록 합니다. NextAuth는 `trustHost` 설정을 사용합니다(`lib/auth.ts`).
 
-### R2 버킷 생성
-
-1. [Cloudflare Dashboard](https://dash.cloudflare.com) → **R2 Object Storage** → **Create bucket**
-2. 버킷 이름: 예) `edms`
-3. 생성 후 **Settings**에서 **Public access** (선택): 커스텀 도메인 연결 시 `R2_PUBLIC_URL`로 공개 URL 사용 가능
-
-### R2 API 토큰 생성
-
-1. R2 → **Manage R2 API Tokens** → **Create API token**
-2. 권한: **Object Read & Write**
-3. 생성된 **Access Key ID**, **Secret Access Key**를 Vercel 환경 변수 `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`에 설정
-4. **Account ID**는 Cloudflare 대시보드 URL 또는 Overview에서 확인 → `R2_ACCOUNT_ID`에 설정
-
-### 환경 변수 요약
-
-| 변수 | 설명 |
-|------|------|
-| `R2_ACCOUNT_ID` | Cloudflare 계정 ID |
-| `R2_ACCESS_KEY_ID` | R2 API 액세스 키 |
-| `R2_SECRET_ACCESS_KEY` | R2 API 시크릿 키 |
-| `R2_BUCKET_NAME` | 버킷 이름 (예: `edms`) |
-| `R2_PUBLIC_URL` | (권장) 공개 액세스 기준 URL. 설정 시 DB에 공개 URL 저장 → 이메일에서 만료 없이 이미지 표시. 미설정 시 Presigned URL(최대 7일) 사용 |
-
-구현: `lib/r2-edm-storage.ts` (AWS SDK S3 호환 클라이언트 사용)
+**Docker(Next standalone + Nginx)로 한 번에** 올릴 때는 `deploy/rocky`의 `docker-compose.app.yml`·`Dockerfile`·`.env.app.example`을 사용합니다. 절차는 [`deploy/rocky/README.md`](../deploy/rocky/README.md) **8) (선택) 풀스택** 절을 따릅니다.
 
 ---
 
-## 도메인 설정
+## 2. Keepalive·백업 (사내망)
 
-1. Vercel에서 커스텀 도메인 연결
-2. `NEXTAUTH_URL`을 배포 URL로 설정 (예: `https://layerary.com`)
-3. Google OAuth 사용 시, 리다이렉트 URI 등록 필요
+- **헬스**: 앱이 떠 있는 호스트에서 `GET /api/keepalive`를 주기적으로 호출합니다. DB `SELECT 1`과, `S3_*` 설정 시 S3 `ListBuckets`로 스토리지 연결을 확인합니다. 자세한 절차는 [`deploy/rocky/README.md`](../deploy/rocky/README.md)의「사내망 운영」절을 참고하세요.
+- **DB 백업**: `pg_dump`를 `cron`으로 실행하고, 필요 시 덤프를 MinIO 백업 버킷 등으로 복사합니다.
+- **GitHub Actions** (`.github/workflows/keepalive.yml`, `backup-supabase-to-b2.yml`): 퍼블릿 URL·클라우드 전제입니다. 사내망만 쓰는 경우 **워크플로 비활성화**하고 위 사내 작업으로 대체하는 것이 일반적입니다. 워크플로 파일 상단 주석을 참고하세요.
 
----
-
-## CI/CD
-
-- **GitHub 연동**: push 시 Vercel 자동 배포
-- **Keepalive**: Supabase 무료 플랜 7일 비활동 일시정지 방지용
-
-### Keepalive 설정
-
-[docs/KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) 참조
-
-- GitHub Actions → **Variables**: `APP_URL` (배포 URL)
-- GitHub Actions → **Secrets** (선택): `KEEPALIVE_SECRET`
-- Vercel 환경 변수: `KEEPALIVE_SECRET` (동일 값)
-- 워크플로: `.github/workflows/keepalive.yml` — **매 3일마다** `{APP_URL}/api/keepalive` 호출
-
-### Backup Supabase to B2
-
-GitHub Actions로 Supabase PostgreSQL을 매일 자동 백업합니다. `.github/workflows/backup-supabase-to-b2.yml` — **매일 UTC 02:00**(한국시간 11:00) 실행, 수동 실행 가능(workflow_dispatch).  
-필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`. 선택: `B2_BUCKET_PATH`(미설정 시 `backups/db` 사용). 덤프는 B2 버킷에 `backups/db/backup-YYYYMMDD-HHMM.dump` 형태로 업로드됩니다.
+[`docs/KEEPALIVE_SETUP.md`](KEEPALIVE_SETUP.md)에는 GitHub 방식과 사내망 `cron` 방식이 모두 설명되어 있습니다.
 
 ---
 
-## 주의사항
+## 3. (선택) Vercel + 클라우드 스토리지
 
-1. **Konva/Canvas**: `next.config.js`에서 externals로 처리. Vercel에서 정상 동작.
-2. **Sharp**: Vercel 기본 환경 지원.
-3. **bcryptjs**: Edge Runtime 미지원 경고가 있을 수 있으나, API 라우트에서만 사용되므로 무시 가능.
+Vercel 등 퍼블릿 배포도 **S3/MinIO 필수**로 맞춥니다(구 클라우드 R2/Supabase Storage 경로는 제거).
+
+- 빌드 명령 예: `prisma migrate deploy && next build`
+- 객체 스토리지: `S3_*` (MinIO 또는 S3 호환)
+- eDM: `lib/r2-edm-storage.ts`는 S3( MinIO)만
+
+---
+
+## 4. 도메인·OAuth
+
+- 사내망: 내부 DNS·TLS 인증서로 사용자에게 열리는 **단일 HTTPS 베이스 URL**을 정하고 `NEXTAUTH_URL`에 동일하게 넣습니다.
+- Google OAuth: Google Cloud Console에 **승인된 리다이렉트 URI**로 `https://<도메인>/api/auth/callback/google` 등을 등록합니다.
+
+---
+
+## 5. 주의사항
+
+1. **Konva/Canvas**: `next.config.js`에서 서버 빌드 시 externals 처리.
+2. **Sharp**: 이미지 썸네일·처리에 사용. Node 런타임에 포함되도록 배포 이미지를 맞춥니다.
+3. **bcryptjs**: Edge Runtime 미지원 경고가 있어도 API 라우트 한정 사용이면 무방합니다.

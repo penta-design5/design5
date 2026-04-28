@@ -1,8 +1,54 @@
 # 인프라 다이어그램
 
-배포 환경의 물리적/논리적 구조를 표현합니다. Vercel, Supabase, Backblaze B2, Cloudflare R2, GitHub가 실제로 어떻게 연결되는지 보여줍니다.
+배포 환경의 물리적·논리적 구조를 표현합니다. **사내망(옵션 B)** 을 기본으로 하고, 클라우드 구성은 레거시 참고용으로 정리합니다.
 
-## 인프라 개요
+---
+
+## 사내망 배포 (권장)
+
+PostgreSQL + MinIO(S3 호환) + Next.js(자체 호스팅) + (선택) Nginx.
+
+```mermaid
+flowchart TB
+  subgraph users [Users]
+    U1[User]
+  end
+
+  subgraph edge [Reverse proxy 선택]
+    Nginx[Nginx / TLS]
+  end
+
+  subgraph app [Application host]
+    Next[Next.js]
+  end
+
+  subgraph data [Data plane 동일 또는 근접 서버]
+    PG[(PostgreSQL)]
+    MinIO[MinIO S3 API]
+  end
+
+  U1 -->|HTTPS| Nginx
+  Nginx --> Next
+  Next -->|DATABASE_URL| PG
+  Next -->|S3 API posts/edms/...| MinIO
+  Next -.->|브라우저 PUT Presigned| MinIO
+```
+
+| 구성요소 | 설명 | 환경 변수(요지) |
+|----------|------|-------------------|
+| **PostgreSQL** | Prisma·NextAuth 세션 등 | `DATABASE_URL`, `DIRECT_URL` |
+| **MinIO** | 게시물·eDM·아바타·아이콘 등 S3 버킷 | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_*`, `S3_PUBLIC_BASE_URL` |
+| **Next.js** | API·SSR·정적 자원 | `NEXTAUTH_URL`, `NEXTAUTH_SECRET` |
+| **Nginx** | TLS 종료, `client_max_body_size`, `X-Forwarded-Proto` | 호스트 설정 |
+
+- **Rocky 예시**: [`deploy/rocky/docker-compose.yml`](../deploy/rocky/docker-compose.yml) — Postgres + MinIO. Next는 같은 호스트의 프로세스/Docker 또는 별도 배포.
+- **디렉터리**: [`deploy/WEBAPPS_LAYOUT.md`](../deploy/WEBAPPS_LAYOUT.md)
+
+---
+
+## 클라우드 배포 (레거시 참고)
+
+Vercel + Supabase + B2/R2를 쓰던 시기의 연결 관계입니다. 현재 코드는 **S3_* 우선**이며 Backblaze B2 npm SDK는 제거되었습니다.
 
 ```mermaid
 flowchart TB
@@ -24,119 +70,45 @@ flowchart TB
     Pooler[Connection Pooler]
   end
 
-  subgraph b2 [Backblaze B2]
-    Bucket[B2 Bucket]
-  end
-
-  subgraph cf [Cloudflare]
-    CFWorker[Worker - assets]
-  end
-
-  subgraph r2 [Cloudflare R2]
-    R2Bucket[R2 Bucket - eDM]
+  subgraph storage [Object storage 레거시]
+    B2[B2 / Worker URL]
+    R2[Cloudflare R2 eDM]
   end
 
   subgraph github [GitHub]
-    Repo[Repository]
-    Actions[GitHub Actions]
+    Actions[Actions keepalive/backup]
   end
 
   U1 -->|HTTPS| CDN
-  U1 -->|"이미지/파일 URL"| CFWorker
   CDN --> Serverless
-  CDN --> Static
   Serverless -->|DATABASE_URL| Pooler
   Pooler --> PgSQL
-  Serverless -->|B2 API| Bucket
-  Bucket -.->|"파일 서빙"| CFWorker
-  Serverless -->|R2 S3 API| R2Bucket
-  Repo -->|push| vercel
-  Actions -->|3일마다| Serverless
+  Serverless -->|S3 또는 R2 API| R2
+  Serverless -.->|과거 B2 URL| B2
+  Actions -.->|퍼블릿 URL만| Serverless
 ```
 
-## 구성 요소별 설명
-
-### Vercel
-
-| 구성요소 | 설명 |
+| 구성요소 | 비고 |
 |----------|------|
-| **CDN (Edge Network)** | 전 세계 엣지에서 정적 에셋 및 이미지 최적화 제공 |
-| **Serverless Functions** | Next.js API Routes, Server Components가 실행되는 런타임 |
-| **Static Assets** | `public/`, 빌드 결과물 등 정적 파일 |
+| **Supabase** | 호스티드 Postgres + (선택) Storage REST — 사내망 전환 시 자체 Postgres로 대체 |
+| **R2** | eDM용. `S3_*` 설정 시 동일 SDK로 MinIO `edms` 버킷 사용 |
+| **GitHub Actions** | 퍼블릿 `APP_URL` 전제. 사내망 전용 URL이면 비활성·사내 cron 권장 |
 
-- **배포**: GitHub push 시 자동 빌드·배포
-- **빌드 명령**: `prisma migrate deploy && next build`
+---
 
-### Supabase
-
-| 구성요소 | 설명 | 환경 변수 |
-|----------|------|------------|
-| **Connection Pooler** | Session 모드 연결 풀. Prisma용 | `DATABASE_URL` (connection_limit=1 권장) |
-| **PostgreSQL** | 메인 DB. 마이그레이션은 Direct 연결 사용 | `DIRECT_URL` |
-
-- **참고**: eDM 셀 이미지는 Supabase Storage가 아닌 **Cloudflare R2**에 저장됩니다.
-
-### Backblaze B2
-
-| 구성요소 | 설명 | 환경 변수 |
-|----------|------|------------|
-| **B2 Bucket** | 게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등 | `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_ID`, `B2_BUCKET_NAME`, `B2_ENDPOINT` |
-
-- **Cloudflare Worker (선택)**: Private 버킷일 경우 Cloudflare Worker를 두고 공개 URL(예: https://assets.layerary.com)로 파일을 서빙할 수 있습니다. 이때 `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`을 Worker 도메인으로 설정합니다.
-
-### Cloudflare R2
-
-| 구성요소 | 설명 | 환경 변수 |
-|----------|------|------------|
-| **R2 Bucket (eDM)** | eDM 셀 이미지·썸네일 저장. S3 호환 API 사용. 공개 URL 또는 Presigned URL 제공 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`(선택) |
-
-- **R2_PUBLIC_URL** 설정 시 만료 없는 공개 URL로 저장되어 이메일 HTML에서 이미지가 안정적으로 표시됩니다. 미설정 시 Presigned URL(최대 7일)을 사용합니다.
-
-### GitHub
-
-| 구성요소 | 설명 |
-|----------|------|
-| **Repository** | 소스 코드. push 시 Vercel 트리거 |
-| **GitHub Actions** | 3일마다 `{APP_URL}/api/keepalive` 호출 (Supabase 비활동 방지) |
-| **GitHub Actions** | 매일 UTC 02:00 Supabase DB 덤프 → B2 업로드 (Backup Supabase to B2) |
-
-- **Variables**: `APP_URL` (배포 URL)
-- **Secrets** (선택): `KEEPALIVE_SECRET`
-- **Backup 워크플로 Secrets**: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME` (선택: `B2_BUCKET_PATH`)
-
-## 환경 변수 연결 관계
+## 환경 변수 연결 관계 (사내망)
 
 ```mermaid
 flowchart LR
-  subgraph vercel [Vercel Environment]
-    V[Next.js App]
-  end
-
-  subgraph env [환경 변수]
-    E1[DATABASE_URL]
-    E2[DIRECT_URL]
-    E3[NEXTAUTH_URL]
-    E4["B2_* (B2_PUBLIC_URL 등)"]
-    E5[R2_*]
-    E6[SUPABASE_*]
-  end
-
-  V --> E1
-  V --> E2
-  V --> E3
-  V --> E4
-  V --> E5
-  V --> E6
-
-  E1 --> Pooler[Supabase Pooler]
-  E2 --> PgSQL[Supabase Direct]
-  E4 --> B2[Backblaze B2]
-  E5 --> R2[Cloudflare R2]
-  E6 --> Pooler
+  V[Next.js App]
+  V -->|Prisma| PG[(PostgreSQL)]
+  V -->|AWS SDK S3| MinIO[MinIO]
 ```
+
+---
 
 ## 관련 문서
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) - 배포 가이드
-- [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) - Keepalive 설정
-- [Mermaid Live Editor](https://mermaid.live) - 다이어그램 PNG/SVG 내보내기
+- [DEPLOYMENT.md](DEPLOYMENT.md) — 배포 가이드
+- [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md) — Keepalive(GitHub·사내 cron)
+- [Mermaid Live Editor](https://mermaid.live) — 다이어그램 편집

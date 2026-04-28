@@ -412,49 +412,33 @@ export async function DELETE(
       )
     }
 
-    // Supabase Storage에서 아이콘 파일 삭제 (ICON 카테고리인 경우)
     if (post.fileType === 'svg' && post.fileUrl) {
       try {
-        const { createServerSupabaseClient } = await import('@/lib/supabase')
-        const supabase = createServerSupabaseClient()
-        
-        // Supabase Storage URL에서 파일 경로 추출
-        // URL 형식: https://xxx.supabase.co/storage/v1/object/public/icons/filename.svg
-        try {
-          const urlObj = new URL(post.fileUrl)
-          const pathParts = urlObj.pathname.split('/').filter(Boolean)
-          
-          // 'icons' 버킷의 파일인지 확인
-          // pathParts 예: ['storage', 'v1', 'object', 'public', 'icons', 'filename.svg']
-          const iconsIndex = pathParts.indexOf('icons')
-          
-          if (iconsIndex !== -1 && iconsIndex < pathParts.length - 1) {
-            // icons 다음 부분이 파일명
-            const fileName = pathParts[iconsIndex + 1]
-            
-            if (fileName) {
-              // Supabase Storage에서 파일 삭제
-              const { error: deleteError } = await supabase.storage
-                .from('icons')
-                .remove([fileName])
-              
-              if (deleteError) {
-                console.error('Supabase Storage delete error:', deleteError)
-                // 스토리지 삭제 실패해도 DB 삭제는 진행
-              }
-            }
+        const { isS3StorageConfigured, getS3Client, getBucketIcons } = await import(
+          '@/lib/s3/config'
+        )
+        const { s3ObjectKeyFromAnyPublicUrl } = await import('@/lib/s3/url-helpers')
+        const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
+
+        if (isS3StorageConfigured()) {
+          const key = s3ObjectKeyFromAnyPublicUrl(post.fileUrl, getBucketIcons())
+          if (key) {
+            await getS3Client().send(
+              new DeleteObjectCommand({ Bucket: getBucketIcons(), Key: key })
+            )
           }
-        } catch (urlError: any) {
-          console.error('URL parsing error:', urlError.message)
-          // URL 파싱 실패해도 DB 삭제는 진행
+        } else {
+          console.warn(
+            '[post delete] S3 미설정: icons 버킷에서 파일을 삭제하지 못했습니다.',
+            post.fileUrl
+          )
         }
-      } catch (supabaseError: any) {
-        console.error('Supabase Storage deletion error:', supabaseError.message)
-        // 스토리지 삭제 실패해도 DB 삭제는 진행
+      } catch (e: any) {
+        console.error('Icon storage deletion error:', e?.message)
       }
     }
 
-    // PPT 썸네일(Supabase ppt-thumbnails) 삭제
+    // PPT 썸네일(S3) 삭제
     if (post.thumbnailUrl) {
       try {
         const { deletePptThumbnailByPublicUrl } = await import(
@@ -462,7 +446,7 @@ export async function DELETE(
         )
         await deletePptThumbnailByPublicUrl(post.thumbnailUrl)
       } catch (pptThumbError: any) {
-        console.error('PPT thumbnail Supabase deletion error:', pptThumbError.message)
+        console.error('PPT thumbnail 삭제 오류:', pptThumbError?.message)
       }
     }
 

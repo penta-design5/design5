@@ -43,9 +43,9 @@ layerary/
 ├── lib/                          # 유틸 및 설정
 │   ├── auth.ts, auth-helpers.ts  # NextAuth
 │   ├── prisma.ts                 # Prisma 클라이언트
-│   ├── b2.ts                     # Backblaze B2 업로드. Worker 사용 시 B2_PUBLIC_URL로 반환 URL 생성
-│   ├── b2-client-url.ts         # 클라이언트용 B2/Worker 이미지 URL 변환 (getB2ImageSrc, isB2WorkerUrl)
-│   ├── supabase.ts, r2-edm-storage.ts
+│   ├── b2.ts                     # 게시물 객체 업로드/다운로드(S3_* 우선). import 경로 유지
+│   ├── b2-client-url.ts         # 클라이언트용 공개 스토리지 URL 판별(getB2ImageSrc 등)
+│   ├── r2-edm-storage.ts (S3/MinIO eDM), supabase-ppt-thumbnail (S3 삭제 헬퍼; 이름 유지)
 │   ├── categories.ts             # 카테고리 조회
 │   └── *.ts                      # 스키마, 유틸
 ├── prisma/
@@ -84,7 +84,7 @@ layerary/
 
 ## 상태 관리
 
-- **서버**: Prisma + Supabase, NextAuth 세션
+- **서버**: Prisma(Postgres), NextAuth 세션
 - **클라이언트**: `useState`, `useEffect` (전역 상태 관리 라이브러리 미사용)
 
 ---
@@ -97,8 +97,8 @@ layerary/
    - 렌더링 (ListPage → Card 컴포넌트)
 
 2. **업로드**
-   - FormData/JSON → API Route → B2 또는 Cloudflare R2(eDM) 업로드 → DB 저장
-   - B2: 서버 경유 업로드(Penta Design 등) 또는 Presigned URL로 브라우저에서 B2 직접 업로드(다른 카테고리, B2 CORS 필요). 반환 URL은 `B2_PUBLIC_URL` 설정 시 Cloudflare Worker 도메인 사용 가능.
+   - FormData/JSON → API Route → **S3/MinIO**(또는 레거시 R2) 업로드 → DB 저장
+   - 서버 경유 업로드와 Presigned **PUT** 직접 업로드가 혼재. 직접 업로드 시 객체 스토리지 **CORS**에 앱 오리진 필요.
 
 3. **검색**
    - Header 검색창 → `GET /api/search?q=...&categorySlug=...` → SearchResultsDialog
@@ -117,7 +117,7 @@ layerary/
 
 ---
 
-## GitHub Actions 자동화
+## 주기 작업·백업
 
-- **Supabase Keepalive**: GitHub Actions에서 3일마다 `{APP_URL}/api/keepalive`를 호출해 Supabase DB/Storage를 ping합니다. 무료 플랜의 7일 비활동 일시정지를 방지합니다. 워크플로: `.github/workflows/keepalive.yml`. 상세: [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md).
-- **Backup Supabase to B2**: GitHub Actions에서 매일 UTC 02:00(한국시간 11:00)에 Supabase PostgreSQL을 `pg_dump`로 덤프한 뒤 Backblaze B2 버킷에 업로드합니다. 워크플로: `.github/workflows/backup-supabase-to-b2.yml`. 필요 Secrets: `SUPABASE_DATABASE_URL`, `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`.
+- **Keepalive**: 퍼블릿 `APP_URL`이면 `.github/workflows/keepalive.yml` 또는 [KEEPALIVE_SETUP.md](KEEPALIVE_SETUP.md). 사내망 전용 URL이면 서버 `cron` + `curl` 권장.
+- **DB 백업**: 레거시는 `backup-supabase-to-b2.yml`. 사내망은 `pg_dump` + (선택) MinIO — [deploy/rocky/README.md](../deploy/rocky/README.md).

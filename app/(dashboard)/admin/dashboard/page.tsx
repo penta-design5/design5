@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { SquareArrowOutUpRight, Image, Database, HardDrive, Wallpaper, FileText as FileTextIcon, BookOpen } from 'lucide-react'
+import { SquareArrowOutUpRight, Image, HardDrive, Wallpaper, FileText as FileTextIcon, BookOpen } from 'lucide-react'
 import { Loader2, Images } from 'lucide-react'
 import { StatsCardSkeleton } from '@/components/ui/stats-card-skeleton'
 
@@ -41,18 +41,7 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
-  // Supabase Usage 페이지 URL (환경 변수에서 가져오거나 기본값 사용)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const supabaseProjectId = supabaseUrl.split('//')[1]?.split('.')[0] || ''
-  const supabaseUsageUrl = supabaseProjectId
-    ? `https://supabase.com/dashboard/org/oyqrzeeterlhhzhazowq/usage?projectRef=${supabaseProjectId}`
-    : 'https://supabase.com/dashboard'
-
-  // Backblaze B2 대시보드 URL
-  const b2DashboardUrl = 'https://secure.backblaze.com/b2_caps_alerts.htm'
-
-  // Cloudflare R2 대시보드 URL
-  const r2DashboardUrl = 'https://dash.cloudflare.com/ea37da5b38aff81fbd82412db6049212/r2/overview'
+  const minioConsoleUrl = process.env.NEXT_PUBLIC_MINIO_CONSOLE_URL || ''
 
   if (loading) {
     return (
@@ -188,47 +177,32 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* 외부 서비스 링크 */}
         <Card>
           <CardHeader>
-            <CardTitle className='text-lg font-medium'>외부 서비스</CardTitle>
-            <CardDescription>리소스 관리 및 모니터링</CardDescription>
+            <CardTitle className="text-lg font-medium">인프라 / 스토리지</CardTitle>
+            <CardDescription>사내망 DB·객체 스토리지( MinIO S3 )</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                onClick={() => window.open(supabaseUsageUrl, '_blank')}
-              >
-                <div className="flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  <span>Supabase Usage</span>
-                </div>
-                <SquareArrowOutUpRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                onClick={() => window.open(b2DashboardUrl, '_blank')}
-              >
-                <div className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4" />
-                  <span>Backblaze B2 Dashboard</span>
-                </div>
-                <SquareArrowOutUpRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-between"
-                onClick={() => window.open(r2DashboardUrl, '_blank')}
-              >
-                <div className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4" />
-                  <span>Cloudflare R2 Dashboard</span>
-                </div>
-                <SquareArrowOutUpRight className="h-4 w-4" />
-              </Button>              
+              <p className="text-sm text-muted-foreground">
+                운영 절·백업은 <code className="text-xs">deploy/rocky/README.md</code>·
+                <code className="text-xs">docs/DEPLOYMENT.md</code> 참고. MinIO S3 콘솔(예: 9001)은 SSH 터널
+                등으로 붙이고, 공개 URL은 <code className="text-xs">S3_PUBLIC_BASE_URL</code> /{' '}
+                <code className="text-xs">NEXT_PUBLIC_S3_PUBLIC_BASE_URL</code>에 맞춥니다.
+              </p>
+              {minioConsoleUrl ? (
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => window.open(minioConsoleUrl, '_blank')}
+                >
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-4 w-4" />
+                    <span>MinIO 콘솔</span>
+                  </div>
+                  <SquareArrowOutUpRight className="h-4 w-4" />
+                </Button>
+              ) : null}
             </div>
           </CardContent>
         </Card>

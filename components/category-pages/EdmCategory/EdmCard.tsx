@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { isKnownPublicAssetBaseUrl } from '@/lib/public-asset-url'
 
 interface EdmCardProps {
   edm: {
@@ -62,7 +63,7 @@ export function EdmCard({
 
   const getImageSrc = (url: string) => {
     if (!url || url === '/placeholder.png') return '/placeholder.png'
-    if (url.startsWith('http') && url.includes('supabase.co')) return url
+    if (url.startsWith('http') && isKnownPublicAssetBaseUrl(url)) return url
     return url
   }
 

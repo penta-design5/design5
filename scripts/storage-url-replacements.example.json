@@ -1,0 +1,14 @@
+[
+  {
+    "from": "https://YOUR_PROJECT.supabase.co/storage/v1/object/public",
+    "to": "https://files.internal.example.com"
+  },
+  {
+    "from": "https://cdn.example.com",
+    "to": "https://files.internal.example.com/edms"
+  },
+  {
+    "from": "https://assets.example.com",
+    "to": "https://files.internal.example.com/posts"
+  }
+]

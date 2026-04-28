@@ -1,61 +1,51 @@
 /**
- * B2 이미지 URL을 img src에 쓸 URL로 변환 (클라이언트용).
- * Worker URL은 그대로, B2 직접 URL은 프록시 경로로 변환.
+ * 게시물 이미지 URL → img src (클라이언트).
+ * 사내망: S3 퍼블릭 URL은 그대로. 구 B2 S3 API URL(…backblazeb2…)은 /api/posts/images 프록시.
  */
 
-/** B2 스토리지 URL인지 여부 (Worker 또는 B2 직접). 클라이언트에서 B2 이미지 판별용 */
+import {
+  getPublicStorageBasePrefixes,
+  normalizeLayeraryStyleWorkerPath,
+  urlHostIsLegacyCdn,
+  urlHostNeedsUnoptimizedImage,
+  urlLooksLikeBackblazeB2S3Url,
+  urlStartsWithAnyPublicBase,
+} from '@/lib/legacy-asset-bases'
+
+/** S3/Worker/B2/레거시 CDN — 클라이언트에서 스토리지 URL 판별 */
 export function isB2StorageUrlForClient(url: string): boolean {
   if (!url || typeof url !== 'string') return false
-  const publicUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL?.replace(/\/$/, '')
-  if (publicUrl && url.startsWith(publicUrl)) return true
-  if (url.includes('assets.layerary.com')) return true
-  if (url.includes('backblazeb2.com')) return true
+  if (urlStartsWithAnyPublicBase(url)) return true
+  if (urlHostIsLegacyCdn(url)) return true
+  if (urlLooksLikeBackblazeB2S3Url(url)) return true
   return false
 }
 
 /**
- * 반환된 src가 Worker(CDN) URL인지 여부.
- * Next.js Image에서 unoptimized 사용 여부 판별용 (Worker URL은 직접 로드해야 404 방지).
+ * unoptimized(Next Image) — Worker/공개 베이스·구 Worker 호스트(기본 assets.…)
  */
 export function isB2WorkerUrl(src: string): boolean {
   if (!src || !src.startsWith('http')) return false
-  const publicUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL?.replace(/\/$/, '')
-  if (publicUrl && src.startsWith(publicUrl)) return true
-  if (src.includes('assets.layerary.com')) return true
+  if (urlStartsWithAnyPublicBase(src)) return true
+  if (urlHostNeedsUnoptimizedImage(src)) return true
   return false
 }
 
 /**
- * Worker URL에서 버킷 이름 세그먼트 제거. (Worker가 경로만 받는 경우, DB에 예전 형식으로 저장된 URL 호환)
- * 예: https://assets.layerary.com/layerary/thumbnails/... → https://assets.layerary.com/thumbnails/...
- */
-function normalizeWorkerUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    if (!u.hostname.includes('assets.layerary.com')) return url
-    const parts = u.pathname.split('/').filter(Boolean)
-    // /layerary/thumbnails/... → /thumbnails/...
-    if (parts.length > 1 && parts[0] === 'layerary') {
-      u.pathname = '/' + parts.slice(1).join('/')
-      return u.toString()
-    }
-    return url
-  } catch {
-    return url
-  }
-}
-
-/**
- * B2 이미지 URL을 img src에 사용할 URL로 변환.
- * - Worker URL → 버킷 세그먼트 정규화 후 반환 (프록시 불필요)
- * - B2 직접 URL → /api/posts/images 프록시로 변환 (private 버킷 대응)
+ * 이미지 URL을 img src에 사용.
+ * - 공개 베이스 URL → (구 Worker면 경로 정규화)
+ * - B2 직접 URL → /api/posts/images 프록시
  */
 export function getB2ImageSrc(url: string): string {
   if (!url || url === '/placeholder.png') return '/placeholder.png'
-  const publicUrl = process.env.NEXT_PUBLIC_B2_PUBLIC_URL?.replace(/\/$/, '')
-  if (publicUrl && url.startsWith(publicUrl)) return normalizeWorkerUrl(url)
-  if (url.includes('assets.layerary.com')) return normalizeWorkerUrl(url)
-  if (url.startsWith('http') && url.includes('backblazeb2.com')) {
+  const bases = getPublicStorageBasePrefixes()
+  for (const b of bases) {
+    if (b && url.startsWith(b)) {
+      return urlHostIsLegacyCdn(url) ? normalizeLayeraryStyleWorkerPath(url) : url
+    }
+  }
+  if (urlHostIsLegacyCdn(url)) return normalizeLayeraryStyleWorkerPath(url)
+  if (url.startsWith('http') && urlLooksLikeBackblazeB2S3Url(url)) {
     return `/api/posts/images?url=${encodeURIComponent(url)}`
   }
   return url

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
+import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { downloadFile } from '@/lib/b2'
 import { changeIconSvgProperties } from '@/lib/svg-utils'
 import sharp from 'sharp'
 import { z } from 'zod'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { getBucketIcons, getS3Client, isS3StorageConfigured } from '@/lib/s3/config'
+import { streamToBuffer } from '@/lib/s3/stream-utils'
+import { s3ObjectKeyFromAnyPublicUrl } from '@/lib/s3/url-helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,11 +17,6 @@ const querySchema = z.object({
   strokeWidth: z.coerce.number().optional(),
 })
 
-/**
- * ICON SVG 파일 다운로드 및 변환 API
- * - SVG를 PNG/JPG로 변환
- * - 색상, stroke-width, 크기 변경
- */
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -34,7 +32,6 @@ export async function GET(
 
     const { id } = params
 
-    // 게시물 조회
     const { prisma } = await import('@/lib/prisma')
     const post = await prisma.post.findUnique({
       where: { id },
@@ -52,30 +49,33 @@ export async function GET(
       )
     }
 
-    // Supabase Storage에서 SVG 파일 다운로드
+    const fileUrl = post.fileUrl
     let svgContent: string
+
     try {
-      const supabase = createServerSupabaseClient()
-      const urlObj = new URL(post.fileUrl)
-      const pathParts = urlObj.pathname.split('/').filter(Boolean)
-      
-      if (pathParts.includes('icons') && pathParts.length > 0) {
-        const fileName = pathParts[pathParts.length - 1]
-        
-        if (fileName) {
-          const { data, error } = await supabase.storage
-            .from('icons')
-            .download(fileName)
-          
-          if (error) throw error
-          
-          svgContent = await data.text()
-        } else {
-          throw new Error('파일명을 찾을 수 없습니다.')
-        }
+      if (isS3StorageConfigured()) {
+        const key =
+          s3ObjectKeyFromAnyPublicUrl(fileUrl, getBucketIcons()) ||
+          (() => {
+            try {
+              const p = new URL(fileUrl).pathname.split('/').filter(Boolean)
+              return p.length ? p[p.length - 1] : null
+            } catch {
+              return null
+            }
+          })()
+        if (!key) throw new Error('no S3 key')
+        const res = await getS3Client().send(
+          new GetObjectCommand({
+            Bucket: getBucketIcons(),
+            Key: key,
+          })
+        )
+        if (!res.Body) throw new Error('empty')
+        const buf = await streamToBuffer(res.Body)
+        svgContent = buf.toString('utf-8')
       } else {
-        // B2에서 다운로드 (fallback)
-        const { fileBuffer } = await downloadFile(post.fileUrl)
+        const { fileBuffer } = await downloadFile(fileUrl)
         svgContent = fileBuffer.toString('utf-8')
       }
     } catch (error: any) {
@@ -86,55 +86,43 @@ export async function GET(
       )
     }
 
-    // 속성 적용
     const color = validatedQuery.color || '#000000'
     const strokeWidth = validatedQuery.strokeWidth || 1
     const size = validatedQuery.size || 24
 
     svgContent = changeIconSvgProperties(svgContent, color, strokeWidth, size)
 
-    // 포맷에 따라 변환
     if (validatedQuery.format === 'svg') {
-      // SVG 그대로 반환
       return new NextResponse(svgContent, {
         headers: {
           'Content-Type': 'image/svg+xml',
           'Content-Disposition': `attachment; filename="${post.title}.svg"`,
         },
       })
-    } else {
-      // SVG를 PNG 또는 JPG로 변환
-      const format = validatedQuery.format === 'jpg' ? 'jpeg' : 'png'
-      const mimeType = `image/${format}`
-
-      let sharpInstance = sharp(Buffer.from(svgContent), {
-        density: 600, // SVG 렌더링 해상도 (PNG와 JPG 모두 품질 개선)
-      })
-
-      // 크기 조정
-      if (size) {
-        const roundedSize = Math.round(size)
-        sharpInstance = sharpInstance.resize(roundedSize, roundedSize)
-      }
-
-      // JPG인 경우 배경을 흰색으로 설정 (투명도 지원하지 않음)
-      if (format === 'jpeg') {
-        sharpInstance = sharpInstance.flatten({ background: { r: 255, g: 255, b: 255 } })
-      }
-
-      const imageBuffer = await sharpInstance
-        .toFormat(format, {
-          quality: format === 'jpeg' ? 100 : 100, // JPG 품질을 최대값으로 설정
-        })
-        .toBuffer()
-
-      return new NextResponse(new Uint8Array(imageBuffer), {
-        headers: {
-          'Content-Type': mimeType,
-          'Content-Disposition': `attachment; filename="${post.title}.${validatedQuery.format}"`,
-        },
-      })
     }
+
+    const format = validatedQuery.format === 'jpg' ? 'jpeg' : 'png'
+    const mimeType = `image/${format}`
+
+    let sharpInstance = sharp(Buffer.from(svgContent), { density: 600 })
+
+    if (size) {
+      const roundedSize = Math.round(size)
+      sharpInstance = sharpInstance.resize(roundedSize, roundedSize)
+    }
+
+    if (format === 'jpeg') {
+      sharpInstance = sharpInstance.flatten({ background: { r: 255, g: 255, b: 255 } })
+    }
+
+    const imageBuffer = await sharpInstance.toFormat(format, { quality: 100 }).toBuffer()
+
+    return new NextResponse(new Uint8Array(imageBuffer), {
+      headers: {
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${post.title}.${validatedQuery.format}"`,
+      },
+    })
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

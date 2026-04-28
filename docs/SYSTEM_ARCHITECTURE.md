@@ -73,15 +73,14 @@ flowchart TB
 | 기능 | 설명 |
 |------|------|
 | **Supabase Keepalive** | 3일마다 `{APP_URL}/api/keepalive` 호출로 Supabase 비활동 방지(무료 플랜 7일 일시정지 방지). `.github/workflows/keepalive.yml` |
-| **Backup Supabase to B2** | 매일 UTC 02:00 Supabase DB를 pg_dump로 덤프 후 B2 버킷에 업로드. `.github/workflows/backup-supabase-to-b2.yml` |
+| **Backup Supabase to B2** | (레거시) 클라우드 전제. 사내망은 `pg_dump` + MinIO/디스크 백업으로 대체 권장. `.github/workflows/backup-supabase-to-b2.yml` |
 
 ## 주요 라이브러리 / 연결
 
-- **Prisma**: PostgreSQL ORM, `DATABASE_URL`로 Supabase 연결
+- **Prisma**: PostgreSQL ORM, `DATABASE_URL`(사내 Postgres 또는 호스티드 DB)
 - **NextAuth**: 세션(JWT), Credentials Provider, Google Provider
-- **backblaze-b2**: B2 버킷 업로드/다운로드
-- **@aws-sdk/client-s3, @aws-sdk/s3-request-presigner**: Cloudflare R2 (eDM) 업로드/삭제 및 Presigned URL 생성
+- **@aws-sdk/client-s3, @aws-sdk/s3-request-presigner**: MinIO·S3 호환 스토리지 — 게시물(`lib/b2.ts`·`lib/s3/*`), eDM(`lib/r2-edm-storage.ts`), Presigned PUT
 
-## CDN
+## CDN·정적·이미지
 
-Vercel이 기본 제공하는 Edge Network를 통해 정적 에셋(JS, CSS, 이미지)과 Next.js 이미지 최적화(`next/image`)가 CDN으로 제공됩니다. B2에 업로드된 파일은 Cloudflare Worker 공개 URL(또는 B2 직접 URL)로, R2 파일은 공개 URL 또는 Presigned URL로 접근합니다.
+Vercel 배포 시 Edge Network로 정적 에셋과 `next/image`가 제공될 수 있습니다. 사내망 자체 호스팅 시에는 Nginx 등 앞단 캐시를 검토합니다. 객체 파일은 `S3_PUBLIC_BASE_URL` / `R2_PUBLIC_URL` 등으로 브라우저에 노출되는 URL을 맞춥니다.

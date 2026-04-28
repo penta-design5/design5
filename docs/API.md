@@ -79,7 +79,7 @@ API는 NextAuth 세션 기반 인증을 사용합니다.
 | PUT | `/api/posts/[id]` | ADMIN | 게시물 수정 |
 | DELETE | `/api/posts/[id]` | ADMIN | 게시물 삭제 |
 | POST | `/api/posts/upload` | ADMIN | 파일 업로드 (서버 경유, Penta Design 등) |
-| POST | `/api/posts/upload-presigned` | ADMIN | Presigned URL 발급. 클라이언트가 해당 URL로 B2에 직접 업로드할 때 사용(CI/BI, Character, PPT 등). 배포 도메인에서 직접 업로드 시 B2 CORS 설정 필요. 참고: [DEPLOYMENT.md](DEPLOYMENT.md) Backblaze B2 CORS 섹션 |
+| POST | `/api/posts/upload-presigned` | ADMIN | Presigned URL 발급. 클라이언트가 **HTTP PUT**으로 객체 스토리지(S3/MinIO)에 직접 업로드할 때 사용(CI/BI, Character, PPT 등). 브라우저 직접 업로드 시 **버킷 CORS**에 앱 오리진 필요. 참고: [DEPLOYMENT.md](DEPLOYMENT.md) |
 | POST | `/api/posts/upload-icon` | ADMIN | 아이콘 업로드 |
 | ... | 기타 posts 하위 라우트 | - | 썸네일, 다운로드 등 |
 

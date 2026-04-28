@@ -1,6 +1,12 @@
-# Supabase DB → Backblaze B2 자동 백업
+# Supabase DB → Backblaze B2 자동 백업 (퍼블릭 클라우드·퍼블릿 Supabase URL을 쓰는 경우)
 # 필요 Secrets: SUPABASE_DATABASE_URL, B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME
 # 선택 Secrets: B2_BUCKET_PATH (미설정 시 backups/db 사용)
+#
+# [사내망/비공개 전용 배포] GitHub 러너가 DB·B2에 직접 닿을 수 없으면 이 스케줄은
+# 사용하지 말고, `deploy/rocky/README.md` → 「사내망 운영: DB 백업·핑」을 참고해
+# 서버에서 `pg_dump` + MinIO(S3) 업로드·(선택) `curl /api/keepalive` 를 cron으로 돌리세요.
+# 팀이 이 워크플로를 쓰지 않는다면: 저장소 → Actions → 해당 워크플로 → Disable workflow
+# (또는 `on: workflow_dispatch` 만 남기고 `schedule` 제거)
 
 name: Backup Supabase to B2
 

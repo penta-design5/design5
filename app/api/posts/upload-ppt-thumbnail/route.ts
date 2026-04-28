@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { requireAdmin } from '@/lib/auth-helpers'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import {
+  getBucketPptThumbnails,
+  getS3Client,
+  publicUrlForS3ObjectKey,
+} from '@/lib/s3/config'
+import { requireS3Json } from '@/lib/s3/require-storage'
 
 export async function POST(request: Request) {
+  const bad = requireS3Json()
+  if (bad) return bad
+
   try {
     await requireAdmin()
 
@@ -11,10 +20,7 @@ export async function POST(request: Request) {
     const postId = formData.get('postId') as string
 
     if (!file) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: '파일이 필요합니다.' }, { status: 400 })
     }
 
     if (!postId) {
@@ -24,7 +30,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 파일 크기 검증 (5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: '파일 크기는 5MB를 초과할 수 없습니다.' },
@@ -32,7 +37,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 파일 타입 검증 (PNG, JPG만)
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -41,38 +45,22 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = createServerSupabaseClient()
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const fileName = `ppt-${postId}-${Date.now()}.${fileExt}`
-    // 버킷 이름이 ppt-thumbnails이므로 경로에 폴더명을 포함하지 않고 파일명만 사용
     const filePath = fileName
 
-    // 파일을 ArrayBuffer로 변환
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Supabase Storage에 업로드
-    const { data, error: uploadError } = await supabase.storage
-      .from('ppt-thumbnails')
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: false,
+    await getS3Client().send(
+      new PutObjectCommand({
+        Bucket: getBucketPptThumbnails(),
+        Key: filePath,
+        Body: buffer,
+        ContentType: file.type,
       })
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: '파일 업로드에 실패했습니다.' },
-        { status: 500 }
-      )
-    }
-
-    // 공개 URL 생성
-    const { data: urlData } = supabase.storage
-      .from('ppt-thumbnails')
-      .getPublicUrl(filePath)
-
-    const thumbnailUrl = urlData.publicUrl
+    )
+    const thumbnailUrl = publicUrlForS3ObjectKey(filePath)
 
     return NextResponse.json({
       success: true,
@@ -86,7 +74,6 @@ export async function POST(request: Request) {
         { status: 403 }
       )
     }
-
     console.error('PPT thumbnail upload error:', error)
     return NextResponse.json(
       { error: '썸네일 업로드 중 오류가 발생했습니다.' },

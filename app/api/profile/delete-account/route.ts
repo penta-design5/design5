@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { getBucketAvatars, getS3Client } from '@/lib/s3/config'
+import { s3ObjectKeyFromAnyPublicUrl } from '@/lib/s3/url-helpers'
+import { requireS3Json } from '@/lib/s3/require-storage'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -10,9 +13,12 @@ const deleteAccountSchema = z.object({
 })
 
 export async function DELETE(request: Request) {
+  const bad = requireS3Json()
+  if (bad) return bad
+
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다.' },
@@ -35,7 +41,6 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // 비밀번호가 있는 경우 확인
     if (user.password) {
       if (!validatedData.password) {
         return NextResponse.json(
@@ -57,23 +62,24 @@ export async function DELETE(request: Request) {
       }
     }
 
-    // 아바타가 있으면 Supabase Storage에서 삭제
     if (user.avatar) {
       try {
-        const supabase = createServerSupabaseClient()
-        const fileName = user.avatar.split('/').pop()
-        if (fileName) {
-          await supabase.storage
-            .from('avatars')
-            .remove([`avatars/${fileName}`])
+        const key =
+          s3ObjectKeyFromAnyPublicUrl(user.avatar, getBucketAvatars()) ||
+          (() => {
+            const name = user.avatar.split('/').pop()
+            return name ? `avatars/${name}` : null
+          })()
+        if (key) {
+          await getS3Client().send(
+            new DeleteObjectCommand({ Bucket: getBucketAvatars(), Key: key })
+          )
         }
       } catch (error) {
         console.error('Error deleting avatar:', error)
-        // 아바타 삭제 실패해도 계정 삭제는 진행
       }
     }
 
-    // 사용자 삭제
     await prisma.user.delete({
       where: { id: session.user.id },
     })
@@ -85,16 +91,14 @@ export async function DELETE(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: '잘못된 요청입니다.' },
         { status: 400 }
       )
     }
-
-    console.error('Account deletion error:', error)
+    console.error('Delete account error:', error)
     return NextResponse.json(
       { error: '계정 삭제 중 오류가 발생했습니다.' },
       { status: 500 }
     )
   }
 }
-

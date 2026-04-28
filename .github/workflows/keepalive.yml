@@ -1,7 +1,11 @@
-# Supabase 7일 비활동 일시정지 방지: 3일마다 앱 keepalive API 호출
+# 퍼블릿 Supabase 7일 비활성 일시정지 방지: 3일마다 앱 keepalive API 호출
 # 설정: Repository → Settings → Secrets and variables → Actions
-#   - Variables: APP_URL = 배포된 앱 URL (커스텀 도메인 예: https://layerary.com)
-#   - Secrets (선택): KEEPALIVE_SECRET = API 보안용 비밀값 (Vercel에 KEEPALIVE_SECRET 설정 시 동일 값)
+#   - Variables: APP_URL = 배포된 앱 URL (커스텀 도메인 예: https://example.com)
+#   - Secrets (선택): KEEPALIVE_SECRET = API 보안용 비밀값 (호스팅에 KEEPALIVE_SECRET 설정 시 동일 값)
+#
+# [사내망 전용] Supabase를 쓰지 않는 경우 이 워크플로는 이전 유산이며,
+# `APP_URL`이 GitHub에 공개·도달되지 않으면 3일마다 실패할 수 있음. 대신
+# `deploy/rocky/README.md` → 「사내망 운영: DB 백업·핑」의 curl 예시로 서버 cron을 쓰세요.
 
 name: Supabase Keepalive
 

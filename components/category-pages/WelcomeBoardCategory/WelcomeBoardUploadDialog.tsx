@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
 import { File, X, Loader2, Upload } from 'lucide-react'
+import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 import Image from 'next/image'
 
 const WELCOMEBOARD_TYPES = ['가로', '세로']
@@ -258,17 +259,7 @@ export function WelcomeBoardUploadDialog({
         const { presignedUrls } = await presignedResponse.json()
         const presigned = presignedUrls[0]
 
-        // B2에 직접 업로드
-        const uploadResponse = await fetch(presigned.uploadUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: presigned.authorizationToken,
-            'X-Bz-File-Name': encodeURIComponent(presigned.fileName),
-            'Content-Type': selectedFile.type,
-            'X-Bz-Content-Sha1': 'do_not_verify',
-          },
-          body: selectedFile,
-        })
+        const uploadResponse = await uploadWithPresignedEntry(presigned, selectedFile)
 
         if (!uploadResponse.ok) {
           const errorText = await uploadResponse.text()

@@ -1,0 +1,67 @@
+# 사내망 데이터 평면: PostgreSQL 17 + MinIO (S3 호환)
+# 사용: deploy/rocky/.env 를 준비한 뒤 이 디렉터리에서
+#   docker compose --env-file .env up -d
+#
+# 포트는 기본 127.0.0.1에만 바인딩(동일 서버·SSH 터널에서만 접속).
+# 사내망 다른 PC에서 DB/MinIO API를 직접 써야 하면 .env의 HOST_BIND를 0.0.0.0으로 바꾸고 방화벽으로 제한하세요.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: design5-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:5432:5432"
+    volumes:
+      - ${DATA_ROOT}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    # 메모리(8GB VM 기준) 완화 — 필요 시 .env의 POSTGRES_SHARED_BUFFERS로 조정
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=100
+
+  minio:
+    image: minio/minio:latest
+    container_name: design5-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:9000:9000"
+      - "${HOST_BIND:-127.0.0.1}:9001:9001"
+    volumes:
+      - ${DATA_ROOT}/minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+
+  # 최초 1회: B2/R2/Supabase에 대응하는 버킷 생성
+  minio-init:
+    image: minio/mc:latest
+    container_name: design5-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: -c "/scripts/minio-init.sh"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./scripts/minio-init.sh:/scripts/minio-init.sh:ro
+    restart: "no"

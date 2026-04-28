@@ -1,30 +1,29 @@
 import { NextResponse } from 'next/server'
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase'
 import { prisma } from '@/lib/prisma'
+import { getBucketAvatars, getS3Client, publicUrlForS3ObjectKey } from '@/lib/s3/config'
+import { s3ObjectKeyFromAnyPublicUrl } from '@/lib/s3/url-helpers'
+import { requireS3Json } from '@/lib/s3/require-storage'
 
 export async function POST(request: Request) {
+  const bad = requireS3Json()
+  if (bad) return bad
+
   try {
     const session = await auth()
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: '인증이 필요합니다.' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: '파일이 필요합니다.' }, { status: 400 })
     }
 
-    // 파일 크기 검증 (5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: '파일 크기는 5MB를 초과할 수 없습니다.' },
@@ -32,7 +31,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 파일 타입 검증
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -41,55 +39,50 @@ export async function POST(request: Request) {
       )
     }
 
-    const supabase = createServerSupabaseClient()
     const fileExt = file.name.split('.').pop()
     const fileName = `${session.user.id}-${Date.now()}.${fileExt}`
-    const filePath = `avatars/${fileName}`
+    const storagePath = `avatars/${fileName}`
 
-    // 파일을 ArrayBuffer로 변환
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    // Supabase Storage에 업로드
-    const { data, error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: false,
+    const bucket = getBucketAvatars()
+    await getS3Client().send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: storagePath,
+        Body: buffer,
+        ContentType: file.type,
       })
+    )
+    const avatarUrl = publicUrlForS3ObjectKey(storagePath)
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: '파일 업로드에 실패했습니다.' },
-        { status: 500 }
-      )
-    }
-
-    // 공개 URL 생성
-    const { data: urlData } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath)
-
-    const avatarUrl = urlData.publicUrl
-
-    // 기존 아바타가 있으면 삭제 (선택사항)
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { avatar: true },
     })
 
     if (user?.avatar) {
-      // 기존 아바타 파일 삭제 (Supabase Storage에서)
-      const oldFileName = user.avatar.split('/').pop()
-      if (oldFileName) {
-        await supabase.storage
-          .from('avatars')
-          .remove([`avatars/${oldFileName}`])
+      try {
+        const key =
+          s3ObjectKeyFromAnyPublicUrl(user.avatar, getBucketAvatars()) ||
+          (() => {
+            const name = user.avatar?.split('/').pop()
+            return name ? `avatars/${name}` : null
+          })()
+        if (key) {
+          await getS3Client().send(
+            new DeleteObjectCommand({
+              Bucket: getBucketAvatars(),
+              Key: key,
+            })
+          )
+        }
+      } catch (error) {
+        console.error('Error deleting old avatar:', error)
       }
     }
 
-    // 데이터베이스에 아바타 URL 업데이트
     await prisma.user.update({
       where: { id: session.user.id },
       data: { avatar: avatarUrl },
@@ -108,4 +101,3 @@ export async function POST(request: Request) {
     )
   }
 }
-

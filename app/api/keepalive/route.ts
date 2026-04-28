@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
+import { ListBucketsCommand } from '@aws-sdk/client-s3'
 import { prisma } from '@/lib/prisma'
+import { getS3Client, isS3StorageConfigured } from '@/lib/s3/config'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 10
 
 /**
- * Supabase 무료 플랜 7일 비활동 일시정지 방지를 위한 keepalive 엔드포인트.
- * GitHub Actions 등에서 3~4일마다 호출하세요.
- * KEEPALIVE_SECRET이 설정된 경우 Authorization: Bearer <secret> 헤더가 필요합니다.
+ * DB·(선택) S3( MinIO) 헬스. GitHub Actions 등에서 주기 호출.
+ * KEEPALIVE_SECRET 이 있으면 Authorization: Bearer
  */
 export async function GET(request: Request) {
   const secret = process.env.KEEPALIVE_SECRET
@@ -20,28 +21,22 @@ export async function GET(request: Request) {
   }
 
   try {
-    // DB 활동: Supabase(PostgreSQL) 연결 유지
     await prisma.$queryRaw`SELECT 1`
 
-    // Supabase API 활동: Storage 목록 조회 (설정된 경우에만)
-    let supabaseOk = false
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (supabaseUrl && serviceRoleKey) {
+    let storageOk = false
+    if (isS3StorageConfigured()) {
       try {
-        const { createServerSupabaseClient } = await import('@/lib/supabase')
-        const supabase = createServerSupabaseClient()
-        const { data: buckets } = await supabase.storage.listBuckets()
-        supabaseOk = Array.isArray(buckets)
+        await getS3Client().send(new ListBucketsCommand({}))
+        storageOk = true
       } catch {
-        // Supabase 호출 실패해도 DB는 이미 성공했으므로 200 유지
+        /* S3만 설정된 경우: 스토리지 실패해도 DB 성공이면 200 */
       }
     }
 
     return NextResponse.json({
       ok: true,
       db: true,
-      supabase: supabaseOk,
+      storage: storageOk,
       at: new Date().toISOString(),
     })
   } catch (error) {

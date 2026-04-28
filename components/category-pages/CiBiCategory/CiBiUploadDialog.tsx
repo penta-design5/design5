@@ -31,6 +31,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Loader2, X, File } from 'lucide-react'
+import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 
 const ciBiPostSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
@@ -232,17 +233,7 @@ export function CiBiUploadDialog({
           const file = selectedFiles[i]
           const presigned = presignedUrls[i]
 
-          // B2에 직접 업로드
-          const uploadResponse = await fetch(presigned.uploadUrl, {
-            method: 'POST',
-            headers: {
-              Authorization: presigned.authorizationToken,
-              'X-Bz-File-Name': encodeURIComponent(presigned.fileName),
-              'Content-Type': file.type,
-              'X-Bz-Content-Sha1': 'do_not_verify', // SHA1 검증 생략
-            },
-            body: file, // File 객체를 직접 전송
-          })
+          const uploadResponse = await uploadWithPresignedEntry(presigned, file)
 
           if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text()

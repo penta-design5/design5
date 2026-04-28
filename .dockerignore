@@ -1,0 +1,12 @@
+# deploy/rocky/Dockerfile 빌드 컨텍스트(레포 루트)에서 제외
+.git
+.next
+node_modules
+data-backup
+**/.env
+**/.env.*
+!env.example.txt
+npm-debug.log*
+.DS_Store
+*.md
+.cursor

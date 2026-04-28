@@ -17,6 +17,7 @@ import { WelcomeBoardElementEditor } from './WelcomeBoardElementEditor'
 import type { WelcomeBoardTemplate, TemplateConfig, TextElement, LogoArea } from '@/lib/welcomeboard-schemas'
 import { DEFAULT_TEMPLATE_CONFIG } from '@/lib/welcomeboard-schemas'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 
 interface WelcomeBoardAdminDialogProps {
   open: boolean
@@ -138,24 +139,15 @@ export function WelcomeBoardAdminDialog({
     }
 
     const { presignedUrls } = await presignedResponse.json()
-    const { uploadUrl, authorizationToken, fileName, fileUrl } = presignedUrls[0]
+    const presigned = presignedUrls[0]
 
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'POST',
-      body: file,
-      headers: {
-        'Authorization': authorizationToken,
-        'Content-Type': 'b2/x-auto',
-        'X-Bz-File-Name': encodeURIComponent(fileName),
-        'X-Bz-Content-Sha1': 'do_not_verify',
-      },
-    })
+    const uploadResponse = await uploadWithPresignedEntry(presigned, file)
 
     if (!uploadResponse.ok) {
       throw new Error('파일 업로드에 실패했습니다.')
     }
 
-    return fileUrl
+    return presigned.fileUrl
   }, [])
 
   // 파일 선택 핸들러

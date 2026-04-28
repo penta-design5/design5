@@ -1,40 +1,7 @@
-import B2 from 'backblaze-b2'
 import sharp from 'sharp'
-
-// 환경 변수 확인
-const applicationKeyId = process.env.B2_APPLICATION_KEY_ID
-const applicationKey = process.env.B2_APPLICATION_KEY
-
-if ((!applicationKeyId || !applicationKey) && process.env.NODE_ENV === 'development') {
-  console.error('B2 인증 정보가 설정되지 않았습니다. B2_APPLICATION_KEY_ID와 B2_APPLICATION_KEY를 확인해주세요.')
-}
-
-const b2 = new B2({
-  applicationKeyId: applicationKeyId || '',
-  applicationKey: applicationKey || '',
-})
-
-let authData: any = null
-
-async function authorize() {
-  if (!applicationKeyId || !applicationKey) {
-    throw new Error('B2 인증 정보가 설정되지 않았습니다. B2_APPLICATION_KEY_ID와 B2_APPLICATION_KEY를 확인해주세요.')
-  }
-
-  try {
-    if (!authData) {
-      authData = await b2.authorize()
-    }
-    return authData
-  } catch (error: any) {
-    console.error('B2 인증 실패:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data,
-    })
-    throw new Error(`B2 인증 실패: ${error.response?.data?.message || error.message || '알 수 없는 오류'}. B2 인증 정보를 확인해주세요.`)
-  }
-}
+import { urlLooksLikeBackblazeB2S3Url } from '@/lib/legacy-asset-bases'
+import { isS3StorageConfigured } from '@/lib/s3/config'
+import * as s3post from '@/lib/s3/post-storage'
 
 export interface UploadResult {
   fileId: string
@@ -50,76 +17,12 @@ export async function uploadFile(
   fileName: string,
   contentType: string
 ): Promise<UploadResult> {
-  try {
-    await authorize()
-
-    const bucketId = process.env.B2_BUCKET_ID!
-    const bucketName = process.env.B2_BUCKET_NAME!
-
-    if (!bucketId || !bucketName) {
-      throw new Error('B2_BUCKET_ID 또는 B2_BUCKET_NAME이 설정되지 않았습니다.')
-    }
-
-    // 파일 업로드 URL 가져오기
-    const uploadUrl = await b2.getUploadUrl({
-      bucketId,
-    })
-
-    if (!uploadUrl.data.uploadUrl || !uploadUrl.data.authorizationToken) {
-      throw new Error('B2 업로드 URL을 가져오는데 실패했습니다.')
-    }
-
-    // 파일 업로드
-    const uploadResponse = await b2.uploadFile({
-      uploadUrl: uploadUrl.data.uploadUrl,
-      uploadAuthToken: uploadUrl.data.authorizationToken,
-      fileName: fileName,
-      data: file,
-      mime: contentType,
-    })
-
-    if (!uploadResponse.data.fileId) {
-      throw new Error('파일 업로드에 실패했습니다.')
-    }
-
-    // 공개 URL 생성: B2_PUBLIC_URL(Worker 등)이 있으면 경로만 사용(버킷 이름 제외). Worker가 단일 버킷으로 경로만 받는 경우 대응.
-    const publicBase = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
-    let fileUrl: string
-    if (publicBase) {
-      fileUrl = `${publicBase}/${fileName}`
-    } else {
-      let endpoint = process.env.B2_ENDPOINT
-      if (!endpoint) {
-        const uploadUrlStr = uploadUrl.data.uploadUrl
-        const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
-        if (match) {
-          endpoint = `https://${match[1]}`
-        } else {
-          const fileIdMatch = uploadUrlStr.match(/f(\d+)/)
-          if (fileIdMatch) {
-            endpoint = `https://f${fileIdMatch[1]}.backblazeb2.com`
-          } else {
-            throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
-          }
-        }
-      }
-      endpoint = endpoint.replace(/\/$/, '')
-      if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
-        fileUrl = `${endpoint}/${bucketName}/${fileName}`
-      } else {
-        fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
-      }
-    }
-
-    return {
-      fileId: uploadResponse.data.fileId,
-      fileName: uploadResponse.data.fileName,
-      fileUrl,
-    }
-  } catch (error: any) {
-    console.error('B2 upload error:', error)
-    throw new Error(`B2 파일 업로드 실패: ${error.message || '알 수 없는 오류'}`)
+  if (isS3StorageConfigured()) {
+    return s3post.s3UploadPostFile(file, fileName, contentType)
   }
+  throw new Error(
+    'S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY(및 posts 버킷)를 설정하세요. Backblaze B2 SDK 지원은 제거되었습니다.'
+  )
 }
 
 /**
@@ -212,90 +115,34 @@ export async function generateBlurDataURL(
 }
 
 /**
- * 파일 삭제 (fileId 사용)
+ * 파일 삭제 (fileId 사용) — B2 API 제거로 미지원. deleteFileByUrl(키/URL) 사용.
  */
-export async function deleteFile(fileId: string): Promise<void> {
-  await authorize()
-
-  await b2.deleteFileVersion({
-    fileId,
-    fileName: '', // B2 API 요구사항
-  })
+export async function deleteFile(_fileId: string): Promise<void> {
+  throw new Error('deleteFile(fileId)는 Backblaze B2 제거로 지원되지 않습니다. deleteFileByUrl을 사용하세요.')
 }
 
 /**
- * 파일 URL로 파일 삭제
+ * 파일 URL로 파일 삭제 (S3·posts 버킷). 레거시 B2 URL은 B2 API 제거로 자동 삭제 불가(경고만).
  */
 export async function deleteFileByUrl(fileUrl: string): Promise<void> {
-  await authorize()
-
-  const bucketName = process.env.B2_BUCKET_NAME!
-  if (!bucketName) {
-    throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
+  if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(fileUrl)) {
+    await s3post.s3DeletePostByUrl(fileUrl)
+    return
   }
-
-  // B2 파일 URL에서 파일 경로 추출 (B2 네이티브, S3 호환, Worker URL 형식 지원)
-  let filePath = ''
-  if (fileUrl.includes('/file/')) {
-    // B2 네이티브 URL 형식
-    const match = fileUrl.match(/\/file\/[^\/]+\/(.+)$/)
-    if (match) {
-      filePath = match[1]
-    }
-  } else {
-    const urlObj = new URL(fileUrl)
-    const pathParts = urlObj.pathname.split('/').filter(Boolean)
-    if (pathParts.length >= 1 && pathParts[0] === bucketName) {
-      filePath = pathParts.slice(1).join('/')
-    } else if (pathParts.length >= 1) {
-      filePath = pathParts.join('/')
-    }
+  if (urlLooksLikeBackblazeB2S3Url(fileUrl)) {
+    console.warn(
+      '[storage] 구 B2 S3 API URL — 객체는 자동 삭제할 수 없습니다. S3( MinIO)로 마이그레이션하세요.',
+      fileUrl
+    )
+    return
   }
-
-  if (!filePath) {
-    throw new Error('파일 경로를 추출할 수 없습니다.')
+  if (isS3StorageConfigured()) {
+    await s3post.s3DeletePostByUrl(fileUrl)
+    return
   }
-
-  // 파일명으로 파일 버전 목록 조회하여 fileId 찾기
-  const fileVersions = await b2.listFileVersions({
-    bucketId: process.env.B2_BUCKET_ID!,
-    startFileName: filePath,
-    maxFileCount: 100, // 충분한 수의 파일 버전 조회
-  })
-
-  // 정확히 일치하는 파일 찾기 (가장 최신 버전)
-  const file = fileVersions.data.files?.find((f: any) => f.fileName === filePath)
-  
-  if (!file) {
-    console.warn(`File not found in B2: ${filePath}`)
-    return // 파일이 없으면 무시하고 계속 진행
-  }
-
-  // fileId로 파일 삭제
-  await b2.deleteFileVersion({
-    fileId: file.fileId,
-    fileName: file.fileName,
-  })
-}
-
-/** B2 네이티브, S3 호환, Worker URL 형식에서 B2 객체 키(파일 경로) 추출 */
-function getFilePathFromB2Url(fileUrl: string): string {
-  let filePath = ''
-  if (fileUrl.includes('/file/')) {
-    const match = fileUrl.match(/\/file\/[^\/]+\/(.+)$/)
-    if (match) filePath = match[1]
-  } else {
-    const urlObj = new URL(fileUrl)
-    const pathParts = urlObj.pathname.split('/').filter(Boolean)
-    const bucketName = process.env.B2_BUCKET_NAME
-    // URL에 버킷 이름이 첫 세그먼트로 있으면 제외하고 나머지가 키. 없으면 전체 경로가 키(Worker 단일 버킷 형식).
-    if (pathParts.length >= 1 && bucketName && pathParts[0] === bucketName) {
-      filePath = pathParts.slice(1).join('/')
-    } else if (pathParts.length >= 1) {
-      filePath = pathParts.join('/')
-    }
-  }
-  return filePath
+  throw new Error(
+    'S3가 설정되지 않았습니다. S3_* 환경 변수를 넣은 뒤 deleteFileByUrl을 사용하세요.'
+  )
 }
 
 /**
@@ -304,36 +151,27 @@ function getFilePathFromB2Url(fileUrl: string): string {
  */
 export function isB2StorageUrl(url: string): boolean {
   if (!url || typeof url !== 'string') return false
-  if (url.includes('backblazeb2.com')) return true
-  const publicUrl = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
-  if (publicUrl && url.startsWith(publicUrl)) return true
+  if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(url)) return true
+  if (urlLooksLikeBackblazeB2S3Url(url)) return true
   return false
 }
 
 /**
- * 파일 다운로드
+ * 파일 다운로드 (S3 posts 또는 공개 http(s) URL fetch)
  */
 export async function downloadFile(fileUrl: string): Promise<{ fileBuffer: Buffer; contentType: string }> {
-  await authorize()
-  const bucketName = process.env.B2_BUCKET_NAME!
-  if (!bucketName) throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
-
-  const filePath = getFilePathFromB2Url(fileUrl)
-  if (!filePath) throw new Error('파일 경로를 추출할 수 없습니다.')
-
-  try {
-    const response = await b2.downloadFileByName({
-      bucketName,
-      fileName: filePath,
-      responseType: 'arraybuffer',
-    })
-    const fileBuffer = Buffer.from(response.data)
-    const contentType = response.headers['content-type'] || 'application/octet-stream'
-    return { fileBuffer, contentType }
-  } catch (error: any) {
-    console.error('B2 download error:', error)
-    if (error.response?.status === 404) throw new Error('파일을 찾을 수 없습니다.')
-    throw new Error(`B2 파일 다운로드 실패: ${error.message || '알 수 없는 오류'}`)
+  if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(fileUrl)) {
+    return s3post.s3DownloadPost(fileUrl)
+  }
+  const res = await fetch(fileUrl, { redirect: 'follow' })
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('파일을 찾을 수 없습니다.')
+    throw new Error(`다운로드 실패: HTTP ${res.status}`)
+  }
+  const ab = await res.arrayBuffer()
+  return {
+    fileBuffer: Buffer.from(ab),
+    contentType: res.headers.get('content-type') || 'application/octet-stream',
   }
 }
 
@@ -345,32 +183,23 @@ export async function downloadFileWithRange(
   start: number,
   end: number
 ): Promise<{ fileBuffer: Buffer; contentType: string; contentRange: string; totalLength: number }> {
-  await authorize()
-  const bucketName = process.env.B2_BUCKET_NAME!
-  if (!bucketName) throw new Error('B2_BUCKET_NAME이 설정되지 않았습니다.')
-
-  const filePath = getFilePathFromB2Url(fileUrl)
-  if (!filePath) throw new Error('파일 경로를 추출할 수 없습니다.')
-
-  try {
-    const rangeHeader = `bytes=${start}-${end}`
-    const response = await b2.downloadFileByName({
-      bucketName,
-      fileName: filePath,
-      responseType: 'arraybuffer',
-      axiosOverride: { headers: { Range: rangeHeader } },
-    })
-    const fileBuffer = Buffer.from(response.data)
-    const headers = response.headers || {}
-    const contentType = headers['content-type'] || headers['Content-Type'] || 'application/octet-stream'
-    const contentRange = headers['content-range'] || headers['Content-Range'] || ''
-    const totalLength = contentRange ? parseInt(contentRange.split('/')[1], 10) || fileBuffer.length : fileBuffer.length
-    return { fileBuffer, contentType, contentRange, totalLength }
-  } catch (error: any) {
-    console.error('B2 download range error:', error)
-    if (error.response?.status === 404) throw new Error('파일을 찾을 수 없습니다.')
-    throw new Error(`B2 파일 다운로드 실패: ${error.message || '알 수 없는 오류'}`)
+  if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(fileUrl)) {
+    return s3post.s3DownloadPostRange(fileUrl, start, end)
   }
+  const rangeHeader = `bytes=${start}-${end}`
+  const res = await fetch(fileUrl, { headers: { Range: rangeHeader }, redirect: 'follow' })
+  if (res.status !== 206 && res.status !== 200) {
+    if (res.status === 404) throw new Error('파일을 찾을 수 없습니다.')
+    throw new Error(`Range 다운로드 실패: HTTP ${res.status}`)
+  }
+  const ab = await res.arrayBuffer()
+  const fileBuffer = Buffer.from(ab)
+  const contentType = res.headers.get('content-type') || 'application/octet-stream'
+  const contentRange = res.headers.get('content-range') || ''
+  const totalLength = contentRange
+    ? parseInt(contentRange.split('/')[1] || '', 10) || fileBuffer.length
+    : fileBuffer.length
+  return { fileBuffer, contentType, contentRange, totalLength }
 }
 
 /**
@@ -400,51 +229,11 @@ export async function getPresignedUploadUrl(
   authorizationToken: string
   fileName: string
   fileUrl: string
+  uploadMode?: 'b2' | 's3'
 }> {
-  await authorize()
-
-  const bucketId = process.env.B2_BUCKET_ID!
-  const bucketName = process.env.B2_BUCKET_NAME!
-  
-  if (!bucketId || !bucketName) {
-    throw new Error('B2_BUCKET_ID 또는 B2_BUCKET_NAME이 설정되지 않았습니다.')
+  if (isS3StorageConfigured()) {
+    return s3post.s3GetPresignedPostUpload(fileName, contentType)
   }
-
-  // 업로드 URL 가져오기
-  const uploadUrl = await b2.getUploadUrl({
-    bucketId,
-  })
-
-  if (!uploadUrl.data.uploadUrl || !uploadUrl.data.authorizationToken) {
-    throw new Error('B2 업로드 URL을 가져오는데 실패했습니다.')
-  }
-
-  // 파일 URL 생성: B2_PUBLIC_URL이 있으면 경로만(버킷 이름 제외)
-  const publicBase = process.env.B2_PUBLIC_URL?.replace(/\/$/, '')
-  let fileUrl: string
-  if (publicBase) {
-    fileUrl = `${publicBase}/${fileName}`
-  } else {
-    let endpoint = process.env.B2_ENDPOINT
-    if (!endpoint) {
-      const uploadUrlStr = uploadUrl.data.uploadUrl
-      const match = uploadUrlStr.match(/https:\/\/([^\/]+)/)
-      if (match) endpoint = `https://${match[1]}`
-      else throw new Error('B2 엔드포인트를 결정할 수 없습니다. B2_ENDPOINT를 설정해주세요.')
-    }
-    endpoint = endpoint.replace(/\/$/, '')
-    if (endpoint.includes('s3.') || endpoint.includes('s3-')) {
-      fileUrl = `${endpoint}/${bucketName}/${fileName}`
-    } else {
-      fileUrl = `${endpoint}/file/${bucketName}/${fileName}`
-    }
-  }
-
-  return {
-    uploadUrl: uploadUrl.data.uploadUrl,
-    authorizationToken: uploadUrl.data.authorizationToken,
-    fileName: fileName,
-    fileUrl: fileUrl,
-  }
+  throw new Error('Presigned 업로드는 S3(S3_*)가 설정된 경우에만 사용할 수 있습니다. Backblaze B2 SDK는 제거되었습니다.')
 }
 

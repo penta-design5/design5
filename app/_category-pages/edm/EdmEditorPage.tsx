@@ -27,6 +27,7 @@ import {
   canMergeCells,
   mergeCells,
 } from '@/lib/edm-utils'
+import { isKnownPublicAssetBaseUrl } from '@/lib/public-asset-url'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
 
 interface EdmEditorPageProps {
@@ -36,8 +37,7 @@ interface EdmEditorPageProps {
 function getImageSrc(url: string) {
   if (!url) return ''
   if (url.startsWith('data:')) return url
-  if (url.includes('supabase.co')) return url
-  if (url.includes('cdn.layerary.com')) return url
+  if (isKnownPublicAssetBaseUrl(url)) return url
   return url
 }
 

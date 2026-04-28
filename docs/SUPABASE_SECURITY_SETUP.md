@@ -1,5 +1,7 @@
 # Supabase 보안 설정 가이드
 
+> **사내 PostgreSQL만 쓰는 경우:** 이 문서는 **과거 Supabase 호스티드** 전제의 절차입니다. Row 보안·역할은 [POSTGRES_RLS_INTERNAL.md](POSTGRES_RLS_INTERNAL.md)를 참고하고, DB·파일 이전은 [OPERATIONAL_MIGRATION.md](OPERATIONAL_MIGRATION.md)를 따릅니다.
+
 이 문서는 Supabase 보안 이슈를 해결하기 위한 단계별 가이드입니다.
 
 ## 보안 이슈 요약

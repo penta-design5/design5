@@ -1,0 +1,32 @@
+# 후속 단계(Next + MinIO 퍼블릭 GET)용 샘플 — 실제 서버 TLS·도메인에 맞게 수정 후 사용.
+# Compose 풀스택: app-http.conf, next-app-https.conf.sample, ../README.md 8) 절 참고.
+# 권장: /data/webapps/_shared/nginx/conf.d/ 에 design5.conf 등으로 두고, 여기 내용을 참고해 분리
+# (레이아웃: deploy/WEBAPPS_LAYOUT.md)
+
+# upstream next_upstream {
+#   server host.docker.internal:3000;  # 또는 app 컨테이너명:포트
+# }
+
+# map $http_origin $cors {
+#   default "";
+#   ~^https?://(192\.168\.1\.[0-9]+|localhost)(:[0-9]+)?$ $http_origin;
+# }
+
+# server {
+#   listen 443 ssl;
+#   server_name design.example.corp;
+#   ssl_certificate     /etc/nginx/certs/server.crt;
+#   ssl_certificate_key /etc/nginx/certs/server.key;
+#   client_max_body_size 500m;
+#   proxy_read_timeout 300s;
+#   location / {
+#     proxy_pass http://next_upstream;
+#     proxy_http_version 1.1;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Forwarded-Proto $scheme;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#   }
+# }
+
+# MinIO S3 API / Console 은 9000/9001 을 절대로 인터넷에 그대로 노출하지 말고,
+# 필요 시 S3 API만 443 뒤 경로로 프록시하거나(시그니처 호환 이슈 주의) 사내망 IP 제한 + TLS 권장.

@@ -11,6 +11,7 @@ import { CardElementEditor } from './CardElementEditor'
 import type { CardTemplate, CardTemplateConfig, BackgroundImageItem, CardTextElement, CardLogoArea } from '@/lib/card-schemas'
 import { DEFAULT_CARD_CONFIG } from '@/lib/card-schemas'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 
 interface CardAdminDialogProps {
   open: boolean
@@ -97,19 +98,10 @@ export function CardAdminDialog({ open, onClose, onSuccess, template }: CardAdmi
       throw new Error(err.error || '업로드 URL 생성 실패')
     }
     const data = await res.json()
-    const { uploadUrl, authorizationToken, fileName, fileUrl } = data.presignedUrls[0]
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'POST',
-      body: file,
-      headers: {
-        Authorization: authorizationToken,
-        'Content-Type': 'b2/x-auto',
-        'X-Bz-File-Name': encodeURIComponent(fileName),
-        'X-Bz-Content-Sha1': 'do_not_verify',
-      },
-    })
+    const presigned = data.presignedUrls[0]
+    const uploadRes = await uploadWithPresignedEntry(presigned, file)
     if (!uploadRes.ok) throw new Error('파일 업로드 실패')
-    return fileUrl
+    return presigned.fileUrl
   }, [])
 
   const loadImageDimensions = useCallback((file: File): Promise<{ width: number; height: number }> => {

@@ -17,6 +17,7 @@ import { Loader2, Upload, X, Monitor, Laptop } from 'lucide-react'
 import { toast } from 'sonner'
 import type { DesktopWallpaperPost } from '@/lib/desktop-schemas'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 
 interface DesktopUploadDialogProps {
   open: boolean
@@ -42,19 +43,10 @@ async function uploadToB2(file: File, prefix: string): Promise<string> {
     throw new Error(err.error || '업로드 URL 생성에 실패했습니다.')
   }
   const { presignedUrls } = await res.json()
-  const { uploadUrl, authorizationToken, fileName, fileUrl } = presignedUrls[0]
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'POST',
-    body: file,
-    headers: {
-      Authorization: authorizationToken,
-      'Content-Type': file.type,
-      'X-Bz-File-Name': encodeURIComponent(fileName),
-      'X-Bz-Content-Sha1': 'do_not_verify',
-    },
-  })
+  const presigned = presignedUrls[0]
+  const uploadRes = await uploadWithPresignedEntry(presigned, file)
   if (!uploadRes.ok) throw new Error('파일 업로드에 실패했습니다.')
-  return fileUrl
+  return presigned.fileUrl
 }
 
 export function DesktopUploadDialog({

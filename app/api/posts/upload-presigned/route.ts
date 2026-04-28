@@ -29,10 +29,13 @@ export async function POST(request: Request) {
       files.map(async (file: { name: string; type: string }) => {
         const safeFileName = generateSafeFileName(file.name)
         const filePath = `posts/${categorySlug}/${safeFileName}`
-        const { uploadUrl, authorizationToken, fileName, fileUrl } = await getPresignedUploadUrl(
-          filePath,
-          file.type
-        )
+        const {
+          uploadUrl,
+          authorizationToken,
+          fileName,
+          fileUrl,
+          uploadMode,
+        } = await getPresignedUploadUrl(filePath, file.type)
 
         return {
           originalName: file.name,
@@ -40,6 +43,7 @@ export async function POST(request: Request) {
           uploadUrl: uploadUrl,
           authorizationToken: authorizationToken,
           fileUrl: fileUrl,
+          uploadMode,
         }
       })
     )

@@ -12,9 +12,9 @@ LAYERARY는 펜타시큐리티의 디자인 작업물을 리뷰하고, 필요한
 - **Styling**: Tailwind CSS
 - **UI Components**: Shadcn UI
 - **Backend**: Next.js API Routes / Server Actions
-- **Database**: Supabase (PostgreSQL)
+- **Database**: PostgreSQL (사내망 자체 또는 호스티드)
 - **ORM**: Prisma
-- **Storage**: Backblaze B2 (이미지/파일, private 버킷 + Cloudflare Worker 공개 URL 연동 가능), Cloudflare R2 (eDM 셀 이미지)
+- **Storage**: **S3 호환(MinIO 권장)** — 게시물·아바타·아이콘·eDM(`edms`) 등 **전부 동일 S3/MinIO**
 - **Auth**: NextAuth.js (Auth.js)
 
 ## 사전 요구사항
@@ -38,29 +38,17 @@ npm install
 cp env.example.txt .env.local
 ```
 
-필수 환경 변수: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `B2_*`, `R2_*`(eDM용), `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`  
-Worker 사용 시 선택: `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`. 자세한 내용은 `env.example.txt` 및 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참조하세요.
+**사내망(권장):** `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_*`, **`S3_*`**(엔드포인트·자격증명·버킷·`S3_PUBLIC_BASE_URL` 등). 상세는 `env.example.txt`, `env.local.internal.example.txt`, [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [deploy/rocky/README.md](deploy/rocky/README.md).
 
-### 이미지/파일 저장소 (Backblaze B2)
+(구) 클라우드 B2·R2·Supabase는 **앱에서 사용하지 않습니다.** DB·이미지 URL 마이그레이션 기간이면 `env.example.txt`의 `legacy-asset-bases` 주석 참고.
 
-게시물 이미지, 다이어그램 썸네일, PPT ZIP, 가이드 영상 등은 **Backblaze B2**에 저장됩니다.
+### 객체 스토리지 (MinIO / S3 호환)
 
-- **Private 버킷 + Cloudflare Worker**: B2 버킷을 비공개로 두고 Worker(예: `https://assets.layerary.com`)로 파일을 서빙할 수 있습니다. 이 경우 `B2_PUBLIC_URL`, `NEXT_PUBLIC_B2_PUBLIC_URL`을 Worker 도메인으로 설정하세요.
-- **Presigned 직접 업로드**: CI/BI, Character, PPT 등 일부 카테고리는 브라우저에서 B2로 직접 업로드합니다. 배포 도메인(예: https://layerary.com)에서 이 업로드를 사용하려면 `npm run b2:setup-cors`를 한 번 실행해 B2 버킷 CORS를 설정해야 합니다. 자세한 내용은 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참조하세요.
+게시물·ZIP·썸네일 등은 **`S3_*`로 연결된 버킷**에 저장됩니다. Presigned **PUT** 직접 업로드 시 **CORS**에 앱 오리진을 넣어야 합니다.
 
-### eDM 저장소 (Cloudflare R2)
+### eDM 저장소
 
-eDM(이메일 디렉트 메일)의 셀 이미지는 **Cloudflare R2**에 저장됩니다. R2는 S3 호환 API를 사용하며, 이메일 HTML에서 이미지 URL이 오래 유지되어야 하므로 공개 URL(`R2_PUBLIC_URL`) 또는 Presigned URL 방식을 사용합니다.
-
-| 환경 변수 | 설명 |
-|-----------|------|
-| `R2_ACCOUNT_ID` | Cloudflare 계정 ID |
-| `R2_ACCESS_KEY_ID` | R2 API 액세스 키 |
-| `R2_SECRET_ACCESS_KEY` | R2 API 시크릿 키 |
-| `R2_BUCKET_NAME` | eDM 이미지용 버킷 이름 (예: `edms`) |
-| `R2_PUBLIC_URL` | (선택) 공개 액세스 기준 URL. 설정 시 만료 없는 공개 URL로 저장되어 이메일에서 안정적으로 표시됨 |
-
-R2 미설정 시 eDM 생성/수정 API는 동작하지 않습니다. 구현 세부사항은 `lib/r2-edm-storage.ts`를 참조하고, 배포 시 R2 설정은 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)의 Cloudflare R2 섹션을 참조하세요.
+**`S3_*` + `edms` 버킷** — `lib/r2-edm-storage.ts` (R2 전용 경로는 제거됨). `S3_PUBLIC_BASE_URL`이 있으면 이메일·HTML에 **만료 없는 공개 URL**로 저장됩니다. 배포: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### 3. 데이터베이스 마이그레이션
 
@@ -102,18 +90,19 @@ npm run start
 | `npm run db:seed` | 시드 데이터 삽입 |
 | `npm run db:migrate` | Prisma 마이그레이션 |
 | `npm run db:studio` | Prisma Studio 실행 |
-| `npm run b2:setup-cors` | B2 버킷 CORS 설정 |
-| `npm run b2:check-cors` | B2 CORS 설정 확인 |
 
 ## 관련 문서
 
 - [docs/API.md](docs/API.md) - API 엔드포인트 및 인증
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - 아키텍처 및 폴더 구조
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - 배포 가이드
+- [docs/OPERATIONAL_MIGRATION.md](docs/OPERATIONAL_MIGRATION.md) - pg_restore·MinIO·URL 치환 순서
+- [docs/PRISMA_MIGRATIONS.md](docs/PRISMA_MIGRATIONS.md) - `migrate deploy` / migrations Git 정책
+- [docs/POSTGRES_RLS_INTERNAL.md](docs/POSTGRES_RLS_INTERNAL.md) - (선택) 사내 Postgres RLS
 - [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) - 시스템 아키텍처 다이어그램
 - [docs/DATA_FLOW.md](docs/DATA_FLOW.md) - 데이터 플로우 다이어그램
 - [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) - 인프라 다이어그램
-- [docs/SUPABASE_SECURITY_SETUP.md](docs/SUPABASE_SECURITY_SETUP.md) - Supabase 보안 설정
+- [docs/SUPABASE_SECURITY_SETUP.md](docs/SUPABASE_SECURITY_SETUP.md) - (과거) Supabase; 사내 PG는 RLS·역할 정책을 별도 검토
 
 ## 라이선스
 
