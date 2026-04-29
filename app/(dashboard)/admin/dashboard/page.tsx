@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { SquareArrowOutUpRight, Image, HardDrive, Wallpaper, FileText as FileTextIcon, BookOpen } from 'lucide-react'
+import {
+  SquareArrowOutUpRight,
+  Image,
+  HardDrive,
+  Wallpaper,
+  FileText as FileTextIcon,
+  BookOpen,
+  Database,
+} from 'lucide-react'
 import { Loader2, Images } from 'lucide-react'
 import { StatsCardSkeleton } from '@/components/ui/stats-card-skeleton'
 
@@ -42,6 +50,7 @@ export default function DashboardPage() {
   }, [])
 
   const minioConsoleUrl = process.env.NEXT_PUBLIC_MINIO_CONSOLE_URL || ''
+  const adminerUrl = process.env.NEXT_PUBLIC_ADMINER_URL || ''
 
   if (loading) {
     return (
@@ -180,29 +189,46 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-medium">인프라 / 스토리지</CardTitle>
-            <CardDescription>사내망 DB·객체 스토리지( MinIO S3 )</CardDescription>
+            <CardDescription>사내망 DB·객체 스토리지(MinIO S3)·Adminer</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 운영 절·백업은 <code className="text-xs">deploy/rocky/README.md</code>·
-                <code className="text-xs">docs/DEPLOYMENT.md</code> 참고. MinIO S3 콘솔(예: 9001)은 SSH 터널
-                등으로 붙이고, 공개 URL은 <code className="text-xs">S3_PUBLIC_BASE_URL</code> /{' '}
-                <code className="text-xs">NEXT_PUBLIC_S3_PUBLIC_BASE_URL</code>에 맞춥니다.
+                <code className="text-xs">docs/DEPLOYMENT.md</code> 참고. MinIO 콘솔(예: 9001)·Adminer(예: 18080)는
+                SSH 터널로 붙인 뒤 <code className="text-xs">NEXT_PUBLIC_MINIO_CONSOLE_URL</code> /{' '}
+                <code className="text-xs">NEXT_PUBLIC_ADMINER_URL</code>에 맞춥니다. 객체 공개 URL은{' '}
+                <code className="text-xs">S3_PUBLIC_BASE_URL</code> / <code className="text-xs">NEXT_PUBLIC_S3_PUBLIC_BASE_URL</code>
+                입니다.
               </p>
-              {minioConsoleUrl ? (
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  onClick={() => window.open(minioConsoleUrl, '_blank')}
-                >
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="h-4 w-4" />
-                    <span>MinIO 콘솔</span>
-                  </div>
-                  <SquareArrowOutUpRight className="h-4 w-4" />
-                </Button>
-              ) : null}
+              <div className="flex flex-col gap-2">
+                {minioConsoleUrl ? (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => window.open(minioConsoleUrl, '_blank', 'noopener,noreferrer')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="h-4 w-4" />
+                      <span>MinIO 콘솔</span>
+                    </div>
+                    <SquareArrowOutUpRight className="h-4 w-4" />
+                  </Button>
+                ) : null}
+                {adminerUrl ? (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => window.open(adminerUrl, '_blank', 'noopener,noreferrer')}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      <span>Adminer (PostgreSQL)</span>
+                    </div>
+                    <SquareArrowOutUpRight className="h-4 w-4" />
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>

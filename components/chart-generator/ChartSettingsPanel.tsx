@@ -40,12 +40,12 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { ChartExportControls } from './ChartExportControls'
 import { cn } from '@/lib/utils'
 
-// 저장된 프리셋 타입
+// 저장된 프리셋 타입 (chartType 없는 구버전 localStorage 호환)
 interface SavedChartPreset {
   id: string
   name: string
   createdAt: string
-  chartType: ChartType
+  chartType?: ChartType
   settings: ChartSettings
   chartTypeSettings: ChartTypeSettings
 }
@@ -77,6 +77,7 @@ interface ChartSettingsPanelProps {
   description?: string
   chartRef: React.RefObject<HTMLDivElement>
   onSettingsChange: (settings: ChartSettings) => void
+  onChartTypeChange: (type: ChartType) => void
   onChartTypeSettingsChange: (settings: ChartTypeSettings) => void
   onTitleChange: (title: string) => void
   onDescriptionChange: (description: string) => void
@@ -92,6 +93,7 @@ export function ChartSettingsPanel({
   description,
   chartRef,
   onSettingsChange,
+  onChartTypeChange,
   onChartTypeSettingsChange,
   onTitleChange,
   onDescriptionChange,
@@ -151,11 +153,15 @@ export function ChartSettingsPanel({
   }, [presetName, chartType, settings, chartTypeSettings, savedPresets])
 
   // 프리셋 불러오기
-  const handleLoadPreset = useCallback((preset: SavedChartPreset) => {
-    onSettingsChange(preset.settings)
-    onChartTypeSettingsChange(preset.chartTypeSettings)
-    setActivePresetId(preset.id)
-  }, [onSettingsChange, onChartTypeSettingsChange])
+  const handleLoadPreset = useCallback(
+    (preset: SavedChartPreset) => {
+      onChartTypeChange(preset.chartType ?? 'bar')
+      onSettingsChange(preset.settings)
+      onChartTypeSettingsChange(preset.chartTypeSettings)
+      setActivePresetId(preset.id)
+    },
+    [onChartTypeChange, onSettingsChange, onChartTypeSettingsChange]
+  )
 
   // 프리셋 삭제
   const handleDeletePreset = useCallback(async (presetId: string, e: React.MouseEvent) => {
@@ -370,7 +376,7 @@ export function ChartSettingsPanel({
                         {activePresetId === preset.id ? (
                           <Check className="h-4 w-4 text-primary" />
                         ) : (
-                          getChartTypeIcon(preset.chartType)
+                          getChartTypeIcon(preset.chartType ?? 'bar')
                         )}
                         <span className="truncate max-w-[150px]">{preset.name}</span>
                       </div>

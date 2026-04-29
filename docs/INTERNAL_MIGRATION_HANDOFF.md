@@ -2,7 +2,8 @@
 
 이 문서는 **옵션 B(사내 PostgreSQL + MinIO, 외부 객체 스토리지 의존 없음)** 과 관련해 이전에 진행한 작업을 새 대화(또는 담당자)에게 넘기기 위한 요약입니다. 상세는 각 경로의 파일을 참고하세요.  
 **실제 Rocky 서버에 `deploy/rocky`를 올리고, 노트북에서 SSH 터널로 붙어 개발한 뒤 겪은 이슈**는 아래 **§11**에 정리해 두었습니다.  
-**Supabase 덤프 복원·백업 수신·URL 검증까지 진행한 뒤 MinIO 업로드로 이어가는 맥락**은 **§12 (2026-04-28 세션)** 를 참고하세요.
+**Supabase 덤프 복원·백업 수신·URL 검증까지 진행한 뒤 MinIO 업로드로 이어가는 맥락**은 **§12 (2026-04-28 세션)** 를 참고하세요.  
+**사내망 기능 검증 마무리·이번 채팅에서 정리된 코드/운영 메모**는 **§15** 를 참고하세요.
 
 ---
 
@@ -24,9 +25,9 @@
 | **Supabase Storage** | **제거** (이전 REST 래퍼 삭제). |
 | **Presigned** | B2 POST → **S3 Presigned PUT**. 클라이언트 `uploadMode`·`/api/posts/upload-presigned` 등. |
 | **퍼블릭 URL** | `lib/b2-client-url.ts`, `lib/public-asset-url.ts`, `lib/legacy-asset-bases.ts` — **`S3_PUBLIC` / `NEXT_PUBLIC_S3`** + 선택 레거시 호스트. |
-| **PPT·아바타·아이콘** | **S3 필수** (`requireS3Json`). `lib/supabase-ppt-thumbnail.ts`는 S3 삭제만(이름 유지). |
+| **PPT·아바타·아이콘** | **S3 필수** (`requireS3Json`). 공개 URL: `publicUrlForIconsKey` / `publicUrlForAvatarsKey` / `publicUrlForPptThumbnailsKey` (`lib/s3/config.ts`, 베이스 없을 때 `엔드포인트/버킷/키`). `lib/supabase-ppt-thumbnail.ts`는 S3 삭제만(이름 유지). |
 | **Keepalive** | `app/api/keepalive/route.ts` — `storage`: S3 `ListBuckets`만. |
-| **관리 UI** | `admin/dashboard` — 사내망 안내 + (선택) `NEXT_PUBLIC_MINIO_CONSOLE_URL`. |
+| **관리 UI** | `admin/dashboard` — 사내망 안내 + (선택) `NEXT_PUBLIC_MINIO_CONSOLE_URL`, **`NEXT_PUBLIC_ADMINER_URL`** (§14 Adminer 터널). |
 | **eDM UI** | `EdmEditorPage`, `EdmCard` — `supabase.co` 대신 `isKnownPublicAssetBaseUrl` 등. |
 | **Next/Image** | `next.config.js` — `https` + `http` + `hostname: '**'` (로컬/사내 MinIO HTTP). |
 
@@ -284,6 +285,117 @@
   3. `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, `S3_PUBLIC_BASE_URL`, `NEXT_PUBLIC_S3_PUBLIC_BASE_URL` 를 최종값으로 전환.
   4. 운영용 URL 치환 JSON(터널 URL 제거)로 dry-run → 본 실행.
   5. 임시 익명 다운로드 정책(`mc anonymous`)은 운영 보안정책에 맞춰 재검토.
+
+---
+
+## 14. Web UI로 Postgres·MinIO 보기 (노트북 + SSH 터널)
+
+터미널만 쓰기 부담될 때, **사내망 서버에서 서비스를 띄운 뒤 로컬 브라우저로 터널 접속**하는 방식입니다. (운영 공개는 하지 않음.)
+
+### 14.1 MinIO 콘솔 (버킷·객체·정책)
+
+`deploy/rocky/docker-compose.yml` 기준 MinIO **콘솔**은 호스트 `127.0.0.1:9001` 에 매핑됩니다.
+
+1. **노트북**에서 SSH 터널 (예: SSH 포트 `6022`, 서버 `design@192.168.1.42`):
+   ```bash
+   ssh -N -L 19001:127.0.0.1:9001 -p 6022 design@192.168.1.42
+   ```
+2. 브라우저: `http://127.0.0.1:19001` (로컬 포트는 터널 앞쪽과 동일하게)
+3. 로그인: `deploy/rocky/.env` 의 **`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`**
+4. (선택) 앱 관리 UI에서 콘솔 링크: `NEXT_PUBLIC_MINIO_CONSOLE_URL`, `NEXT_PUBLIC_ADMINER_URL` — [`env.example.txt`](../env.example.txt) 참고.
+
+S3 API(9000)는 기존과 같이 `127.0.0.1:19000` 터널 등으로 별도 열 수 있습니다.
+
+### 14.2 Postgres — Adminer (웹 SQL 클라이언트)
+
+**사내망 서버**에 Docker가 있으면 서버에서 Adminer 컨테이너를 띄웁니다.
+
+```bash
+docker run --rm -d --name adminer -p 18080:8080 adminer
+```
+
+**노트북**에서 터널:
+
+```bash
+ssh -N -L 18080:127.0.0.1:18080 -p 6022 design@192.168.1.42
+```
+
+브라우저: `http://127.0.0.1:18080`
+
+#### Adminer 접속 필드 (중요: Linux Docker)
+
+- **시스템**: PostgreSQL  
+- **사용자 / 비밀번호 / 데이터베이스**: `deploy/rocky/.env` 의 `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+
+**서버(호스트) 입력은 Linux에서 `host.docker.internal` 기본 미지원**이라 그대로 쓰면  
+`could not translate host name "host.docker.internal"` 오류가 납니다. 아래 중 하나를 씁니다.
+
+**방법 A (권장): Postgres 컨테이너와 같은 Docker 네트워크에 Adminer 붙이기**
+
+1. Postgres 컨테이너가 쓰는 네트워크 확인:
+   ```bash
+   docker inspect design5-postgres --format '{{json .NetworkSettings.Networks}}'
+   ```
+2. Adminer를 그 네트워크에 연결 (네트워크 이름은 환경마다 다름, 예: `rocky_default`):
+   ```bash
+   docker network connect <위에서_확인한_네트워크_이름> adminer
+   ```
+3. Adminer 화면 **서버**에 **컨테이너 이름** 입력: `design5-postgres`  
+   (Compose `container_name` 과 일치해야 함.)
+
+**방법 B: Adminer 재기동 시 host-gateway 추가**
+
+```bash
+docker rm -f adminer
+docker run --rm -d --name adminer \
+  --add-host=host.docker.internal:host-gateway \
+  -p 18080:8080 adminer
+```
+
+이후 **서버**에 `host.docker.internal`, **포트** `5432` (호스트에 Postgres 포트가 바인딩된 경우).
+
+#### 확인
+
+- 서버에서: `curl -I http://127.0.0.1:18080` → 응답 있으면 Adminer 기동 정상.
+- 터널은 **브라우저를 여는 노트북**에서 유지.
+
+#### 정리
+
+- MinIO UI: 터널 `9001` → 로컬 브라우저.  
+- Postgres UI: 서버에서 Adminer + 터널 `18080` → 로컬 브라우저; **서버 호스트는 Linux에 맞게 `design5-postgres` 또는 host-gateway 방식**으로 지정.
+
+---
+
+## 15. 기능 검증 완료 및 채팅 세션 정리 (2026-04-29)
+
+팀에서 **사내망(Rocky + 터널) 기준 주요 기능 검증을 마친 시점**의 기록입니다. 세부 스펙은 SOT 문서·코드를 따릅니다.
+
+### 15.1 검증 범위(요지)
+
+- Chart Generator, Admin 대시보드, PPT(폰트 ZIP), eDM(생성·수정·삭제·스토리지), ICON, 메일(HTML/이미지 URL), Rocky `deploy/rocky`의 `.env` / `.env.app` 배치 등을 점검함.
+
+### 15.2 이번 기간에 레포에 반영된 코드·문서
+
+| 항목 | 내용 |
+|------|------|
+| **ICON 등 공개 URL** | `S3_PUBLIC_BASE_URL`이 비어 있을 때 `publicUrlForS3ObjectKey`가 키만 반환하던 문제 → `lib/s3/config.ts`에 `publicUrlForIconsKey`, `publicUrlForAvatarsKey`, `publicUrlForPptThumbnailsKey` 추가. `upload-icon`, `upload-ppt-thumbnail`, `profile/upload-avatar`에서 사용. |
+| **아이콘 삭제** | `app/api/posts/[id]/route.ts` DELETE: DB에 파일명만 있는 레거시 행은 객체 키 폴백으로 MinIO 삭제 시도. |
+| **Chart Generator** | 저장 프리셋 불러올 때 `chartType`이 UI에 반영되지 않던 문제 → `ChartSettingsPanel`에 `onChartTypeChange`, `ChartGeneratorPage`에서 연결. 구버전 localStorage 프리셋은 `chartType` 없으면 `bar`. |
+| **Admin 대시보드** | `NEXT_PUBLIC_ADMINER_URL` 설정 시 **Adminer (PostgreSQL)** 버튼으로 새 탭 열기 — `app/(dashboard)/admin/dashboard/page.tsx`. 예시: `env.example.txt`, `deploy/rocky/.env.app.example`. |
+
+### 15.3 논의만 정리된 운영·동작 메모 (참고)
+
+- **Gmail / 그룹 계정**: App Password는 Google Cloud Console이 아니라 **해당 Google 계정** 보안 설정. 그룹(배포용) 주소만 있으면 SMTP용 사용자·릴레이·API 등은 Workspace/팀 정책으로 별도 결정.
+- **`GMAIL_*`**: Next는 **루트** `.env` / `.env.local`; Docker 앱은 **`deploy/rocky/.env.app`**. **`deploy/rocky/.env`에는 넣지 않음**(Compose DB·MinIO 전용).
+- **`.env` vs `.env.app`**: 파일을 **통째로 동일하게** 만들 수 없음 — 변수 집합이 다름. `cp .env.app.example .env.app` 후 각각 유지.
+- **PPT 폰트 ZIP**: `app/api/categories/[slug]/zip/route.ts` → `uploadFile` → **`posts`** 버킷, 키 접두 **`categories/<slug>/zip/`** (예: `ppt` → `categories/ppt/zip/...`).
+- **eDM 삭제 후 `edms` 잔존 객체**: `lib/r2-edm-storage.ts`의 `deleteEdmFileByUrl`은 `http(s)` URL일 때 **`S3_PUBLIC_BASE_URL`로 시작하는 경우에만** 키 추출 후 삭제. MinIO path-style이면 베이스는 보통 **`http://127.0.0.1:19000/edms`** 처럼 **버킷 경로까지** 맞출 것. 베이스가 비면 URL 저장분은 DB만 삭제되고 객체가 남을 수 있음.
+- **메일 HTML의 이미지**: 수신 클라이언트·Gmail 등이 **원격으로 GET** 하므로 `http://127.0.0.1/...` 는 수신 환경에서 열리지 않음. 실발송용은 **인터넷에서 열리는 공개 URL(HTTPS 권장)** 이 필요. 발신 주소(`@pentasecurity.com`)만 바꿔서는 해결되지 않음.
+- **`S3_PUBLIC_BASE_URL` in Rocky**: 데이터 평면 `deploy/rocky/.env`가 아니라 **Next가 읽는 `deploy/rocky/.env.app`**(또는 로컬 루트 `.env`)에 두는 것이 맞음.
+
+### 15.4 운영 전환 시 후속
+
+- §13·§8에 적힌 **TLS·최종 도메인·`NEXTAUTH_*` / `S3_PUBLIC_*`·URL 치환 dry-run** 등은 실제 공개 도메인 반영 후 재확인.
 
 ---
 

@@ -136,6 +136,7 @@ export function ChartGeneratorPage() {
           description={description}
           chartRef={chartRef}
           onSettingsChange={handleSettingsChange}
+          onChartTypeChange={handleChartTypeChange}
           onChartTypeSettingsChange={handleChartTypeSettingsChange}
           onTitleChange={setTitle}
           onDescriptionChange={setDescription}
@@ -158,6 +159,7 @@ export function ChartGeneratorPage() {
             description={description}
             chartRef={chartRef}
             onSettingsChange={handleSettingsChange}
+            onChartTypeChange={handleChartTypeChange}
             onChartTypeSettingsChange={handleChartTypeSettingsChange}
             onTitleChange={setTitle}
             onDescriptionChange={setDescription}

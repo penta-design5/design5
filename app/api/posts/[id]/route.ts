@@ -421,7 +421,16 @@ export async function DELETE(
         const { DeleteObjectCommand } = await import('@aws-sdk/client-s3')
 
         if (isS3StorageConfigured()) {
-          const key = s3ObjectKeyFromAnyPublicUrl(post.fileUrl, getBucketIcons())
+          let key = s3ObjectKeyFromAnyPublicUrl(post.fileUrl, getBucketIcons())
+          // 업로드 버그 등으로 DB에 파일명만 있는 경우(레거시)
+          if (
+            !key &&
+            post.fileUrl &&
+            !post.fileUrl.includes('://') &&
+            !post.fileUrl.includes('..')
+          ) {
+            key = post.fileUrl.replace(/^\//, '')
+          }
           if (key) {
             await getS3Client().send(
               new DeleteObjectCommand({ Bucket: getBucketIcons(), Key: key })

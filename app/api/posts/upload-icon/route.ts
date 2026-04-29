@@ -6,7 +6,7 @@ import { getCategoryBySlug } from '@/lib/categories'
 import {
   getBucketIcons,
   getS3Client,
-  publicUrlForS3ObjectKey,
+  publicUrlForIconsKey,
 } from '@/lib/s3/config'
 import { requireS3Json } from '@/lib/s3/require-storage'
 
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
           ContentType: 'image/svg+xml',
         })
       )
-      const fileUrl = publicUrlForS3ObjectKey(filePath)
+      const fileUrl = publicUrlForIconsKey(filePath)
 
       const post = await prisma.post.create({
         data: {

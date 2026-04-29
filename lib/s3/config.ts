@@ -56,6 +56,7 @@ export function getBucketPptThumbnails(): string {
 
 /**
  * S3_PUBLIC_BASE_URL 아래: https://public/{key} (key: 버킷 기준 전체, 예: avatars/uid.png)
+ * @deprecated MinIO 등 베이스 미설정 시 키만 반환됩니다. 버킷별로 `publicUrlForIconsKey` 등을 쓰세요.
  */
 export function publicUrlForS3ObjectKey(key: string): string {
   const k = key.replace(/^\//, '')
@@ -64,6 +65,31 @@ export function publicUrlForS3ObjectKey(key: string): string {
     return `${base}/${k}`
   }
   return k
+}
+
+function publicUrlForBucketKey(bucket: string, key: string): string {
+  const k = key.replace(/^\//, '')
+  const base = getS3PublicBaseUrl()
+  if (base) {
+    return `${base}/${k}`
+  }
+  const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
+  return ep ? `${ep}/${bucket}/${k}` : k
+}
+
+/** icons 버킷 — 베이스 없으면 path-style `엔드포인트/icons/키` */
+export function publicUrlForIconsKey(key: string): string {
+  return publicUrlForBucketKey(getBucketIcons(), key)
+}
+
+/** avatars 버킷 — 베이스 없으면 `엔드포인트/avatars/키` */
+export function publicUrlForAvatarsKey(key: string): string {
+  return publicUrlForBucketKey(getBucketAvatars(), key)
+}
+
+/** ppt-thumbnails 버킷 */
+export function publicUrlForPptThumbnailsKey(key: string): string {
+  return publicUrlForBucketKey(getBucketPptThumbnails(), key)
 }
 
 /**

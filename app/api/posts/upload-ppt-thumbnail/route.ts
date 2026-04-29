@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth-helpers'
 import {
   getBucketPptThumbnails,
   getS3Client,
-  publicUrlForS3ObjectKey,
+  publicUrlForPptThumbnailsKey,
 } from '@/lib/s3/config'
 import { requireS3Json } from '@/lib/s3/require-storage'
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         ContentType: file.type,
       })
     )
-    const thumbnailUrl = publicUrlForS3ObjectKey(filePath)
+    const thumbnailUrl = publicUrlForPptThumbnailsKey(filePath)
 
     return NextResponse.json({
       success: true,

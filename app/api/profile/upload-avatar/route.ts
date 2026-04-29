@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getBucketAvatars, getS3Client, publicUrlForS3ObjectKey } from '@/lib/s3/config'
+import { getBucketAvatars, getS3Client, publicUrlForAvatarsKey } from '@/lib/s3/config'
 import { s3ObjectKeyFromAnyPublicUrl } from '@/lib/s3/url-helpers'
 import { requireS3Json } from '@/lib/s3/require-storage'
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
         ContentType: file.type,
       })
     )
-    const avatarUrl = publicUrlForS3ObjectKey(storagePath)
+    const avatarUrl = publicUrlForAvatarsKey(storagePath)
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
