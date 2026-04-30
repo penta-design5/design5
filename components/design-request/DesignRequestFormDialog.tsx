@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -22,11 +22,12 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Loader2 } from 'lucide-react'
 import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
+import { DesignRequestRichTextEditor } from '@/components/design-request/DesignRequestRichTextEditor'
+import { isDesignRequestContentEmpty } from '@/lib/design-request-content'
 
 function dateToYmdLocal(d: Date): string {
   const y = d.getFullYear()
@@ -44,7 +45,9 @@ const baseSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
   departmentTeam: z.string().min(1, '의뢰 부서/팀을 입력해주세요.'),
   dueDate: z.date({ required_error: '마감일을 선택해주세요.' }),
-  content: z.string().min(1, '의뢰 내용을 입력해주세요.'),
+  content: z
+    .string()
+    .refine((s) => !isDesignRequestContentEmpty(s), '의뢰 내용을 입력해주세요.'),
 })
 
 const createSchema = baseSchema
@@ -102,7 +105,7 @@ export function DesignRequestFormDialog({
     },
   })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return
     if (isEdit && initial) {
       editForm.reset({
@@ -166,7 +169,17 @@ export function DesignRequestFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
+        onPointerDownOutside={(e) => {
+          const el = e.target as HTMLElement
+          if (el.closest('[role="menu"]')) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          const el = e.target as HTMLElement
+          if (el.closest('[role="menu"]')) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? '의뢰 수정' : '디자인 의뢰하기'}</DialogTitle>
         </DialogHeader>
@@ -247,7 +260,14 @@ export function DesignRequestFormDialog({
                   <FormItem>
                     <FormLabel>의뢰 내용</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={6} placeholder="내용을 입력해주세요." />
+                      <DesignRequestRichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={submitting}
+                        placeholder="내용을 입력해주세요."
+                        aria-invalid={!!createForm.formState.errors.content}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -363,7 +383,13 @@ export function DesignRequestFormDialog({
                   <FormItem>
                     <FormLabel>의뢰 내용</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={6} />
+                      <DesignRequestRichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={submitting}
+                        aria-invalid={!!editForm.formState.errors.content}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

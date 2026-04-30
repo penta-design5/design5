@@ -22,6 +22,10 @@ import {
 } from '@/components/design-request/DesignRequestFormDialog'
 import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
 import { formatDueDateLine } from '@/lib/design-request-dates'
+import {
+  isProbablyRichHtml,
+  sanitizeDesignRequestHtml,
+} from '@/lib/design-request-content'
 import { Loader2 } from 'lucide-react'
 
 interface Category {
@@ -169,7 +173,19 @@ export function DesignRequestDetailPage({
         </div>
         <div>
           <dt className="text-xs font-medium text-muted-foreground">의뢰 내용</dt>
-          <dd className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{item.content}</dd>
+          <dd className="mt-1 text-sm leading-relaxed">
+            {isProbablyRichHtml(item.content) ? (
+              <div
+                className="design-request-content [&_p]:my-1 [&_strong]:font-semibold"
+                // eslint-disable-next-line react/no-danger -- sanitizeDesignRequestHtml으로 정제됨
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeDesignRequestHtml(item.content),
+                }}
+              />
+            ) : (
+              <span className="whitespace-pre-wrap">{item.content}</span>
+            )}
+          </dd>
         </div>
       </dl>
 
