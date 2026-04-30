@@ -3,7 +3,8 @@
 이 문서는 **옵션 B(사내 PostgreSQL + MinIO, 외부 객체 스토리지 의존 없음)** 과 관련해 이전에 진행한 작업을 새 대화(또는 담당자)에게 넘기기 위한 요약입니다. 상세는 각 경로의 파일을 참고하세요.  
 **실제 Rocky 서버에 `deploy/rocky`를 올리고, 노트북에서 SSH 터널로 붙어 개발한 뒤 겪은 이슈**는 아래 **§11**에 정리해 두었습니다.  
 **Supabase 덤프 복원·백업 수신·URL 검증까지 진행한 뒤 MinIO 업로드로 이어가는 맥락**은 **§12 (2026-04-28 세션)** 를 참고하세요.  
-**사내망 기능 검증 마무리·이번 채팅에서 정리된 코드/운영 메모**는 **§15** 를 참고하세요.
+**사내망 기능 검증 마무리·이번 채팅에서 정리된 코드/운영 메모**는 **§15** 를 참고하세요.  
+**Rocky 서버에서 Postgres·MinIO 일일 백업(cron·`mc`)** 은 **§16** 을 참고하세요.
 
 ---
 
@@ -44,6 +45,8 @@
 | `deploy/rocky/.env.example` | `DATA_ROOT`, `HOST_BIND`, MinIO/Postgres 자격, (선택) Nginx 포트. |
 | `deploy/rocky/README.md` | `compose up`, **풀스택(8)**, 덤프 복원, **사내망 운영: `pg_dump`·cron, `curl /api/keepalive`**. |
 | `deploy/rocky/scripts/backup-pg-dump-cron.example.sh` | DB 덤프 예시( cron용 ). |
+| `deploy/rocky/scripts/backup-pg-dump.sh` | 사내 운영용 Postgres 덤프(30일 보관 등 팀 설정). |
+| `deploy/rocky/scripts/backup-minio.sh` | MinIO → 로컬 고정 디렉터리 `mc mirror`(버킷별, §16). |
 | `deploy/WEBAPPS_LAYOUT.md` | `/data/webapps/design5/data` 등 권장 레이아웃. |
 | `env.local.internal.example.txt` | 노트북→사내망 SSH 터널 등 예시. |
 | `env.example.txt` | S3_* 필수 중심; 구 클라우드 변수는 비사용 안내. |
@@ -396,6 +399,59 @@ docker run --rm -d --name adminer \
 ### 15.4 운영 전환 시 후속
 
 - §13·§8에 적힌 **TLS·최종 도메인·`NEXTAUTH_*` / `S3_PUBLIC_*`·URL 치환 dry-run** 등은 실제 공개 도메인 반영 후 재확인.
+
+---
+
+## 16. Rocky 일일 백업 — Postgres 덤프 + MinIO `mc mirror` (2026-04 세션 정리)
+
+**실행 위치:** 백업·`crontab`은 **Postgres·MinIO Docker가 떠 있는 Rocky 서버**에서만 수행합니다(노트북 터널만으로는 cron 대상이 아님).  
+**백업 디스크:** 대용량은 **`/data`**(예: `rl-data` 마운트) 아래에 두는 것을 권장합니다. [`deploy/WEBAPPS_LAYOUT.md`](../deploy/WEBAPPS_LAYOUT.md)의 `DATA_ROOT`(기본 `…/design5/data`)와 맞춥니다.
+
+### 16.1 정책 요약
+
+| 대상 | 방식 | 보관 |
+|------|------|------|
+| **PostgreSQL** | `docker exec design5-postgres` + `pg_dump -Fc` → 호스트 파일 | **일별 파일** + `find … -mtime +30 -delete` 등(팀 일수). |
+| **MinIO** | `mc mirror --overwrite --remove` 로 **고정 루트 한 곳**에 버킷별 동기화 | **한 벌만 유지**(매일 같은 경로를 갱신). 두 번째 실행부터는 변경분 위주로 짧게 끝나는 경우가 많음. |
+
+### 16.2 경로(예시)
+
+- **데이터·Compose 볼륨:** `$DATA_ROOT` = `/data/webapps/design5/data` (`.env`의 `DATA_ROOT`).
+- **Postgres 덤프:** `$DATA_ROOT/backups/pg/` — 파일명 예 `design5-YYYYMMDD-HHMM.dump`.
+- **MinIO 미러:** `$DATA_ROOT/backups/minio/latest/<버킷>/` — 버킷은 [`deploy/rocky/scripts/minio-init.sh`](../deploy/rocky/scripts/minio-init.sh)와 동일: `posts`, `edms`, `avatars`, `icons`, `ppt-thumbnails`.
+- **로그:** `$DATA_ROOT/backups/minio/minio-backup.log`(스크립트 내부), `…/backups/minio/cron.log`·`…/backups/pg/cron.log`(crontab 리다이렉트).
+
+### 16.3 레포 스크립트
+
+- **`deploy/rocky/scripts/backup-pg-dump.sh`** — `POSTGRES_USER` / `POSTGRES_DB`는 **`deploy/rocky/.env`의 `POSTGRES_*`와 반드시 일치**. 쉘 주석은 **`#`만** 사용(`//`는 Bash 주석이 아님).
+- **`deploy/rocky/scripts/backup-minio.sh`** — 동일 사용자로 사전에 `mc alias set …`(예: alias `d5miniobackup`, 엔드포인트 `http://127.0.0.1:9000`, 키는 `.env`의 `MINIO_ROOT_*`와 맞춤). alias 검사는 `mc alias list` 출력 형식에 맞게 **`grep -Fx "${MC_ALIAS}"`** 사용. 기본 alias 이름은 스크립트 내 `MC_ALIAS="${MC_ALIAS:-d5miniobackup}"`의 **`:-`** 는 Bash “비어 있으면 기본값” 문법이며 이름의 하이픈이 아님.
+- 예시 원본: [`backup-pg-dump-cron.example.sh`](../deploy/rocky/scripts/backup-pg-dump-cron.example.sh).
+
+### 16.4 `mc` 준비(서버에서 1회)
+
+1. 호스트에 MinIO Client(`mc`) 설치 후 `mc --version` 확인.  
+2. `mc alias set <별칭> http://127.0.0.1:9000 '<MINIO_ROOT_USER>' '<MINIO_ROOT_PASSWORD>'` — **cron과 동일한 Linux 사용자**로 등록해야 `~/.mc/config.json`이 맞음.  
+3. `mc ls <별칭>/` 로 버킷 목록 확인.  
+4. 첫 미러 전 선택: `mc mirror --dry-run …` 로 한 버킷만 검토.
+
+### 16.5 crontab 예시(I/O 분리)
+
+Postgres와 MinIO를 **같은 새벽에 겹치지 않게** 두는 것을 권장합니다.
+
+```cron
+10 3 * * * /data/webapps/design5/deploy/rocky/scripts/backup-pg-dump.sh >> /data/webapps/design5/data/backups/pg/cron.log 2>&1
+30 3 * * * /data/webapps/design5/deploy/rocky/scripts/backup-minio.sh >> /data/webapps/design5/data/backups/minio/cron.log 2>&1
+```
+
+- **`2>&1`** 까지 포함해야 stderr가 로그에 합쳐짐(`2>&`만 쓰면 잘못된 리다이렉션).  
+- 스크립트: `chmod +x`, `crontab -e`는 **백업을 돌릴 사용자**(예: `design`).  
+- `crontab -l`로 등록 확인. 수동 검증: 스크립트를 터미널에서 직접 실행 후 `echo $?`(0 기대), `ls`·`tail`로 덤프·로그 확인.
+
+### 16.6 트러블슈팅 메모
+
+- **`backup-minio.sh`가 즉시 exit 1:** `tail`로 `minio-backup.log` 확인. 과거에는 `mc alias list | grep -E …`가 **별칭 단독 줄**(뒤에 공백 없음) 형식과 맞지 않아 실패한 사례 있음 → 레포 스크립트는 `grep -Fx`로 정리됨.  
+- **cron만 `mc: command not found`:** 스크립트의 `PATH`에 `mc` 설치 경로 추가 또는 절대 경로 사용.  
+- **복구·오프사이트:** 한 서버 디스크만 두면 장애 시 함께 위험 — 팀 정책에 따라 NAS·다른 마운트로 주기 복사 검토.
 
 ---
 
