@@ -4,7 +4,8 @@
 **실제 Rocky 서버에 `deploy/rocky`를 올리고, 노트북에서 SSH 터널로 붙어 개발한 뒤 겪은 이슈**는 아래 **§11**에 정리해 두었습니다.  
 **Supabase 덤프 복원·백업 수신·URL 검증까지 진행한 뒤 MinIO 업로드로 이어가는 맥락**은 **§12 (2026-04-28 세션)** 를 참고하세요.  
 **사내망 기능 검증 마무리·이번 채팅에서 정리된 코드/운영 메모**는 **§15** 를 참고하세요.  
-**Rocky 서버에서 Postgres·MinIO 일일 백업(cron·`mc`)** 은 **§16** 을 참고하세요.
+**Rocky 서버에서 Postgres·MinIO 일일 백업(cron·`mc`)** 은 **§16** 을 참고하세요.  
+**도메인·Docker 풀스택 빌드·`.env` 역할·TLS 전까지 트러블슈팅(2026-05 세션)** 은 **§17** 을 참고하세요.
 
 ---
 
@@ -452,6 +453,54 @@ Postgres와 MinIO를 **같은 새벽에 겹치지 않게** 두는 것을 권장�
 - **`backup-minio.sh`가 즉시 exit 1:** `tail`로 `minio-backup.log` 확인. 과거에는 `mc alias list | grep -E …`가 **별칭 단독 줄**(뒤에 공백 없음) 형식과 맞지 않아 실패한 사례 있음 → 레포 스크립트는 `grep -Fx`로 정리됨.  
 - **cron만 `mc: command not found`:** 스크립트의 `PATH`에 `mc` 설치 경로 추가 또는 절대 경로 사용.  
 - **복구·오프사이트:** 한 서버 디스크만 두면 장애 시 함께 위험 — 팀 정책에 따라 NAS·다른 마운트로 주기 복사 검토.
+
+---
+
+## 17. 도메인·풀스택 Docker·환경 분리 (2026-05 세션 정리)
+
+DNS 통보 후에도 **`https://design5.pentasecurity.com/`** 이 안 열릴 수 있음 — **DNS만으로 TLS(443)·Nginx가 생기지 않음**. 아래는 같은 기간에 겪은 이슈와 확정 사항입니다.
+
+### 17.1 DNS·접속
+
+- **`nslookup` NXDOMAIN** 후 수동 타이핑하면 정상 응답: **복사·붙여넣기에 NBSP 등 보이지 않는 문자**가 붙은 경우가 있음.
+- **`design5.pentasecurity.com` → 서버 IP** 가 되어도, **`deploy/rocky`만 복사**해 두고 **`docker-compose.app.yml`로 `app`/`nginx`를 올리지 않으면** 웹(8080/443)이 없음 — `docker compose … ps`에 **`design5-nginx`** 가 보이는지 확인.
+
+### 17.2 Docker 빌드 컨텍스트·소스 동기화
+
+- **`docker-compose.app.yml`의 `build.context`는 `../..`(레포 루트)** — 사내 경로는 예: **`/data/webapps/design5/`**. **`deploy/rocky`만** 두면 `package-lock.json`·`prisma/` 등이 없어 빌드 실패.
+- **`rsync` 목적지:** `.dockerignore`·소스는 **`…/design5/` 루트** — **`…/deploy/rocky/`만**이면 안 됨.
+- **`.dockerignore`에 `data/`** — Compose `DATA_ROOT` 아래 Postgres 데이터 등이 **빌드 컨텍스트에 포함되면** `permission denied`로 BuildKit 전송 실패할 수 있음(레포에 반영됨).
+
+### 17.3 Dockerfile·Compose(빌드 시 DB)
+
+- **`npm ci` 단계에서 `postinstall` → `prisma generate`** 가 스키마 없이 실패할 수 있음 → **`RUN npm ci --ignore-scripts`** 후 **`COPY . .`** 다음에 **`npx prisma generate`**(레포 `deploy/rocky/Dockerfile` 반영).
+- **Linux에서 `next build`가 `host.docker.internal:5432`에 닿지 않음**(`Can't reach database server`) — **`HOST_BIND=127.0.0.1`** 이면 Postgres가 호스트 루프백에만 바인딩되어 BuildKit 기본 네트워크와 맞지 않는 경우가 많음. 레포는 **`app.build.network: host`** + 빌드 args **`127.0.0.1:5432`** 로 정리됨(`docker-compose.app.yml`). **빌드 전에** `postgres` 컨테이너가 떠 있어야 함. 자세한 설명은 [`deploy/rocky/README.md`](../deploy/rocky/README.md) §8.
+- **`BUILD_*` URL의 `invalid port`:** `POSTGRES_PASSWORD`에 `/` `@` 등이 있으면 **Compose가 끼워 넣은 URL이 깨짐** — URL용으로는 **인코딩**이 필요. **`deploy/rocky/.env`의 `POSTGRES_PASSWORD` 평문**에는 **`%2F`로 바꿔 넣지 말 것**(DB 자격과 불일치). DB 비밀번호 변경은 컨테이너 안 **`ALTER USER … WITH PASSWORD`** 후 `.env` / `.env.app`의 URL만 맞춤.
+
+### 17.4 `.env` 파일 역할(혼동 방지)
+
+| 파일 | 용도 |
+|------|------|
+| **`deploy/rocky/.env`** | **`docker compose --env-file .env`** — Postgres/MinIO·`NGINX_*`·`HOST_BIND` 등. **`HOST_BIND`는 IP(127.0.0.1 / 0.0.0.0)이지 도메인이 아님.** |
+| **`deploy/rocky/.env.app`** | **`design5-app` 컨테이너** — `DATABASE_URL`, `NEXTAUTH_*`, `S3_*`, `NEXT_PUBLIC_*` 등. |
+| **프로젝트 루트 `.env` / `.env.local`** | 노트북 **`npm run dev`** 등 — **Docker 스택이 자동으로 읽지 않음.** |
+
+### 17.5 런타임 500·`.env.app` 수정 후에도 캐시만 도는 경우
+
+- **`MissingSecret`:** **`NEXTAUTH_SECRET`**(또는 팀 정책의 Auth 시크릿)을 **`.env.app`에 실값**으로 넣을 것.
+- **`DATABASE_URL`이 `postgresql://`로 시작하지 않음:** 빈 값·잘못된 따옴표·한 줄 깨짐 등 확인.
+- **`Can't reach database server at 127.0.0.1:15432`:** **`15432`는 노트북 SSH 터널 포트** — **`design5-app` 안에서는 `postgres:5432`** + **`.env`의 `POSTGRES_*`와 동일 자격** (`@postgres:5432/…`).
+- **`docker compose up --build`가 1~2초만에 끝남:** 레이어 **전부 `CACHED`** — **`.env.app`은 이미지 빌드 입력이 아님**. 런타임 env 반영은 **`docker compose … --force-recreate app`** 등으로 컨테이너 재생성.
+- **`NEXT_PUBLIC_*` 변경:** 클라이언트에 박히는 값은 **이미지 재빌드**가 필요할 수 있음(`--no-cache` 등).
+
+### 17.6 HTTP(8080) vs HTTPS(443)
+
+- 기본 Compose는 **Nginx `8080` → 컨테이너 80(HTTP)**. **`http://design5.pentasecurity.com:8080`** 형태로 열리는 것이 정상에 가깝다.
+- **`https://design5.pentasecurity.com`(443)** 은 **인증서·Nginx `listen 443 ssl`·`443:443` 포트** 등 별도 구성이 없으면 안 됨 — **`NEXTAUTH_URL`만 `https://`로 두었다고 443이 생기지 않음**. 당분간 HTTP로 쓸 거면 **`NEXTAUTH_URL` / `NEXT_PUBLIC_APP_URL`을 실제 접속 URL(`http://…:8080`)과 일치**시키고, HTTPS 전환 시 [`deploy/rocky/nginx/next-app-https.conf.sample`](../deploy/rocky/nginx/next-app-https.conf.sample)·[`deploy/rocky/README.md`](../deploy/rocky/README.md) TLS 절을 따를 것.
+
+### 17.7 스모크
+
+- 서버에서: **`curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/"`** — **200**이면 Nginx→Next까지 응답. **500**이면 **`docker logs design5-app`** 우선.
 
 ---
 

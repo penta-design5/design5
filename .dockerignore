@@ -2,6 +2,8 @@
 .git
 .next
 node_modules
+# Compose DATA_ROOT(postgres·minio 등) — 이미지에 불필요, 권한으로 build context 전송 실패 방지
+data/
 data-backup
 **/.env
 **/.env.*

@@ -119,7 +119,7 @@ docker compose --env-file .env down
    docker compose -f docker-compose.yml -f docker-compose.app.yml ps
    curl -sS -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8080/"  # 200 또는 302 등
    ```
-   `docker-compose.app.yml`의 **이미지 빌드**는 `host.docker.internal:5432`로 **호스트에 바인딩된 Postgres**에 붙습니다. `HOST_BIND=127.0.0.1`이면 일반적으로 동작합니다(구형 Docker/루트리스는 [extra_hosts](https://docs.docker.com/compose/compose-file/build/) 등 환경에 따라 `host.docker.internal` 지원이 다를 수 있음).
+   `docker-compose.app.yml`의 **이미지 빌드**는 Linux(Rocky)에서 **`build.network: host`** 로 호스트의 **`127.0.0.1:5432`**(위 `postgres` 포트 publish)에 붙습니다. `HOST_BIND=127.0.0.1` 인 경우에도 동작합니다. Docker Desktop(macOS) 등에서는 `network: host` 의미가 다를 수 있어, 그때는 DB 접근 방식을 별도로 맞춰야 할 수 있습니다.
 5. **MinIO CORS**: Presigned(브라우저 PUT)를 쓰면 MinIO 쪽에 `NEXT_PUBLIC_APP_URL` 오리진을 추가해야 합니다(위 `### Node(Next) 쪽` 절·`docs/DEPLOYMENT` Presigned 항과 동일).
 6. **정지**: `docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env down` (DB/MinIO 볼륨은 유지).
 

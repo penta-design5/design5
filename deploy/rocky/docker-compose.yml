@@ -4,6 +4,10 @@
 #
 # 포트는 기본 127.0.0.1에만 바인딩(동일 서버·SSH 터널에서만 접속).
 # 사내망 다른 PC에서 DB/MinIO API를 직접 써야 하면 .env의 HOST_BIND를 0.0.0.0으로 바꾸고 방화벽으로 제한하세요.
+#
+# HOST_BIND 는 바인딩할 IP(127.0.0.1 / 0.0.0.0)이며 도메인(design5.pentasecurity.com 등)이 아님.
+# docker-compose.app.yml 로 Next 이미지를 빌드할 때(Linux): build.network=host 가 호스트의
+# 127.0.0.1:5432(아래 postgres publish)로 접속하므로, 빌드 전에 이 스택에서 postgres 가 떠 있어야 함.
 
 services:
   postgres:

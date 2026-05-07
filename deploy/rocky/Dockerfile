@@ -7,7 +7,8 @@ RUN apk add --no-cache libc6-compat openssl
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# 빌드 컨텍스트에서 data 디렉터리가 제외되어 있어서 스크립트 실행 시 에러가 발생하므로 무시
+RUN npm ci --ignore-scripts
 
 FROM base AS builder
 WORKDIR /app
