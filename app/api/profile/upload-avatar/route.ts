@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     const fileExt = file.name.split('.').pop()
     const fileName = `${session.user.id}-${Date.now()}.${fileExt}`
-    const storagePath = `avatars/${fileName}`
+    const storagePath = fileName
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)

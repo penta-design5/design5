@@ -51,7 +51,9 @@ export function getPostObjectKeyFromUrl(fileUrl: string): string {
   const bucket = getBucketPosts()
   const base = getS3PublicBaseUrl()
   if (base && fileUrl.startsWith(base)) {
-    return fileUrl.slice(base.length).replace(/^\//, '')
+    const path = fileUrl.slice(base.length).replace(/^\//, '')
+    // URL에 버킷명(posts/)이 prefix로 붙어있으면 제거하여 실제 MinIO 키 반환
+    return path.startsWith(bucket + '/') ? path.slice(bucket.length + 1) : path
   }
   try {
     const u = new URL(fileUrl)
@@ -174,7 +176,13 @@ export async function s3GetPresignedPostUpload(
     Key: fileName,
     ContentType: contentType,
   })
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn: PRESIGNED_UPLOAD_EXPIRES })
+  const rawUrl = await getSignedUrl(client, command, { expiresIn: PRESIGNED_UPLOAD_EXPIRES })
+  // presigned URL의 내부 호스트(minio:9000)를 외부 접근 가능한 S3_PUBLIC_BASE_URL로 교체
+  const endpoint = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
+  const publicBase = process.env.S3_PUBLIC_BASE_URL?.replace(/\/$/, '') || ''
+  const uploadUrl = (endpoint && publicBase)
+    ? rawUrl.replace(endpoint, publicBase)
+    : rawUrl
   return {
     uploadUrl,
     authorizationToken: '',

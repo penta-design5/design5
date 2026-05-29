@@ -55,7 +55,11 @@ export async function uploadEdmFile(
   const result: UploadResult = { filePath }
   const pub = getEdmPublicBase()
   if (pub) {
-    result.fileUrl = `${pub.replace(/\/$/, '')}/${filePath.replace(/^\//, '')}`
+    const b = getBucketEdms()
+    const k = filePath.replace(/^\//, '')
+    // 버킷명이 없으면 자동으로 prefix 추가
+    const prefixed = k.startsWith(b + '/') ? k : `${b}/${k}`
+    result.fileUrl = `${pub.replace(/\/$/, '')}/${prefixed}`
   }
   return result
 }

@@ -65,7 +65,7 @@ export async function notifyDesignRequestCreated(
     const transporter = getMailTransporter()
     if (!transporter) {
       console.warn(
-        '[mail] GMAIL_USER or GMAIL_APP_PASSWORD missing; skip design request notification'
+        '[mail] GMAIL_USER missing; skip design request notification'
       )
       return
     }
@@ -132,7 +132,7 @@ export async function notifyDesignRequestCreated(
 <p style="font-size:12px;color:#666">본 메일은 시스템에서 자동 발송되었습니다.<br />
 본 메일이 스팸으로 분류될 경우, tiper@pentasecurity.com을 주소록에 추가하시면 정상 수신됩니다.</p>`
 
-    const from = `"${BRAND_EN}" <${gmailUser}>`
+    const from = `"${BRAND_EN}" <no-reply@pentasecurity.com>`
     const mailOptions = {
       from,
       replyTo: gmailUser,

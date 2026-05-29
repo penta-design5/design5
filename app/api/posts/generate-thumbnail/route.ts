@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
     const thumbnail = await buildGalleryThumbnailBuffer(fileBuffer, 400)
 
-    const thumbnailFileName = `thumbnails/${fileName.replace(/\.[^/.]+$/, '.jpg')}`
+    const thumbnailFileName = `${fileName.replace(/\.[^/.]+$/, '')}_thumb.jpg`
     
     // 썸네일 업로드
     const thumbnailResult = await uploadFile(

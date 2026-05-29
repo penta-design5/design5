@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const presignedUrls = await Promise.all(
       files.map(async (file: { name: string; type: string }) => {
         const safeFileName = generateSafeFileName(file.name)
-        const filePath = `posts/${categorySlug}/${safeFileName}`
+        const filePath = `${categorySlug}/${safeFileName}`
         const {
           uploadUrl,
           authorizationToken,

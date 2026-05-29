@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
       // 안전한 파일명 생성
       const safeFileName = generateSafeFileName(file.name)
-      const filePath = `posts/${categorySlug}/${safeFileName}`
+      const filePath = `${categorySlug}/${safeFileName}`
 
       // 이미지 파일인 경우 썸네일 생성, 아닌 경우 원본만 업로드
       const isImage = file.type.startsWith('image/')

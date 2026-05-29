@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     // 썸네일 파일명 생성 (원본 파일명의 확장자를 .png로 변경)
     const baseFileName = fileName.replace(/\.[^/.]+$/, '')
-    const thumbnailFileName = `thumbnails/${baseFileName}.png`
+    const thumbnailFileName = `${baseFileName}_thumb.png`
     
     // 썸네일 업로드
     const thumbnailResult = await uploadFile(

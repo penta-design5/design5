@@ -71,7 +71,9 @@ function publicUrlForBucketKey(bucket: string, key: string): string {
   const k = key.replace(/^\//, '')
   const base = getS3PublicBaseUrl()
   if (base) {
-    return `${base}/${k}`
+    // key가 이미 버킷명으로 시작하면 그대로, 아니면 버킷명 추가
+    const prefixed = k.startsWith(bucket + '/') ? k : `${bucket}/${k}`
+    return `${base}/${prefixed}`
   }
   const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
   return ep ? `${ep}/${bucket}/${k}` : k
@@ -97,24 +99,20 @@ export function publicUrlForPptThumbnailsKey(key: string): string {
  */
 export function publicUrlForPostsKey(key: string): string {
   const base = getS3PublicBaseUrl()
+  const b = getBucketPosts()
+  const k = key.replace(/^\//, '')
   if (base) {
-    return `${base}/${key.replace(/^\//, '')}`
+    // key가 이미 버킷명으로 시작하면 그대로, 아니면 버킷명 추가
+    const prefixed = k.startsWith(b + '/') ? k : `${b}/${k}`
+    return `${base}/${prefixed}`
   }
   const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
-  const b = getBucketPosts()
-  return ep ? `${ep}/${b}/${key.replace(/^\//, '')}` : key
+  return ep ? `${ep}/${b}/${k}` : k
 }
 
 /**
  * eDM 객체 공개 URL — S3_PUBLIC_BASE_URL(게이트웨이) + 키 (버킷 prefix는 public 베이스 정책에 따름)
  */
 export function publicUrlForEdmsKey(key: string): string {
-  const k = key.replace(/^\//, '')
-  const base = getS3PublicBaseUrl()
-  if (base) {
-    return `${base}/${k}`
-  }
-  const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
-  const b = getBucketEdms()
-  return ep ? `${ep}/${b}/${k}` : k
+  return publicUrlForBucketKey(getBucketEdms(), key)
 }

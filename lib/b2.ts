@@ -69,7 +69,7 @@ export async function uploadImageWithThumbnail(
   // 썸네일 생성 (JPEG로 변환하여 용량 최적화)
   const thumbnail = await buildGalleryThumbnailBuffer(file, thumbnailSize)
 
-  const thumbnailFileName = `thumbnails/${fileName.replace(/\.[^/.]+$/, '.jpg')}`
+  const thumbnailFileName = `${fileName.replace(/\.[^/.]+$/, '')}_thumb.jpg`
   const thumbnailResult = await uploadFile(
     thumbnail,
     thumbnailFileName,

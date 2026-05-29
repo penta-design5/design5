@@ -11,7 +11,9 @@ export function s3ObjectKeyFromAnyPublicUrl(
   if (!url) return null
   const base = getS3PublicBaseUrl()
   if (base && url.startsWith(base)) {
-    return url.slice(base.length).replace(/^\//, '')
+    const path = url.slice(base.length).replace(/^\//, '')
+    // URL에 버킷명이 prefix로 붙어있으면 제거하여 실제 MinIO 키 반환
+    return path.startsWith(bucket + '/') ? path.slice(bucket.length + 1) : path
   }
   try {
     const u = new URL(url)
