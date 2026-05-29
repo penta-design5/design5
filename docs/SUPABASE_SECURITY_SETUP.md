@@ -1,3 +1,10 @@
+> ⚠️ **레거시 문서 (현재 미사용)**
+> 이 문서는 과거 **Vercel + Supabase + Backblaze B2 / Cloudflare R2** 클라우드 환경 기준으로 작성되었습니다.
+> 현재 서비스는 **사내망 Rocky Linux + PostgreSQL + MinIO** 환경으로 전환 완료되었습니다. (2026-05-19)
+> 참고용으로만 보존합니다.
+
+---
+
 # Supabase 보안 설정 가이드
 
 > **사내 PostgreSQL만 쓰는 경우:** 이 문서는 **과거 Supabase 호스티드** 전제의 절차입니다. Row 보안·역할은 [POSTGRES_RLS_INTERNAL.md](POSTGRES_RLS_INTERNAL.md)를 참고하고, DB·파일 이전은 [OPERATIONAL_MIGRATION.md](OPERATIONAL_MIGRATION.md)를 따릅니다.

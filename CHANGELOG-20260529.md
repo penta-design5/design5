@@ -57,7 +57,8 @@ result.fileUrl = `${pub}/${prefixed}`
 - `.gitignore` — `/data/`, `/data-backup-incoming/`, `*.bak` 추가
 
 ### 🌐 미러 사이트
-- design6.pentasecurity.com (192.168.1.43) VM 스냅샷으로 스테이징 환경 구축
+- design5.pentasecurity.com (192.168.1.42) 운영 서버 구축 완료 (Rocky Linux 10.1 VM)
+- design6.pentasecurity.com (192.168.1.43) VM 스냅샷으로 스테이징 환경 구축 (Rocky Linux 10.1 VM)
 - Google OAuth 2.0 design6 전용 Client ID 적용
 
 ---

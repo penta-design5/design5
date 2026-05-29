@@ -1,5 +1,9 @@
 # 사내망 Rocky — design5 (Postgres + MinIO, 선택: Next + Nginx)
 
+> ✅ **구축 완료** (2026-05-19)
+> - 운영: 192.168.1.42 (Rocky Linux 10.1 VM) — design5.pentasecurity.com
+> - 스테이징: 192.168.1.43 (Rocky Linux 10.1 VM) — design6.pentasecurity.com
+
 [사내망 이전 계획](../../docs/사내망_이전_계획_baa87487.plan.md) **옵션 B**에 맞춰, 기본은 **DB와 객체 스토리지**를 Docker로 기동하고, **같은 호스트**에서 Next까지 돌릴 때는 **아래 8) 절** 풀스택(Compose 오버레이)을 사용합니다.  
 **호스트 디렉터리 규칙**은 [../WEBAPPS_LAYOUT.md](../WEBAPPS_LAYOUT.md) 를 참고하세요(다른 웹서비스와 `/data/webapps` 아래에서 병행).
 
@@ -63,9 +67,9 @@ docker logs design5-minio-init   # 버킷 생성 로그(완료 후 컨테이너 
 
 | 버킷 | 용도(기존 클라우드) |
 |------|----------------------|
-| `posts` | B2 |
-| `edms` | R2 eDM |
-| `avatars` / `icons` / `ppt-thumbnails` | Supabase Storage |
+| `posts` | MinIO (자체 구축) |
+| `edms` | MinIO (자체 구축) |
+| `avatars` / `icons` / `ppt-thumbnails` | MinIO (자체 구축) |
 
 CORS·퍼블릭 읽기는 앱/환경 확정 뒤 `mc` 또는 콘솔에서 설정.
 
@@ -127,7 +131,7 @@ Nginx **HTTP 80(컨테이너)** → **호스트 8080** 매핑이 기본입니다
 
 ## 사내망 운영: DB 백업·핑
 
-GitHub Actions의 **퍼블릿 DB→B2**·**keepalive** 워크플로는, 사내망·비공개 URL만 쓰는 경우 **러너가 앱/DB에 닿지 않아** 실패하거나 쓸모가 없을 수 있음(`.github/workflows` 상단 주석 참고). 그때는 **앱/DB가 있는 동일(또는 VPN 내) 머신**에서 아래를 **cron** 등으로 수행.
+GitHub Actions의 **keepalive·백업** 워크플로는 사내망 전용 환경에서는 **비활성화** 권장. 대신 서버 cron으로 대체(`.github/workflows` 상단 주석 참고). 그때는 **앱/DB가 있는 동일(또는 VPN 내) 머신**에서 아래를 **cron** 등으로 수행.
 
 ### DB 덤프 (PostgreSQL)
 

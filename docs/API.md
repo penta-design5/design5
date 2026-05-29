@@ -154,7 +154,7 @@ API는 NextAuth 세션 기반 인증을 사용합니다.
 
 | 메서드 | 경로 | 인증 | 용도 |
 |--------|------|------|------|
-| GET | `/api/keepalive` | 선택 (KEEPALIVE_SECRET) | Supabase 비활동 방지 (DB/Storage ping) |
+| GET | `/api/keepalive` | 선택 (KEEPALIVE_SECRET) | 앱 핑 (사내망에서는 불필요, 레거시 Supabase 비활동 방지용) |
 
 `KEEPALIVE_SECRET`이 설정된 경우 `Authorization: Bearer <secret>` 헤더가 필요합니다. GitHub Actions 등에서 3~4일마다 호출하는 것을 권장합니다.
 

@@ -69,10 +69,10 @@ Browser → Nginx (TLS) → Next.js App → PostgreSQL
 
 ## 🌐 배포 환경
 
-| 구분 | 도메인 | 서버 | 용도 |
-|------|--------|------|------|
-| 🟢 **운영** | design5.pentasecurity.com | Rocky Linux | 실서비스 |
-| 🔵 **미러/스테이징** | design6.pentasecurity.com | VM (192.168.1.43) | 테스트/QA |
+| 구분 | 도메인 | 서버 | OS | 용도 |
+|------|--------|------|----|------|
+| 🟢 **운영** | design5.pentasecurity.com | 192.168.1.42 | Rocky Linux 10.1 (VM) | 실서비스 |
+| 🔵 **미러/스테이징** | design6.pentasecurity.com | 192.168.1.43 | Rocky Linux 10.1 (VM) | 테스트/QA |
 
 ---
 

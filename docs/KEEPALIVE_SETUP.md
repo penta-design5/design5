@@ -1,3 +1,10 @@
+> ⚠️ **레거시 문서 (현재 미사용)**
+> 이 문서는 과거 **Vercel + Supabase** 클라우드 환경에서 Supabase 비활동 일시정지 방지를 위한 설정입니다.
+> 현재 사내망 환경에서는 자체 PostgreSQL을 사용하므로 keepalive가 불필요합니다.
+> 사내망에서 앱 핑이 필요하다면 서버 **cron + curl** 방식을 사용하세요. (`deploy/rocky/README.md` 참고)
+
+---
+
 # Supabase Keepalive — 사용자가 할 일
 
 GitHub Actions + `/api/keepalive` 호출 방식이 구현된 후, **아래 작업은 사용자가 직접** 해야 합니다.

@@ -8,6 +8,13 @@
 
 PostgreSQL + MinIO(S3 호환) + Next.js(자체 호스팅) + (선택) Nginx.
 
+### 서버 환경
+
+| 구분 | IP | OS | 도메인 | 상태 |
+|------|----|----|--------|------|
+| 운영 | 192.168.1.42 | Rocky Linux 10.1 (VM) | design5.pentasecurity.com | ✅ 구축 완료 |
+| 스테이징 | 192.168.1.43 | Rocky Linux 10.1 (VM) | design6.pentasecurity.com | ✅ 구축 완료 |
+
 ```mermaid
 flowchart TB
   subgraph users [Users]
