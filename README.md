@@ -1,109 +1,115 @@
-# LAYERARY
+# 🎨 LAYERARY - Design5 내부 디자인 리소스 플랫폼
 
-펜타시큐리티 디자인 자산 관리 포털
+> 펜타시큐리티 사내 디자인 자산 관리 시스템
 
-## 프로젝트 개요
+---
 
-LAYERARY는 펜타시큐리티의 디자인 작업물을 리뷰하고, 필요한 리소스(CI/BI, ICON, PPT 템플릿 등)를 검색·편집·다운로드할 수 있는 중앙 집중식 플랫폼입니다.
+## 🆕 최근 변경사항 (2026-05-29)
 
-## 기술 스택
+- ✅ 업로드 시스템 전면 수정 (경로 정규화, 썸네일 버그 수정)
+- ✅ Google SMTP relay 전환 (IP 기반 인증, 발신자 no-reply@pentasecurity.com)
+- ✅ Nginx 라우팅 개선 (정규식 블록 통합, Next.js 라우트 충돌 해결)
+- ✅ ICON PNG/JPG 다운로드 버그 수정
+- ✅ 프로필 아바타 업로드 버그 수정
+- ✅ eDM URL 버킷명 누락 수정
+- ✅ design6.pentasecurity.com 미러/스테이징 환경 구축
+- ✅ minio/mc 이미지 버전 고정 (latest → RELEASE.2025-08-13T08-35-41Z)
 
-- **Frontend**: Next.js 14 (App Router), React, TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Shadcn UI
-- **Backend**: Next.js API Routes / Server Actions
-- **Database**: PostgreSQL (사내망 자체 또는 호스티드)
-- **ORM**: Prisma
-- **Storage**: **S3 호환(MinIO 권장)** — 게시물·아바타·아이콘·eDM(`edms`) 등 **전부 동일 S3/MinIO**
-- **Auth**: NextAuth.js (Auth.js)
+---
 
-## 사전 요구사항
+## 📋 서비스 소개
 
-- Node.js 18+
-- npm
+LAYERARY는 펜타시큐리티 임직원을 위한 디자인 리소스 플랫폼입니다.
+CI/BI, PPT 템플릿, 아이콘, 캐릭터, 브로슈어 등 각종 디자인 자산을 한 곳에서 관리하고 공유할 수 있습니다.
 
-## 설치 및 실행
+---
 
-### 1. 의존성 설치
+## 🗂️ 주요 기능
 
-```bash
-npm install
+| 카테고리 | 기능 |
+|----------|------|
+| 🖼️ **Penta Design** | 디자인 작업물 갤러리 (포스터, eDM, 행사 자료 등) |
+| 🏷️ **CI/BI** | 브랜드 아이덴티티 자산 (로고, 심볼) |
+| 🔷 **ICON** | SVG/PNG 아이콘 다운로드 (색상, 크기 변환 지원) |
+| 🧑 **캐릭터** | 부서별 캐릭터 SVG |
+| 📊 **PPT** | PowerPoint 템플릿 다운로드 |
+| 🖥️ **바탕화면** | Mac/Windows 배경화면 |
+| 👋 **웰컴보드** | 신입 환영 보드 템플릿 |
+| 🎴 **감사/연말 카드** | 카드 템플릿 |
+| 📐 **다이어그램** | 서비스/시스템 구조도 |
+| 📧 **eDM** | 이메일 eDM 코드 생성기 |
+| 📝 **디자인 의뢰** | 디자인 작업 의뢰 게시판 (이메일 알림) |
+
+---
+
+## ⚙️ 기술 스택
+
+| 구분 | 기술 |
+|------|------|
+| Frontend/Backend | Next.js 14 (App Router, Standalone) |
+| Database | PostgreSQL 17 |
+| Object Storage | MinIO (S3 호환) |
+| Web Server | Nginx 1.27 |
+| Container | Docker Compose |
+| Auth | NextAuth.js (Credentials + Google OAuth) |
+| ORM | Prisma |
+| UI | Tailwind CSS + Shadcn UI |
+| Mail | Google SMTP relay (nodemailer) |
+
+---
+
+## 🏗️ 시스템 구성
+
+```
+Browser → Nginx (TLS) → Next.js App → PostgreSQL
+                                    → MinIO (S3)
 ```
 
-### 2. 환경 변수 설정
+---
 
-`.env.local` 파일을 생성하고 `env.example.txt`를 참고해 필요한 환경 변수를 설정하세요.
+## 🌐 배포 환경
 
-```bash
-cp env.example.txt .env.local
-```
+| 구분 | 도메인 | 서버 | 용도 |
+|------|--------|------|------|
+| 🟢 **운영** | design5.pentasecurity.com | Rocky Linux | 실서비스 |
+| 🔵 **미러/스테이징** | design6.pentasecurity.com | VM (192.168.1.43) | 테스트/QA |
 
-**사내망(권장):** `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_*`, **`S3_*`**(엔드포인트·자격증명·버킷·`S3_PUBLIC_BASE_URL` 등). 상세는 `env.example.txt`, `env.local.internal.example.txt`, [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [deploy/rocky/README.md](deploy/rocky/README.md).
+---
 
-(구) 클라우드 B2·R2·Supabase는 **앱에서 사용하지 않습니다.** DB·이미지 URL 마이그레이션 기간이면 `env.example.txt`의 `legacy-asset-bases` 주석 참고.
-
-### 객체 스토리지 (MinIO / S3 호환)
-
-게시물·ZIP·썸네일 등은 **`S3_*`로 연결된 버킷**에 저장됩니다. Presigned **PUT** 직접 업로드 시 **CORS**에 앱 오리진을 넣어야 합니다.
-
-### eDM 저장소
-
-**`S3_*` + `edms` 버킷** — `lib/r2-edm-storage.ts` (R2 전용 경로는 제거됨). `S3_PUBLIC_BASE_URL`이 있으면 이메일·HTML에 **만료 없는 공개 URL**로 저장됩니다. 배포: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-### 3. 데이터베이스 마이그레이션
+## 🚀 빠른 시작
 
 ```bash
-npm run db:migrate
+# 1. 환경변수 설정
+cp deploy/rocky/env.example.txt deploy/rocky/.env
+cp deploy/rocky/env.example.txt deploy/rocky/.env.app
+# .env, .env.app 편집
+
+# 2. Docker network 생성
+docker network create design5-net
+
+# 3. DB/MinIO 기동
+docker compose --env-file deploy/rocky/.env up -d
+
+# 4. 앱 빌드 및 기동
+docker compose -f deploy/rocky/docker-compose.yml \
+  -f deploy/rocky/docker-compose.app.yml \
+  --env-file deploy/rocky/.env.app up -d --build app
 ```
 
-### 4. 개발 서버 실행
+---
 
-```bash
-npm run dev
-```
+## 📚 문서
 
-브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
+- 📦 [배포 가이드](deploy/rocky/README.md)
+- 🏛️ [아키텍처](docs/ARCHITECTURE.md)
+- 🔧 [인프라](docs/INFRASTRUCTURE.md)
+- ✅ [배포 체크리스트](DEPLOYMENT_CHECKLIST.md)
+- 📝 [변경 이력](CHANGELOG-20260529.md)
 
-## 프로덕션 빌드 및 실행
+---
 
-```bash
-npm run build
-npm run start
-```
+## ⚠️ 주의사항
 
-## 주요 기능
-
-- **통합 검색**: Post, Diagram, Desktop Wallpaper, Card, WelcomeBoard 등 통합 검색
-- **카테고리별 리소스 관리**
-  - Penta Design, CI/BI, ICON, PPT, 다이어그램, eDM 등
-  - PDF Extractor, Chart Generator
-- **관리자 기능**: 회원 관리, 공지사항, 대시보드
-
-## 스크립트
-
-| 스크립트 | 설명 |
-|---------|------|
-| `npm run dev` | 개발 서버 실행 |
-| `npm run build` | 프로덕션 빌드 |
-| `npm run start` | 프로덕션 서버 실행 |
-| `npm run lint` | ESLint 실행 |
-| `npm run db:seed` | 시드 데이터 삽입 |
-| `npm run db:migrate` | Prisma 마이그레이션 |
-| `npm run db:studio` | Prisma Studio 실행 |
-
-## 관련 문서
-
-- [docs/API.md](docs/API.md) - API 엔드포인트 및 인증
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - 아키텍처 및 폴더 구조
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - 배포 가이드
-- [docs/OPERATIONAL_MIGRATION.md](docs/OPERATIONAL_MIGRATION.md) - pg_restore·MinIO·URL 치환 순서
-- [docs/PRISMA_MIGRATIONS.md](docs/PRISMA_MIGRATIONS.md) - `migrate deploy` / migrations Git 정책
-- [docs/POSTGRES_RLS_INTERNAL.md](docs/POSTGRES_RLS_INTERNAL.md) - (선택) 사내 Postgres RLS
-- [docs/SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) - 시스템 아키텍처 다이어그램
-- [docs/DATA_FLOW.md](docs/DATA_FLOW.md) - 데이터 플로우 다이어그램
-- [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) - 인프라 다이어그램
-- [docs/SUPABASE_SECURITY_SETUP.md](docs/SUPABASE_SECURITY_SETUP.md) - (과거) Supabase; 사내 PG는 RLS·역할 정책을 별도 검토
-
-## 라이선스
-
-Private
+- `.env`, `.env.app` 파일은 Git에 포함되지 않습니다. `env.example.txt` 참고
+- 민감 정보(DB 비밀번호, OAuth 키 등)는 서버에서 직접 관리
+- 새 카테고리 추가 시 `deploy/rocky/nginx/app-http.conf` 정규식 블록 slug 목록에 추가 필요

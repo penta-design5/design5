@@ -62,3 +62,12 @@ yarn-error.log*
 
 # 백업 수신 폴더
 /data-backup-incoming/
+
+# 임시 백업 파일
+*.bak
+*.bak2
+*.bak3
+
+# DB 작업 임시 파일
+/deploy/rocky/backup_before_url_fix.sql
+/deploy/rocky/fix_storage_urls.sql
