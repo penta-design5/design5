@@ -222,9 +222,13 @@ export function PostUploadDialog({
   }, [open, existingImages, selectedFiles, filePreviewUrls])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files))
+    if (e.target.files && e.target.files.length > 0) {
+      // 기존 선택을 덮어쓰지 않고 뒤에 누적: 다른 폴더에서 여러 번 선택해도 모두 유지됨
+      const picked = Array.from(e.target.files)
+      setSelectedFiles((prev) => [...prev, ...picked])
     }
+    // 같은 파일/폴더를 다시 선택해도 onChange가 발생하도록 input 값 초기화
+    e.target.value = ''
   }
 
   const handleRemoveFile = (index: number) => {

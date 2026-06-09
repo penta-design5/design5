@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -38,11 +39,46 @@ interface User {
   }
 }
 
+type RoleFilter = 'ALL' | UserRole
+
 export default function UsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<RoleFilter>('ALL')
+
+  // 관리자 우선 정렬 (관리자 → 사용자, 그룹 내에서는 이름/이메일순)
+  const sortedUsers = useMemo(() => {
+    const roleOrder: Record<UserRole, number> = {
+      [UserRole.ADMIN]: 0,
+      [UserRole.MEMBER]: 1,
+    }
+    return [...users].sort((a, b) => {
+      if (a.role !== b.role) return roleOrder[a.role] - roleOrder[b.role]
+      return (a.name || a.email).localeCompare(b.name || b.email, 'ko')
+    })
+  }, [users])
+
+  const adminCount = useMemo(
+    () => users.filter((u) => u.role === UserRole.ADMIN).length,
+    [users]
+  )
+  const memberCount = users.length - adminCount
+
+  const visibleUsers = useMemo(
+    () =>
+      filter === 'ALL'
+        ? sortedUsers
+        : sortedUsers.filter((u) => u.role === filter),
+    [sortedUsers, filter]
+  )
+
+  const filterTabs: { value: RoleFilter; label: string; count: number }[] = [
+    { value: 'ALL', label: '전체', count: users.length },
+    { value: UserRole.ADMIN, label: '관리자', count: adminCount },
+    { value: UserRole.MEMBER, label: '사용자', count: memberCount },
+  ]
 
   useEffect(() => {
     fetchUsers()
@@ -169,9 +205,28 @@ export default function UsersPage() {
       <Card>
         <CardHeader>
           <CardTitle className='text-lg font-semibold'>회원 목록</CardTitle>
-          <CardDescription>등록된 회원은 총 <strong className='text-penta-indigo'>{users.length}</strong>명이며, 역할(권한)은 변경 즉시 적용됩니다.</CardDescription>
+          <CardDescription>등록된 회원은 총 <strong className='text-penta-indigo'>{users.length}</strong>명(관리자 <strong className='text-penta-indigo'>{adminCount}</strong> · 사용자 <strong className='text-penta-indigo'>{memberCount}</strong>)이며, 역할(권한)은 변경 즉시 적용됩니다.</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* 역할 필터 탭 */}
+          <div className="flex items-center gap-1 mb-4">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setFilter(tab.value)}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  filter === tab.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                {tab.label}
+                <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+              </button>
+            ))}
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -184,15 +239,23 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.length === 0 ? (
+              {visibleUsers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    등록된 사용자가 없습니다.
+                    {users.length === 0
+                      ? '등록된 사용자가 없습니다.'
+                      : '해당하는 회원이 없습니다.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => (
-                  <TableRow key={user.id}>
+                visibleUsers.map((user) => (
+                  <TableRow
+                    key={user.id}
+                    className={cn(
+                      user.role === UserRole.ADMIN &&
+                        'bg-penta-indigo/5 hover:bg-penta-indigo/10'
+                    )}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -206,6 +269,11 @@ export default function UsersPage() {
                         <span className="font-medium">
                           {user.name || '이름 없음'}
                         </span>
+                        {user.role === UserRole.ADMIN && (
+                          <span className="rounded-full bg-penta-indigo/10 px-2 py-0.5 text-xs font-semibold text-penta-indigo">
+                            관리자
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>

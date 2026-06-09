@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryDetailPage } from '@/app/_category-pages/gallery/GalleryDetailPage'
 import { DesktopEditorPage } from '@/app/_category-pages/desktop/DesktopEditorPage'
+import { HardwareDetailPage } from '@/app/_category-pages/hardware/HardwareDetailPage'
 import { DesignRequestDetailPage } from '@/app/_category-pages/design-request/DesignRequestDetailPage'
 
 // 카테고리 타입별 기본 pageType 반환
@@ -143,6 +144,9 @@ export default async function PostDetailPage({
     case 'icon':
       // ICON은 리스트 페이지로 리다이렉트 (게시물 ID를 query parameter로 전달)
       redirect(`/${params.slug}?postId=${params.id}`)
+
+    case 'hardware':
+      return <HardwareDetailPage category={category} productId={params.id} />
 
     case 'design-request':
       return (

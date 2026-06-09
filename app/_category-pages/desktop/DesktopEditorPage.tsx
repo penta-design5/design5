@@ -609,6 +609,18 @@ export function DesktopEditorPage({ category, wallpaperId }: DesktopEditorPagePr
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {(wallpaper.title || wallpaper.description) && (
+              <div className="space-y-1.5 pb-4 border-b">
+                <h3 className="text-base font-semibold break-words">
+                  {wallpaper.title}
+                </h3>
+                {wallpaper.description && (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
+                    {wallpaper.description}
+                  </p>
+                )}
+              </div>
+            )}
             <DesktopPropertyPanel
               element={activeElement}
               onUpdate={handleUpdateElement}

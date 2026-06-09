@@ -14,6 +14,7 @@ import { PptListPage } from '@/app/_category-pages/ppt/PptListPage'
 import { IconListPage } from '@/app/_category-pages/icon/IconListPage'
 import { WelcomeBoardPage } from '@/app/_category-pages/welcomeboard/WelcomeBoardPage'
 import { DesktopPage } from '@/app/_category-pages/desktop/DesktopPage'
+import { HardwareListPage } from '@/app/_category-pages/hardware/HardwareListPage'
 import { CardPage } from '@/app/_category-pages/card/CardPage'
 import { DesignRequestListPage } from '@/app/_category-pages/design-request/DesignRequestListPage'
 
@@ -112,6 +113,9 @@ export default async function CategoryPage({
 
     case 'icon':
       return <IconListPage category={category} />
+
+    case 'hardware':
+      return <HardwareListPage category={category} />
 
     case 'design-request':
       return <DesignRequestListPage category={category} />

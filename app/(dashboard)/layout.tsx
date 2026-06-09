@@ -1,5 +1,5 @@
 import { getCategories } from '@/lib/categories'
-import { MainLayout } from '@/components/layout/MainLayout'
+import { MainLayout } from '@/components/category-pages/layout/MainLayout'
 
 export default async function DashboardLayout({
   children,

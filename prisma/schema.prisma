@@ -53,6 +53,7 @@ model User {
   diagrams                Diagram[] @relation("DiagramAuthor")
   edms                    Edm[]     @relation("EdmAuthor")
   desktopWallpapers       DesktopWallpaper[]
+  hardwareProducts        HardwareProduct[]
   cardTemplates           CardTemplate[]
   designRequests          DesignRequest[]
 
@@ -237,6 +238,24 @@ model DesktopWallpaper {
   updatedAt  DateTime @updatedAt
 
   @@map("desktop_wallpapers")
+}
+
+// 하드웨어 제품 갤러리 모델 (단일 이미지, 뷰어+다운로드 전용)
+model HardwareProduct {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  type         String?  // 제품 타입 (WAPPLES, D.AMO, iSIGN) — 필터용
+  imageUrl     String   // 원본 제품 이미지 (S3/MinIO posts 버킷)
+  thumbnailUrl String?  // 카드용 썸네일 (원본에서 자동 생성)
+
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("hardware_products")
 }
 
 // 감사/연말 카드 템플릿 모델

@@ -259,6 +259,12 @@ export function IconListPage({ category }: IconListPageProps) {
     }
   }
 
+  // 선택 해제 (부분 선택 상태에서도 즉시 해제)
+  const handleDeselectAll = () => {
+    setSelectedPostIds(new Set())
+    setMobilePropertySheetOpen(false)
+  }
+
   // 선택된 아이콘 삭제
   const handleDelete = async () => {
     if (selectedPostIds.size === 0) {
@@ -543,6 +549,17 @@ export function IconListPage({ category }: IconListPageProps) {
                     전체 선택
                   </>
                 )}
+              </Button>
+            )}
+
+            {/* 선택 해제 버튼 - 선택된 항목이 있을 때만 표시 */}
+            {selectedPostIds.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleDeselectAll}
+                disabled={deleting}
+              >
+                선택 해제 ({selectedPostIds.size})
               </Button>
             )}
 
