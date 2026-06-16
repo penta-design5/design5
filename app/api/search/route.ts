@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { CategoryType } from '@prisma/client'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { UnauthorizedError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,14 +35,13 @@ export type SearchResult = {
 // 검색 대상에서 제외할 카테고리 (eDM, PDF Extractor, Chart Generator)
 const EXCLUDED_SLUGS = ['edm']
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
+export const GET = withRouteHandler(async (request: NextRequest) => {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new UnauthorizedError('인증이 필요합니다.')
+  }
 
-    const { searchParams } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
     const q = searchParams.get('q')?.trim()
     const categorySlug = searchParams.get('categorySlug') || undefined
     const dateFrom = searchParams.get('dateFrom') || undefined
@@ -268,11 +269,4 @@ export async function GET(request: NextRequest) {
     const limitedResults = results.slice(0, MAX_RESULTS)
 
     return NextResponse.json({ results: limitedResults })
-  } catch (error) {
-    console.error('[GET /api/search] Error:', error)
-    return NextResponse.json(
-      { error: '검색 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '검색 중 오류가 발생했습니다.')
