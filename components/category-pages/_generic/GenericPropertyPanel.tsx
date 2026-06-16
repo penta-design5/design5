@@ -17,17 +17,21 @@ interface Post {
   fileUrl?: string | null
 }
 
-interface DamoPropertyPanelProps {
+interface GenericPropertyPanelProps {
   post: Post | null
   onDownload: () => Promise<void>
   variant?: 'sidebar' | 'sheet'
 }
 
-export function DamoPropertyPanel({
+/**
+ * 표준 카테고리 공통 우측 속성 패널(데스크톱) / 하단 시트(모바일).
+ * 제목·타입·언어·내용·제작일 표시 + 다운로드 버튼.
+ */
+export function GenericPropertyPanel({
   post,
   onDownload,
   variant = 'sidebar',
-}: DamoPropertyPanelProps) {
+}: GenericPropertyPanelProps) {
   const isSheet = variant === 'sheet'
   const [downloading, setDownloading] = useState(false)
 

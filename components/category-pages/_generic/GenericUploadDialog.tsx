@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -36,32 +36,6 @@ import { z } from 'zod'
 import { Loader2, X, File } from 'lucide-react'
 import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
 
-const DAMO_TYPES = [
-  'D.AMO',
-  'D.AMO Cloud',
-  'D.AMO KMS',
-  'D.AMO for SAP',
-  'D.AMO PACS',
-  'D.AMO KE',
-] as const
-
-const DAMO_LANGUAGES = ['EN', 'KR', 'JP'] as const
-
-const damoPostSchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요.'),
-  description: z.string().optional().nullable(),
-  type: z.enum(DAMO_TYPES, {
-    required_error: '타입을 선택해주세요.',
-  }),
-  language: z.enum(DAMO_LANGUAGES, {
-    required_error: '언어를 선택해주세요.',
-  }),
-  producedAt: z.string().datetime().optional().nullable(),
-  tags: z.string().optional().nullable(),
-})
-
-type DamoPostFormValues = z.infer<typeof damoPostSchema>
-
 interface PostFile {
   url: string
   name: string
@@ -80,7 +54,7 @@ interface Post {
   fileUrl?: string | null
 }
 
-interface DamoUploadDialogProps {
+interface GenericUploadDialogProps {
   open: boolean
   onClose: () => void
   categorySlug: string
@@ -88,9 +62,20 @@ interface DamoUploadDialogProps {
   onSuccess: () => void
   postId?: string // 수정 모드일 때 게시물 ID
   post?: Post // 수정 모드일 때 게시물 데이터
+  /** 다이얼로그 제목용 제품 라벨 (예: 'D.AMO') */
+  label: string
+  /** 선택 가능한 타입 목록 (concept 필드에 저장) */
+  types: string[]
+  /** 선택 가능한 언어 목록 (tool 필드에 저장) */
+  languages: string[]
 }
 
-export function DamoUploadDialog({
+/**
+ * 표준 카테고리 공통 업로드/수정 다이얼로그.
+ * Presigned URL 방식으로 PDF를 B2에 직접 업로드한 뒤 /api/posts에 메타데이터 저장.
+ * 타입/언어 목록과 제목 라벨만 config로 주입받아 동작은 동일하게 재현한다.
+ */
+export function GenericUploadDialog({
   open,
   onClose,
   categorySlug,
@@ -98,7 +83,10 @@ export function DamoUploadDialog({
   onSuccess,
   postId,
   post,
-}: DamoUploadDialogProps) {
+  label,
+  types,
+  languages,
+}: GenericUploadDialogProps) {
   const isEditMode = !!postId && !!post
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [existingFiles, setExistingFiles] = useState<PostFile[]>([])
@@ -106,13 +94,35 @@ export function DamoUploadDialog({
   const [submitting, setSubmitting] = useState(false)
   const isSubmittingRef = useRef(false) // 중복 제출 방지
 
-  const form = useForm<DamoPostFormValues>({
-    resolver: zodResolver(damoPostSchema),
+  const defaultType = types[0]
+  const defaultLanguage = languages[0]
+
+  const postSchema = useMemo(
+    () =>
+      z.object({
+        title: z.string().min(1, '제목을 입력해주세요.'),
+        description: z.string().optional().nullable(),
+        type: z.enum(types as [string, ...string[]], {
+          required_error: '타입을 선택해주세요.',
+        }),
+        language: z.enum(languages as [string, ...string[]], {
+          required_error: '언어를 선택해주세요.',
+        }),
+        producedAt: z.string().datetime().optional().nullable(),
+        tags: z.string().optional().nullable(),
+      }),
+    [types, languages]
+  )
+
+  type PostFormValues = z.infer<typeof postSchema>
+
+  const form = useForm<PostFormValues>({
+    resolver: zodResolver(postSchema),
     defaultValues: {
       title: '',
       description: null,
-      type: 'D.AMO',
-      language: 'EN',
+      type: defaultType,
+      language: defaultLanguage,
       producedAt: null,
       tags: null,
     },
@@ -151,20 +161,18 @@ export function DamoUploadDialog({
         : ''
 
       // 기존 Post의 concept 필드에서 타입 추출
-      const existingType = post.concept && DAMO_TYPES.includes(post.concept as any)
-        ? post.concept
-        : 'D.AMO'
+      const existingType =
+        post.concept && types.includes(post.concept) ? post.concept : defaultType
 
       // 기존 Post의 tool 필드에서 언어 추출
-      const existingLanguage = post.tool && DAMO_LANGUAGES.includes(post.tool as any)
-        ? post.tool
-        : 'EN'
+      const existingLanguage =
+        post.tool && languages.includes(post.tool) ? post.tool : defaultLanguage
 
       form.reset({
         title: post.title || '',
         description: post.description || null,
-        type: existingType as typeof DAMO_TYPES[number],
-        language: existingLanguage as typeof DAMO_LANGUAGES[number],
+        type: existingType,
+        language: existingLanguage,
         producedAt: post.producedAt ? new Date(post.producedAt).toISOString() : null,
         tags: tagsString || null,
       })
@@ -172,15 +180,15 @@ export function DamoUploadDialog({
       form.reset({
         title: '',
         description: null,
-        type: 'D.AMO',
-        language: 'EN',
+        type: defaultType,
+        language: defaultLanguage,
         producedAt: null,
         tags: null,
       })
       setExistingFiles([])
       setSelectedFiles([])
     }
-  }, [isEditMode, post, form])
+  }, [isEditMode, post, form, types, languages, defaultType, defaultLanguage])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -208,7 +216,7 @@ export function DamoUploadDialog({
     setExistingFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const onSubmit = async (values: DamoPostFormValues) => {
+  const onSubmit = async (values: PostFormValues) => {
     // 중복 제출 방지
     if (isSubmittingRef.current) {
       console.warn('이미 제출 중입니다.')
@@ -308,7 +316,9 @@ export function DamoUploadDialog({
         : []
 
       // 제작일 처리
-      const producedAtValue = values.producedAt ? new Date(values.producedAt).toISOString() : null
+      const producedAtValue = values.producedAt
+        ? new Date(values.producedAt).toISOString()
+        : null
 
       if (isEditMode) {
         // 수정 모드: PUT 요청
@@ -333,8 +343,6 @@ export function DamoUploadDialog({
           const error = await response.json()
           throw new Error(error.error || '게시물 수정에 실패했습니다.')
         }
-
-        const { post } = await response.json()
       } else {
         // 생성 모드: POST 요청
         const response = await fetch('/api/posts', {
@@ -358,8 +366,6 @@ export function DamoUploadDialog({
           const error = await response.json()
           throw new Error(error.error || '게시물 생성에 실패했습니다.')
         }
-
-        const { post } = await response.json()
       }
 
       // 성공 후 다이얼로그 닫기 및 목록 새로고침
@@ -383,7 +389,7 @@ export function DamoUploadDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditMode ? 'D.AMO 게시물 수정' : 'D.AMO 게시물 추가'}
+            {isEditMode ? `${label} 게시물 수정` : `${label} 게시물 추가`}
           </DialogTitle>
           <DialogDescription>
             PDF 포맷의 브로셔 파일을 업로드하세요.
@@ -449,7 +455,7 @@ export function DamoUploadDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {DAMO_TYPES.map((type) => (
+                        {types.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>
@@ -478,7 +484,7 @@ export function DamoUploadDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {DAMO_LANGUAGES.map((lang) => (
+                        {languages.map((lang) => (
                           <SelectItem key={lang} value={lang}>
                             {lang}
                           </SelectItem>
@@ -532,7 +538,7 @@ export function DamoUploadDialog({
 
             <div className="space-y-2">
               <label className="text-sm font-medium">PDF 파일</label>
-              
+
               {/* 파일 입력 필드 - 수정 모드에서도 항상 표시 */}
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
                 <input

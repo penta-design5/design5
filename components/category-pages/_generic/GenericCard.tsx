@@ -10,33 +10,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { buildPdfDownloadFilename } from '@/lib/category-listing/post-file'
 
 interface Post {
   id: string
   title: string
-  concept?: string | null // 타입 (D.AMO, D.AMO Cloud 등)
-  tool?: string | null // 언어 (EN, KR, JP)
+  concept?: string | null // 타입
+  tool?: string | null // 언어
   producedAt?: Date | null // 제작일
   fileUrl?: string | null // PDF 파일 URL
 }
 
-interface DamoCardProps {
+interface GenericCardProps {
   post: Post
   isSelected: boolean
   onClick: (postId: string) => void
   onEdit?: (postId: string) => void
   onDelete?: (postId: string) => void
   showActions?: boolean
+  /** 카드 고정 너비(px) */
+  cardWidth: number
 }
 
-export function DamoCard({
+/**
+ * 표준 카테고리(Damo/Cloudbric/iSIGN/WAPPLES …) 공통 카드.
+ * 제목/언어/미리보기·다운로드 버튼 + 호버 시 수정·삭제 액션 + PDF 미리보기 다이얼로그.
+ */
+export function GenericCard({
   post,
   isSelected,
   onClick,
   onEdit,
   onDelete,
   showActions = false,
-}: DamoCardProps) {
+  cardWidth,
+}: GenericCardProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false) // PDF 로딩 상태 추가
@@ -72,21 +80,8 @@ export function DamoCard({
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      
-      // 파일명 생성: 제목_언어_제작일.pdf
-      let fileName = post.title
-      if (post.tool) {
-        fileName += `_${post.tool}`
-      }
-      if (post.producedAt) {
-        const date = new Date(post.producedAt)
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const day = String(date.getDate()).padStart(2, '0')
-        fileName += `_${year}${month}${day}`
-      }
-      a.download = `${fileName}.pdf`
-      
+      a.download = buildPdfDownloadFilename(post)
+
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -109,8 +104,9 @@ export function DamoCard({
           bg-card border rounded-lg overflow-hidden
           transition-all duration-200
           ${isSelected ? 'border-penta-blue dark:border-penta-sky' : 'hover:shadow-md'}
-          w-[320px] h-[230px] flex flex-col
+          h-[230px] flex flex-col
         `}
+        style={{ width: `${cardWidth}px` }}
         onClick={() => onClick(post.id)}
       >
         {/* 제목 표시 (상단) */}
