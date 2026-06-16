@@ -2,25 +2,21 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { uploadFile, generateSafeFileName, deleteFileByUrl } from '@/lib/b2'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { NotFoundError, BadRequestError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
 // ZIP 파일 정보 조회
-export async function GET(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const GET = withRouteHandler(
+  async (_request: Request, { params }: { params: { slug: string } }) => {
     const category = await prisma.category.findUnique({
       where: { slug: params.slug },
       select: { config: true },
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const config = category.config as any
@@ -33,21 +29,13 @@ export async function GET(
       : null
 
     return NextResponse.json({ zipInfo })
-  } catch (error: any) {
-    console.error('Get ZIP info error:', error)
-    return NextResponse.json(
-      { error: 'ZIP 파일 정보를 가져오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  'ZIP 파일 정보를 가져오는 중 오류가 발생했습니다.'
+)
 
 // ZIP 파일 업로드 (관리자만)
-export async function POST(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const POST = withRouteHandler(
+  async (request: Request, { params }: { params: { slug: string } }) => {
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -55,20 +43,14 @@ export async function POST(
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일이 필요합니다.')
     }
 
     // ZIP 파일만 허용
@@ -78,18 +60,12 @@ export async function POST(
       file.name.toLowerCase().endsWith('.zip')
 
     if (!isZipFile) {
-      return NextResponse.json(
-        { error: 'ZIP 파일만 업로드할 수 있습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('ZIP 파일만 업로드할 수 있습니다.')
     }
 
     // 파일 크기 검증 (100MB)
     if (file.size > 100 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: '파일 크기는 100MB를 초과할 수 없습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일 크기는 100MB를 초과할 수 없습니다.')
     }
 
     // 기존 ZIP 파일이 있으면 삭제 (선택사항)
@@ -131,28 +107,13 @@ export async function POST(
       },
       message: 'ZIP 파일이 업로드되었습니다.',
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('ZIP upload error:', error)
-    return NextResponse.json(
-      { error: 'ZIP 파일 업로드 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  'ZIP 파일 업로드 중 오류가 발생했습니다.'
+)
 
 // ZIP 파일 삭제 (관리자만)
-export async function DELETE(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const DELETE = withRouteHandler(
+  async (_request: Request, { params }: { params: { slug: string } }) => {
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -160,18 +121,12 @@ export async function DELETE(
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const config = category.config as any
     if (!config?.zipFileUrl) {
-      return NextResponse.json(
-        { error: '삭제할 ZIP 파일이 없습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('삭제할 ZIP 파일이 없습니다.')
     }
 
     // Backblaze B2에서 파일 삭제
@@ -197,18 +152,6 @@ export async function DELETE(
       success: true,
       message: 'ZIP 파일이 삭제되었습니다.',
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('ZIP delete error:', error)
-    return NextResponse.json(
-      { error: 'ZIP 파일 삭제 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  'ZIP 파일 삭제 중 오류가 발생했습니다.'
+)

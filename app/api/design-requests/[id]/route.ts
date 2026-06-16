@@ -3,6 +3,8 @@ import { DesignRequestStatus, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth-helpers'
 import { z } from 'zod'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { NotFoundError, ForbiddenError, BadRequestError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,11 +30,8 @@ function canMutate(
   return user.id === authorId || user.role === UserRole.ADMIN
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
+export const GET = withRouteHandler(
+  async (_request: Request, { params }: { params: { id: string } }) => {
     await requireAuth()
 
     const row = await prisma.designRequest.findUnique({
@@ -45,39 +44,27 @@ export async function GET(
     })
 
     if (!row) {
-      return NextResponse.json({ error: '게시글을 찾을 수 없습니다.' }, { status: 404 })
+      throw new NotFoundError('게시글을 찾을 수 없습니다.')
     }
 
     return NextResponse.json({ item: row })
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : ''
-    if (msg === 'Unauthorized') {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
-    }
-    console.error('GET /api/design-requests/[id]', error)
-    return NextResponse.json(
-      { error: '불러오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '불러오는 중 오류가 발생했습니다.'
+)
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
+export const PATCH = withRouteHandler(
+  async (request: Request, { params }: { params: { id: string } }) => {
     const user = await requireAuth()
     const existing = await prisma.designRequest.findUnique({
       where: { id: params.id },
     })
 
     if (!existing) {
-      return NextResponse.json({ error: '게시글을 찾을 수 없습니다.' }, { status: 404 })
+      throw new NotFoundError('게시글을 찾을 수 없습니다.')
     }
 
     if (!canMutate(user, existing.authorId)) {
-      return NextResponse.json({ error: '수정 권한이 없습니다.' }, { status: 403 })
+      throw new ForbiddenError('수정 권한이 없습니다.')
     }
 
     const body = await request.json()
@@ -102,7 +89,7 @@ export async function PATCH(
     }
 
     if (Object.keys(update).length === 0) {
-      return NextResponse.json({ error: '수정할 항목이 없습니다.' }, { status: 400 })
+      throw new BadRequestError('수정할 항목이 없습니다.')
     }
 
     const updated = await prisma.designRequest.update({
@@ -116,41 +103,23 @@ export async function PATCH(
     })
 
     return NextResponse.json({ item: updated })
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : ''
-    if (msg === 'Unauthorized') {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
-    }
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0]?.message ?? '입력값을 확인해주세요.' },
-        { status: 400 }
-      )
-    }
-    console.error('PATCH /api/design-requests/[id]', error)
-    return NextResponse.json(
-      { error: '수정 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '수정 중 오류가 발생했습니다.'
+)
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
+export const DELETE = withRouteHandler(
+  async (_request: Request, { params }: { params: { id: string } }) => {
     const user = await requireAuth()
     const existing = await prisma.designRequest.findUnique({
       where: { id: params.id },
     })
 
     if (!existing) {
-      return NextResponse.json({ error: '게시글을 찾을 수 없습니다.' }, { status: 404 })
+      throw new NotFoundError('게시글을 찾을 수 없습니다.')
     }
 
     if (!canMutate(user, existing.authorId)) {
-      return NextResponse.json({ error: '삭제 권한이 없습니다.' }, { status: 403 })
+      throw new ForbiddenError('삭제 권한이 없습니다.')
     }
 
     await prisma.designRequest.delete({
@@ -158,15 +127,6 @@ export async function DELETE(
     })
 
     return NextResponse.json({ ok: true })
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : ''
-    if (msg === 'Unauthorized') {
-      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 })
-    }
-    console.error('DELETE /api/design-requests/[id]', error)
-    return NextResponse.json(
-      { error: '삭제 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '삭제 중 오류가 발생했습니다.'
+)

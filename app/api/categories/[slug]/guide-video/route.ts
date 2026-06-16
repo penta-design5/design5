@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
 import { uploadFile, generateSafeFileName, deleteFileByUrl } from '@/lib/b2'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { NotFoundError, BadRequestError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,21 +12,15 @@ const MAX_VIDEO_SIZE = 150 * 1024 * 1024 // 150MB
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm']
 
 // 가이드 영상 정보 조회
-export async function GET(
-  _request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const GET = withRouteHandler(
+  async (_request: Request, { params }: { params: { slug: string } }) => {
     const category = await prisma.category.findUnique({
       where: { slug: params.slug },
       select: { config: true },
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const config = category.config as Record<string, unknown> | null
@@ -39,21 +35,13 @@ export async function GET(
         : null
 
     return NextResponse.json({ guideVideo })
-  } catch (error: unknown) {
-    console.error('Get guide video error:', error)
-    return NextResponse.json(
-      { error: '가이드 영상 정보를 가져오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '가이드 영상 정보를 가져오는 중 오류가 발생했습니다.'
+)
 
 // 가이드 영상 업로드 (관리자만)
-export async function POST(
-  request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const POST = withRouteHandler(
+  async (request: Request, { params }: { params: { slug: string } }) => {
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -61,34 +49,22 @@ export async function POST(
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일이 필요합니다.')
     }
 
     if (!ALLOWED_VIDEO_TYPES.includes(file.type) && !file.name.toLowerCase().endsWith('.mp4')) {
-      return NextResponse.json(
-        { error: 'MP4 또는 WebM 형식만 업로드할 수 있습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('MP4 또는 WebM 형식만 업로드할 수 있습니다.')
     }
 
     if (file.size > MAX_VIDEO_SIZE) {
-      return NextResponse.json(
-        { error: `파일 크기는 ${MAX_VIDEO_SIZE / 1024 / 1024}MB를 초과할 수 없습니다.` },
-        { status: 400 }
-      )
+      throw new BadRequestError(`파일 크기는 ${MAX_VIDEO_SIZE / 1024 / 1024}MB를 초과할 수 없습니다.`)
     }
 
     const currentConfig = (category.config as Record<string, unknown>) || {}
@@ -130,27 +106,13 @@ export async function POST(
       },
       message: '가이드 영상이 업로드되었습니다.',
     })
-  } catch (error: unknown) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-    console.error('Guide video upload error:', error)
-    return NextResponse.json(
-      { error: '가이드 영상 업로드 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '가이드 영상 업로드 중 오류가 발생했습니다.'
+)
 
 // 가이드 영상 삭제 (관리자만)
-export async function DELETE(
-  _request: Request,
-  { params }: { params: { slug: string } }
-) {
-  try {
+export const DELETE = withRouteHandler(
+  async (_request: Request, { params }: { params: { slug: string } }) => {
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -158,20 +120,14 @@ export async function DELETE(
     })
 
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     const config = (category.config as Record<string, unknown>) || {}
     const guideVideoUrl = config.guideVideoUrl
 
     if (!guideVideoUrl || typeof guideVideoUrl !== 'string') {
-      return NextResponse.json(
-        { error: '삭제할 가이드 영상이 없습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('삭제할 가이드 영상이 없습니다.')
     }
 
     try {
@@ -194,17 +150,6 @@ export async function DELETE(
       success: true,
       message: '가이드 영상이 삭제되었습니다.',
     })
-  } catch (error: unknown) {
-    if (error instanceof Error && (error.message === 'Unauthorized' || error.message === 'Forbidden')) {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-    console.error('Guide video delete error:', error)
-    return NextResponse.json(
-      { error: '가이드 영상 삭제 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  },
+  '가이드 영상 삭제 중 오류가 발생했습니다.'
+)
