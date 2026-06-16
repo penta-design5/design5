@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { uploadFile, downloadFile } from '@/lib/b2'
 import sharp from 'sharp'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { BadRequestError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,18 +11,14 @@ export const dynamic = 'force-dynamic'
  * SVG 파일용 썸네일 생성 API
  * SVG를 PNG로 변환하여 136px 높이 기준으로 썸네일 생성
  */
-export async function POST(request: Request) {
-  try {
-    await requireAdmin()
+export const POST = withRouteHandler(async (request: Request) => {
+  await requireAdmin()
 
     const body = await request.json()
     const { fileUrl, fileName } = body
 
     if (!fileUrl || !fileName) {
-      return NextResponse.json(
-        { error: '파일 URL과 파일명이 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일 URL과 파일명이 필요합니다.')
     }
 
     // 원본 SVG 파일 다운로드
@@ -28,10 +26,7 @@ export async function POST(request: Request) {
 
     // SVG가 아닌 경우 에러
     if (!contentType.includes('svg') && !fileName.toLowerCase().endsWith('.svg')) {
-      return NextResponse.json(
-        { error: 'SVG 파일만 썸네일을 생성할 수 있습니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('SVG 파일만 썸네일을 생성할 수 있습니다.')
     }
 
     // SVG를 PNG로 변환하여 썸네일 생성 (136px 높이 기준)
@@ -73,18 +68,4 @@ export async function POST(request: Request) {
       thumbnailUrl: thumbnailResult.fileUrl,
       blurDataURL,
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('SVG thumbnail generation error:', error)
-    return NextResponse.json(
-      { error: error.message || '썸네일 생성 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '썸네일 생성 중 오류가 발생했습니다.')

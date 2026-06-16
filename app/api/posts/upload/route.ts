@@ -1,36 +1,28 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { uploadImageWithThumbnail, uploadFile, generateSafeFileName } from '@/lib/b2'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { BadRequestError } from '@/lib/api/errors'
 
-export async function POST(request: Request) {
-  try {
-    await requireAdmin()
+export const POST = withRouteHandler(async (request: Request) => {
+  await requireAdmin()
 
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
     const categorySlug = formData.get('categorySlug') as string
 
     if (!files || files.length === 0) {
-      return NextResponse.json(
-        { error: '파일이 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일이 필요합니다.')
     }
 
     if (!categorySlug) {
-      return NextResponse.json(
-        { error: '카테고리 정보가 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('카테고리 정보가 필요합니다.')
     }
 
     // 파일 크기 검증 (각 파일 10MB)
     for (const file of files) {
       if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: `파일 크기는 10MB를 초과할 수 없습니다: ${file.name}` },
-          { status: 400 }
-        )
+        throw new BadRequestError(`파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`)
       }
     }
 
@@ -83,19 +75,5 @@ export async function POST(request: Request) {
       success: true,
       images: uploadedImages,
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('File upload error:', error)
-    return NextResponse.json(
-      { error: error.message || '파일 업로드 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '파일 업로드 중 오류가 발생했습니다.')
 

@@ -2,21 +2,19 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { uploadFile, downloadFile, buildGalleryThumbnailBuffer } from '@/lib/b2'
 import sharp from 'sharp'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { BadRequestError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: Request) {
-  try {
-    await requireAdmin()
+export const POST = withRouteHandler(async (request: Request) => {
+  await requireAdmin()
 
     const body = await request.json()
     const { fileUrl, fileName } = body
 
     if (!fileUrl || !fileName) {
-      return NextResponse.json(
-        { error: '파일 URL과 파일명이 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('파일 URL과 파일명이 필요합니다.')
     }
 
     // 원본 이미지 다운로드
@@ -47,19 +45,5 @@ export async function POST(request: Request) {
       thumbnailUrl: thumbnailResult.fileUrl,
       blurDataURL,
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('Thumbnail generation error:', error)
-    return NextResponse.json(
-      { error: error.message || '썸네일 생성 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '썸네일 생성 중 오류가 발생했습니다.')
 

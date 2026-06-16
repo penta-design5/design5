@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { NotFoundError } from '@/lib/api/errors'
 import { z } from 'zod'
 
 const imageSchema = z.object({
@@ -24,12 +26,11 @@ const updatePostSchema = z.object({
   thumbnailUrl: z.string().url().optional().nullable(), // PPT 썸네일 이미지 URL
 })
 
-export async function GET(
+export const GET = withRouteHandler(async (
   request: Request,
   { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params
+) => {
+  const { id } = params
 
     const post = await prisma.post.findUnique({
       where: { id },
@@ -67,10 +68,7 @@ export async function GET(
     })
 
     if (!post) {
-      return NextResponse.json(
-        { error: '게시물을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('게시물을 찾을 수 없습니다.')
     }
 
     // 조회수 증가 (PUBLISHED 상태일 때만) - 재조회 없이 직접 업데이트
@@ -133,21 +131,13 @@ export async function GET(
         },
       }
     )
-  } catch (error) {
-    console.error('Get post error:', error)
-    return NextResponse.json(
-      { error: '게시물을 가져오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '게시물을 가져오는 중 오류가 발생했습니다.')
 
-export async function PUT(
+export const PUT = withRouteHandler(async (
   request: Request,
   { params }: { params: { id: string } }
-) {
-  try {
-    const admin = await requireAdmin()
+) => {
+  const admin = await requireAdmin()
     const { id } = params
     const body = await request.json()
 
@@ -162,10 +152,7 @@ export async function PUT(
     })
 
     if (!existingPost) {
-      return NextResponse.json(
-        { error: '게시물을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('게시물을 찾을 수 없습니다.')
     }
 
     // PPT 썸네일 교체·제거 시 이전 Supabase(ppt-thumbnails) 객체 삭제
@@ -360,44 +347,13 @@ export async function PUT(
     })
 
     return NextResponse.json({ post: updatedPost })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
+}, '게시물을 수정하는 중 오류가 발생했습니다.')
 
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      )
-    }
-
-    console.error('Update post error:', error)
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      meta: error.meta,
-    })
-    return NextResponse.json(
-      { 
-        error: '게시물을 수정하는 중 오류가 발생했습니다.',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500 }
-    )
-  }
-}
-
-export async function DELETE(
+export const DELETE = withRouteHandler(async (
   request: Request,
   { params }: { params: { id: string } }
-) {
-  try {
-    await requireAdmin()
+) => {
+  await requireAdmin()
     const { id } = params
 
     // 게시물 존재 확인 (이미지 정보 포함)
@@ -406,10 +362,7 @@ export async function DELETE(
     })
 
     if (!post) {
-      return NextResponse.json(
-        { error: '게시물을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('게시물을 찾을 수 없습니다.')
     }
 
     if (post.fileType === 'svg' && post.fileUrl) {
@@ -507,19 +460,5 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: '게시물이 삭제되었습니다.' })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    console.error('Delete post error:', error)
-    return NextResponse.json(
-      { error: '게시물을 삭제하는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '게시물을 삭제하는 중 오류가 발생했습니다.')
 

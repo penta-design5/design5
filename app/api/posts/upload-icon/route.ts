@@ -9,51 +9,40 @@ import {
   publicUrlForIconsKey,
 } from '@/lib/s3/config'
 import { requireS3Json } from '@/lib/s3/require-storage'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { BadRequestError, NotFoundError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: Request) {
+export const POST = withRouteHandler(async (request: Request) => {
   const bad = requireS3Json()
   if (bad) return bad
 
-  try {
-    const admin = await requireAdmin()
+  const admin = await requireAdmin()
 
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
     const categorySlug = formData.get('categorySlug') as string
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: '파일이 필요합니다.' }, { status: 400 })
+      throw new BadRequestError('파일이 필요합니다.')
     }
 
     if (!categorySlug) {
-      return NextResponse.json(
-        { error: '카테고리 정보가 필요합니다.' },
-        { status: 400 }
-      )
+      throw new BadRequestError('카테고리 정보가 필요합니다.')
     }
 
     const category = await getCategoryBySlug(categorySlug)
     if (!category) {
-      return NextResponse.json(
-        { error: '카테고리를 찾을 수 없습니다.' },
-        { status: 404 }
-      )
+      throw new NotFoundError('카테고리를 찾을 수 없습니다.')
     }
 
     for (const file of files) {
       if (file.size > 1 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: `파일 크기는 1MB를 초과할 수 없습니다. (${file.name})` },
-          { status: 400 }
-        )
+        throw new BadRequestError(`파일 크기는 1MB를 초과할 수 없습니다. (${file.name})`)
       }
       if (file.type !== 'image/svg+xml' && !file.name.toLowerCase().endsWith('.svg')) {
-        return NextResponse.json(
-          { error: `SVG 형식만 지원됩니다. (${file.name})` },
-          { status: 400 }
-        )
+        throw new BadRequestError(`SVG 형식만 지원됩니다. (${file.name})`)
       }
     }
 
@@ -112,17 +101,4 @@ export async function POST(request: Request) {
       posts: createdPosts,
       message: `${createdPosts.length}개의 아이콘이 업로드되었습니다.`,
     })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-    console.error('Icon upload error:', error)
-    return NextResponse.json(
-      { error: error.message || '아이콘 업로드 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '아이콘 업로드 중 오류가 발생했습니다.')
