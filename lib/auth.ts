@@ -5,11 +5,7 @@ import { prisma } from "./prisma"
 import * as bcrypt from "bcryptjs"
 import { UserRole } from "@prisma/client"
 import { getShowCredentialsLogin } from "./app-settings"
-
-// 이메일 도메인 검증 함수
-function isValidEmailDomain(email: string): boolean {
-  return email.toLowerCase().endsWith('@pentasecurity.com')
-}
+import { isPentaEmail } from "./access-control"
 
 export const authOptions: NextAuthConfig = {
   trustHost: true, // NextAuth v5 beta에서 필요
@@ -44,7 +40,7 @@ export const authOptions: NextAuthConfig = {
         }
 
         // 이메일 도메인 검증
-        if (!isValidEmailDomain(email)) {
+        if (!isPentaEmail(email)) {
           throw new Error('pentasecurity.com 도메인의 이메일만 로그인할 수 있습니다.')
         }
 
@@ -88,7 +84,7 @@ export const authOptions: NextAuthConfig = {
       // Google 로그인 시 이메일 도메인 검증
       if (account?.provider === 'google' && user.email) {
         // 이메일 도메인 검증
-        if (!isValidEmailDomain(user.email)) {
+        if (!isPentaEmail(user.email)) {
           return false // 로그인 거부 (에러 페이지로 리다이렉트)
         }
 

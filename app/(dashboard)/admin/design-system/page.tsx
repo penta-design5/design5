@@ -20,7 +20,7 @@ import {
   AlertTitle,
 } from '@/components/ui/alert'
 import { AlertCircle, XCircle, Search } from 'lucide-react'
-import { canAccessDesignSystem } from '@/lib/design-system-access'
+import { canAccessDesignSystem } from '@/lib/access-control'
 
 export default function DesignSystemPage() {
   const { data: session, status } = useSession()

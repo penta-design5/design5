@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import * as bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { isPentaEmail } from '@/lib/access-control'
 
 const registerSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요'),
@@ -11,11 +12,6 @@ const registerSchema = z.object({
     .regex(/^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[.!@#])/, '영문, 숫자, 특수문자(.!@#)를 포함해야 합니다'),
 })
 
-// 이메일 도메인 검증 함수
-function isValidEmailDomain(email: string): boolean {
-  return email.toLowerCase().endsWith('@pentasecurity.com')
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -24,7 +20,7 @@ export async function POST(request: Request) {
     const validatedData = registerSchema.parse(body)
 
     // 이메일 도메인 검증
-    if (!isValidEmailDomain(validatedData.email)) {
+    if (!isPentaEmail(validatedData.email)) {
       return NextResponse.json(
         { error: 'pentasecurity.com 도메인의 이메일만 회원가입이 가능합니다.' },
         { status: 403 }

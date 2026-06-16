@@ -5,7 +5,7 @@ import {
   getShowCredentialsLogin,
   setShowCredentialsLogin,
 } from '@/lib/app-settings'
-import { isPrivilegedLoginSettingsEmail } from '@/lib/privileged-admin'
+import { isPrivilegedLoginSettingsEmail } from '@/lib/access-control'
 
 export const dynamic = 'force-dynamic'
 

@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { X, User, Save, Trash2, AlertTriangle, Loader2 } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
-import { isPrivilegedLoginSettingsEmail } from '@/lib/privileged-admin'
+import { isPrivilegedLoginSettingsEmail } from '@/lib/access-control'
 
 export default function ProfilePage() {
   const { data: session, update } = useSession()
