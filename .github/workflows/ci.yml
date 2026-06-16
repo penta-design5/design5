@@ -1,0 +1,45 @@
+# PR 검증 CI — DB/Storage 비의존 게이트
+#
+# [중요] 이 프로젝트의 DB·오브젝트 스토리지는 사내망 개발 서버에 있으며
+# GitHub Actions(외부)에서는 접근할 수 없습니다. 따라서 CI는 실행에 DB가
+# 필요 없는 단계만 게이트로 둡니다:
+#   - prisma generate : 스키마로 클라이언트 생성 (DB 연결 안 함)
+#   - lint            : ESLint (경고 다수, 에러 0)
+#   - typecheck       : tsc --noEmit (빌드 타입 안전성 확보, DB 불필요)
+#   - test            : vitest 순수 단위 테스트 (DB/네트워크 비의존)
+#
+# `next build` 전체 검증은 DB가 도달 가능한 사내망(서버측, deploy/rocky)에서 수행합니다.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
