@@ -5,6 +5,8 @@ import { requireAdmin } from '@/lib/auth-helpers'
 import { z } from 'zod'
 import { getCategoryBySlug } from '@/lib/categories'
 import { getInMemoryPostSorter } from '@/lib/post-sorting'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { NotFoundError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,8 +73,7 @@ const POST_LIST_INCLUDE = {
   },
 } as const
 
-export async function GET(request: Request) {
-  try {
+export const GET = withRouteHandler(async (request: Request) => {
     const { searchParams } = new URL(request.url)
 
     // null 값을 undefined로 변환
@@ -106,10 +107,7 @@ export async function GET(request: Request) {
       category = await getCategoryBySlug(validatedQuery.categorySlug)
 
       if (!category) {
-        return NextResponse.json(
-          { error: '카테고리를 찾을 수 없습니다.' },
-          { status: 404 }
-        )
+        throw new NotFoundError('카테고리를 찾을 수 없습니다.')
       }
 
       where.categoryId = category.id
@@ -231,24 +229,9 @@ export async function GET(request: Request) {
         },
       }
     )
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      )
-    }
+}, '게시물 목록을 가져오는 중 오류가 발생했습니다.')
 
-    console.error('Get posts error:', error)
-    return NextResponse.json(
-      { error: '게시물 목록을 가져오는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: Request) {
-  try {
+export const POST = withRouteHandler(async (request: Request) => {
     const admin = await requireAdmin()
     const body = await request.json()
     const validatedData = createPostSchema.parse(body)
@@ -349,25 +332,4 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ post }, { status: 201 })
-  } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message === 'Forbidden') {
-      return NextResponse.json(
-        { error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
-      )
-    }
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      )
-    }
-
-    console.error('Create post error:', error)
-    return NextResponse.json(
-      { error: '게시물을 생성하는 중 오류가 발생했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+}, '게시물을 생성하는 중 오류가 발생했습니다.')
