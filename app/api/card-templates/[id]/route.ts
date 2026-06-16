@@ -5,6 +5,8 @@ import sharp from 'sharp'
 import { updateCardTemplateSchema } from '@/lib/card-schemas'
 import { deleteFileByUrl, downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import type { BackgroundImageItem } from '@/lib/card-schemas'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/api/errors'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -49,199 +51,160 @@ async function generateCardThumbnail(
 }
 
 // GET: 단일 템플릿 조회
-export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const { id } = await params
+export const GET = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const { id } = await params
 
-    const template = await prisma.cardTemplate.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+  const template = await prisma.cardTemplate.findUnique({
+    where: { id },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
-    })
+    },
+  })
 
-    if (!template) {
-      return NextResponse.json(
-        { error: '템플릿을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(template)
-  } catch (error) {
-    console.error('[GET /api/card-templates/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '템플릿을 불러오는데 실패했습니다.' },
-      { status: 500 }
-    )
+  if (!template) {
+    throw new NotFoundError('템플릿을 찾을 수 없습니다.')
   }
-}
+
+  return NextResponse.json(template)
+}, '템플릿을 불러오는데 실패했습니다.')
 
 // PUT: 템플릿 수정 (관리자 전용)
-export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth()
+export const PUT = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const session = await auth()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
+  if (!session?.user) {
+    throw new UnauthorizedError('인증이 필요합니다.')
+  }
 
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: '관리자만 템플릿을 수정할 수 있습니다.' },
-        { status: 403 }
-      )
-    }
+  if (session.user.role !== 'ADMIN') {
+    throw new ForbiddenError('관리자만 템플릿을 수정할 수 있습니다.')
+  }
 
-    const { id } = await params
-    const body = await request.json()
-    const validationResult = updateCardTemplateSchema.safeParse(body)
+  const { id } = await params
+  const body = await request.json()
+  const validationResult = updateCardTemplateSchema.safeParse(body)
 
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: '입력 데이터가 올바르지 않습니다.', details: validationResult.error.errors },
-        { status: 400 }
-      )
-    }
+  if (!validationResult.success) {
+    return NextResponse.json(
+      { error: '입력 데이터가 올바르지 않습니다.', details: validationResult.error.errors },
+      { status: 400 }
+    )
+  }
 
-    const existingTemplate = await prisma.cardTemplate.findUnique({
-      where: { id },
-    })
+  const existingTemplate = await prisma.cardTemplate.findUnique({
+    where: { id },
+  })
 
-    if (!existingTemplate) {
-      return NextResponse.json(
-        { error: '템플릿을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
+  if (!existingTemplate) {
+    throw new NotFoundError('템플릿을 찾을 수 없습니다.')
+  }
 
-    // backgroundImages가 바뀌면 기존 B2 URL 중 새 목록에 없는 것은 삭제
-    const newImages = validationResult.data.backgroundImages as BackgroundImageItem[] | undefined
-    if (newImages) {
-      const oldUrls = new Set(getB2UrlsFromBackgroundImages(existingTemplate.backgroundImages))
-      const newUrls = new Set(getB2UrlsFromBackgroundImages(newImages))
-      for (const url of oldUrls) {
-        if (!newUrls.has(url)) {
-          try {
-            await deleteFileByUrl(url)
-          } catch (e) {
-            console.error('[PUT] Failed to delete old background image:', url, e)
-          }
-        }
-      }
-    }
-
-    const updateData = { ...validationResult.data } as {
-      name?: string
-      description?: string
-      thumbnailUrl?: string
-      backgroundImages?: object[]
-      width?: number
-      height?: number
-      config?: object
-      status?: string
-    }
-
-    // 배경 이미지가 있으면 썸네일 생성 후 B2 업로드, 기존 썸네일(B2) 삭제
-    if (newImages?.length && newImages[0].url) {
-      const thumbUrl = await generateCardThumbnail(newImages[0].url, id)
-      if (thumbUrl) updateData.thumbnailUrl = thumbUrl
-      const existingThumb = existingTemplate.thumbnailUrl
-      if (existingThumb && isB2StorageUrl(existingThumb)) {
+  // backgroundImages가 바뀌면 기존 B2 URL 중 새 목록에 없는 것은 삭제
+  const newImages = validationResult.data.backgroundImages as BackgroundImageItem[] | undefined
+  if (newImages) {
+    const oldUrls = new Set(getB2UrlsFromBackgroundImages(existingTemplate.backgroundImages))
+    const newUrls = new Set(getB2UrlsFromBackgroundImages(newImages))
+    for (const url of oldUrls) {
+      if (!newUrls.has(url)) {
         try {
-          await deleteFileByUrl(existingThumb)
+          await deleteFileByUrl(url)
         } catch (e) {
-          console.warn('[PUT] Failed to delete old thumbnail:', e)
+          console.error('[PUT] Failed to delete old background image:', url, e)
         }
       }
     }
+  }
 
-    const template = await prisma.cardTemplate.update({
-      where: { id },
-      data: updateData,
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+  const updateData = { ...validationResult.data } as {
+    name?: string
+    description?: string
+    thumbnailUrl?: string
+    backgroundImages?: object[]
+    width?: number
+    height?: number
+    config?: object
+    status?: string
+  }
+
+  // 배경 이미지가 있으면 썸네일 생성 후 B2 업로드, 기존 썸네일(B2) 삭제
+  if (newImages?.length && newImages[0].url) {
+    const thumbUrl = await generateCardThumbnail(newImages[0].url, id)
+    if (thumbUrl) updateData.thumbnailUrl = thumbUrl
+    const existingThumb = existingTemplate.thumbnailUrl
+    if (existingThumb && isB2StorageUrl(existingThumb)) {
+      try {
+        await deleteFileByUrl(existingThumb)
+      } catch (e) {
+        console.warn('[PUT] Failed to delete old thumbnail:', e)
+      }
+    }
+  }
+
+  const template = await prisma.cardTemplate.update({
+    where: { id },
+    data: updateData,
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
-    })
+    },
+  })
 
-    return NextResponse.json(template)
-  } catch (error) {
-    console.error('[PUT /api/card-templates/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '템플릿 수정에 실패했습니다.' },
-      { status: 500 }
-    )
-  }
-}
+  return NextResponse.json(template)
+}, '템플릿 수정에 실패했습니다.')
 
 // DELETE: 템플릿 삭제 (관리자 전용)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth()
+export const DELETE = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const session = await auth()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
-
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: '관리자만 템플릿을 삭제할 수 있습니다.' },
-        { status: 403 }
-      )
-    }
-
-    const { id } = await params
-
-    const existingTemplate = await prisma.cardTemplate.findUnique({
-      where: { id },
-    })
-
-    if (!existingTemplate) {
-      return NextResponse.json(
-        { error: '템플릿을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
-
-    const urls = getB2UrlsFromBackgroundImages(existingTemplate.backgroundImages)
-    for (const url of urls) {
-      try {
-        await deleteFileByUrl(url)
-      } catch (e) {
-        console.error('[DELETE] Failed to delete background image:', url, e)
-      }
-    }
-    const thumbUrl = existingTemplate.thumbnailUrl
-    if (thumbUrl && isB2StorageUrl(thumbUrl)) {
-      try {
-        await deleteFileByUrl(thumbUrl)
-      } catch (e) {
-        console.warn('[DELETE] Failed to delete thumbnail:', e)
-      }
-    }
-
-    await prisma.cardTemplate.delete({
-      where: { id },
-    })
-
-    return NextResponse.json({ success: true, message: '템플릿이 삭제되었습니다.' })
-  } catch (error) {
-    console.error('[DELETE /api/card-templates/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '템플릿 삭제에 실패했습니다.' },
-      { status: 500 }
-    )
+  if (!session?.user) {
+    throw new UnauthorizedError('인증이 필요합니다.')
   }
-}
+
+  if (session.user.role !== 'ADMIN') {
+    throw new ForbiddenError('관리자만 템플릿을 삭제할 수 있습니다.')
+  }
+
+  const { id } = await params
+
+  const existingTemplate = await prisma.cardTemplate.findUnique({
+    where: { id },
+  })
+
+  if (!existingTemplate) {
+    throw new NotFoundError('템플릿을 찾을 수 없습니다.')
+  }
+
+  const urls = getB2UrlsFromBackgroundImages(existingTemplate.backgroundImages)
+  for (const url of urls) {
+    try {
+      await deleteFileByUrl(url)
+    } catch (e) {
+      console.error('[DELETE] Failed to delete background image:', url, e)
+    }
+  }
+  const thumbUrl = existingTemplate.thumbnailUrl
+  if (thumbUrl && isB2StorageUrl(thumbUrl)) {
+    try {
+      await deleteFileByUrl(thumbUrl)
+    } catch (e) {
+      console.warn('[DELETE] Failed to delete thumbnail:', e)
+    }
+  }
+
+  await prisma.cardTemplate.delete({
+    where: { id },
+  })
+
+  return NextResponse.json({ success: true, message: '템플릿이 삭제되었습니다.' })
+}, '템플릿 삭제에 실패했습니다.')

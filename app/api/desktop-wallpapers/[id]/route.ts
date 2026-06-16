@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { deleteFileByUrl, downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import sharp from 'sharp'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '@/lib/api/errors'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -35,170 +37,128 @@ async function generateThumbnailUrl(
 }
 
 // GET: 단건 조회
-export async function GET(request: NextRequest, { params }: RouteParams) {
-  try {
-    const { id } = await params
+export const GET = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const { id } = await params
 
-    const wallpaper = await prisma.desktopWallpaper.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: { id: true, name: true, email: true },
-        },
+  const wallpaper = await prisma.desktopWallpaper.findUnique({
+    where: { id },
+    include: {
+      author: {
+        select: { id: true, name: true, email: true },
       },
-    })
+    },
+  })
 
-    if (!wallpaper) {
-      return NextResponse.json(
-        { error: '바탕화면을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(wallpaper)
-  } catch (error) {
-    console.error('[GET /api/desktop-wallpapers/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '바탕화면을 불러오는데 실패했습니다.' },
-      { status: 500 }
-    )
+  if (!wallpaper) {
+    throw new NotFoundError('바탕화면을 찾을 수 없습니다.')
   }
-}
+
+  return NextResponse.json(wallpaper)
+}, '바탕화면을 불러오는데 실패했습니다.')
 
 // PUT: 수정 (관리자 전용)
-export async function PUT(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth()
+export const PUT = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const session = await auth()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
-
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: '관리자만 바탕화면을 수정할 수 있습니다.' },
-        { status: 403 }
-      )
-    }
-
-    const { id } = await params
-    const body = await request.json()
-    const {
-      title,
-      description,
-      backgroundUrlWindows,
-      backgroundUrlMac,
-      thumbnailUrl: clientThumbnailUrl,
-    } = body
-
-    const existing = await prisma.desktopWallpaper.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json(
-        { error: '바탕화면을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
-
-    const hasWindows = backgroundUrlWindows && typeof backgroundUrlWindows === 'string'
-    const hasMac = backgroundUrlMac && typeof backgroundUrlMac === 'string'
-    if (!hasWindows && !hasMac) {
-      return NextResponse.json(
-        { error: '배경 이미지를 최소 1개 이상 유지해주세요.' },
-        { status: 400 }
-      )
-    }
-
-    let thumbnailUrl = clientThumbnailUrl ?? existing.thumbnailUrl
-    const bgChanged =
-      (hasWindows && backgroundUrlWindows !== existing.backgroundUrlWindows) ||
-      (hasMac && backgroundUrlMac !== existing.backgroundUrlMac)
-    if (bgChanged && !clientThumbnailUrl) {
-      const generated = await generateThumbnailUrl(
-        hasWindows ? backgroundUrlWindows : null,
-        hasMac ? backgroundUrlMac : null,
-        `thumb_${id}_${Date.now()}`
-      )
-      if (generated) thumbnailUrl = generated
-    }
-
-    const wallpaper = await prisma.desktopWallpaper.update({
-      where: { id },
-      data: {
-        ...(title !== undefined && { title: String(title).trim() }),
-        ...(description !== undefined && { description: description?.trim() || null }),
-        ...(backgroundUrlWindows !== undefined && {
-          backgroundUrlWindows: hasWindows ? backgroundUrlWindows : null,
-        }),
-        ...(backgroundUrlMac !== undefined && {
-          backgroundUrlMac: hasMac ? backgroundUrlMac : null,
-        }),
-        thumbnailUrl,
-      },
-      include: {
-        author: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-    })
-
-    return NextResponse.json(wallpaper)
-  } catch (error) {
-    console.error('[PUT /api/desktop-wallpapers/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '바탕화면 수정에 실패했습니다.' },
-      { status: 500 }
-    )
+  if (!session?.user) {
+    throw new UnauthorizedError('인증이 필요합니다.')
   }
-}
+
+  if (session.user.role !== 'ADMIN') {
+    throw new ForbiddenError('관리자만 바탕화면을 수정할 수 있습니다.')
+  }
+
+  const { id } = await params
+  const body = await request.json()
+  const {
+    title,
+    description,
+    backgroundUrlWindows,
+    backgroundUrlMac,
+    thumbnailUrl: clientThumbnailUrl,
+  } = body
+
+  const existing = await prisma.desktopWallpaper.findUnique({ where: { id } })
+  if (!existing) {
+    throw new NotFoundError('바탕화면을 찾을 수 없습니다.')
+  }
+
+  const hasWindows = backgroundUrlWindows && typeof backgroundUrlWindows === 'string'
+  const hasMac = backgroundUrlMac && typeof backgroundUrlMac === 'string'
+  if (!hasWindows && !hasMac) {
+    throw new BadRequestError('배경 이미지를 최소 1개 이상 유지해주세요.')
+  }
+
+  let thumbnailUrl = clientThumbnailUrl ?? existing.thumbnailUrl
+  const bgChanged =
+    (hasWindows && backgroundUrlWindows !== existing.backgroundUrlWindows) ||
+    (hasMac && backgroundUrlMac !== existing.backgroundUrlMac)
+  if (bgChanged && !clientThumbnailUrl) {
+    const generated = await generateThumbnailUrl(
+      hasWindows ? backgroundUrlWindows : null,
+      hasMac ? backgroundUrlMac : null,
+      `thumb_${id}_${Date.now()}`
+    )
+    if (generated) thumbnailUrl = generated
+  }
+
+  const wallpaper = await prisma.desktopWallpaper.update({
+    where: { id },
+    data: {
+      ...(title !== undefined && { title: String(title).trim() }),
+      ...(description !== undefined && { description: description?.trim() || null }),
+      ...(backgroundUrlWindows !== undefined && {
+        backgroundUrlWindows: hasWindows ? backgroundUrlWindows : null,
+      }),
+      ...(backgroundUrlMac !== undefined && {
+        backgroundUrlMac: hasMac ? backgroundUrlMac : null,
+      }),
+      thumbnailUrl,
+    },
+    include: {
+      author: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  })
+
+  return NextResponse.json(wallpaper)
+}, '바탕화면 수정에 실패했습니다.')
 
 // DELETE: 삭제 (관리자 전용)
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    const session = await auth()
+export const DELETE = withRouteHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const session = await auth()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
-
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: '관리자만 바탕화면을 삭제할 수 있습니다.' },
-        { status: 403 }
-      )
-    }
-
-    const { id } = await params
-
-    const existing = await prisma.desktopWallpaper.findUnique({ where: { id } })
-    if (!existing) {
-      return NextResponse.json(
-        { error: '바탕화면을 찾을 수 없습니다.' },
-        { status: 404 }
-      )
-    }
-
-    const urlsToDelete = [
-      existing.thumbnailUrl,
-      existing.backgroundUrlWindows,
-      existing.backgroundUrlMac,
-    ].filter((u): u is string => !!u && isB2StorageUrl(u))
-
-    for (const url of urlsToDelete) {
-      try {
-        await deleteFileByUrl(url)
-      } catch (err) {
-        console.error('[DELETE] Failed to delete file:', url, err)
-      }
-    }
-
-    await prisma.desktopWallpaper.delete({ where: { id } })
-
-    return NextResponse.json({ success: true, message: '바탕화면이 삭제되었습니다.' })
-  } catch (error) {
-    console.error('[DELETE /api/desktop-wallpapers/[id]] Error:', error)
-    return NextResponse.json(
-      { error: '바탕화면 삭제에 실패했습니다.' },
-      { status: 500 }
-    )
+  if (!session?.user) {
+    throw new UnauthorizedError('인증이 필요합니다.')
   }
-}
+
+  if (session.user.role !== 'ADMIN') {
+    throw new ForbiddenError('관리자만 바탕화면을 삭제할 수 있습니다.')
+  }
+
+  const { id } = await params
+
+  const existing = await prisma.desktopWallpaper.findUnique({ where: { id } })
+  if (!existing) {
+    throw new NotFoundError('바탕화면을 찾을 수 없습니다.')
+  }
+
+  const urlsToDelete = [
+    existing.thumbnailUrl,
+    existing.backgroundUrlWindows,
+    existing.backgroundUrlMac,
+  ].filter((u): u is string => !!u && isB2StorageUrl(u))
+
+  for (const url of urlsToDelete) {
+    try {
+      await deleteFileByUrl(url)
+    } catch (err) {
+      console.error('[DELETE] Failed to delete file:', url, err)
+    }
+  }
+
+  await prisma.desktopWallpaper.delete({ where: { id } })
+
+  return NextResponse.json({ success: true, message: '바탕화면이 삭제되었습니다.' })
+}, '바탕화면 삭제에 실패했습니다.')

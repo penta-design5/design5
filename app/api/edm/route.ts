@@ -9,215 +9,200 @@ import {
 import sharp from 'sharp'
 import { parseGridToCells, generateHtmlCode } from '@/lib/edm-utils'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
+import { withRouteHandler } from '@/lib/api/with-route-handler'
+import { UnauthorizedError, BadRequestError } from '@/lib/api/errors'
 
 // GET /api/edm - eDM 목록 조회 (관리자는 전체, 일반 사용자는 본인만)
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
-
-    const isAdmin = session.user.role === 'ADMIN'
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const skip = (page - 1) * limit
-
-    const where = isAdmin ? {} : { authorId: session.user.id }
-
-    const [edmsRaw, total] = await Promise.all([
-      prisma.edm.findMany({
-        where,
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          thumbnailUrl: true,
-          imageWidth: true,
-          imageHeight: true,
-          authorId: true,
-          createdAt: true,
-          updatedAt: true,
-          author: {
-            select: { id: true, name: true },
-          },
-        },
-        orderBy: { updatedAt: 'desc' },
-        skip,
-        take: limit,
-      }),
-      prisma.edm.count({ where }),
-    ])
-
-    const edms = await Promise.all(
-      edmsRaw.map(async (edm) => {
-        let thumbnailUrl = edm.thumbnailUrl
-        if (thumbnailUrl && isObjectKey(thumbnailUrl)) {
-          try {
-            thumbnailUrl = await getPresignedUrl(thumbnailUrl)
-          } catch (e) {
-            console.warn('Presigned URL 실패(목록 thumbnail):', e)
-          }
-        }
-        return { ...edm, thumbnailUrl }
-      })
-    )
-
-    return NextResponse.json({
-      edms,
-      pagination: {
-        page,
-        limit,
-        total,
-        hasMore: skip + edms.length < total,
-      },
-    })
-  } catch (error) {
-    console.error('Error fetching edms:', error)
-    return NextResponse.json(
-      { error: 'eDM 목록을 불러오는데 실패했습니다.' },
-      { status: 500 }
-    )
+export const GET = withRouteHandler(async (request: NextRequest) => {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new UnauthorizedError('인증이 필요합니다.')
   }
-}
+
+  const isAdmin = session.user.role === 'ADMIN'
+  const { searchParams } = new URL(request.url)
+  const page = parseInt(searchParams.get('page') || '1')
+  const limit = parseInt(searchParams.get('limit') || '20')
+  const skip = (page - 1) * limit
+
+  const where = isAdmin ? {} : { authorId: session.user.id }
+
+  const [edmsRaw, total] = await Promise.all([
+    prisma.edm.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        thumbnailUrl: true,
+        imageWidth: true,
+        imageHeight: true,
+        authorId: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.edm.count({ where }),
+  ])
+
+  const edms = await Promise.all(
+    edmsRaw.map(async (edm) => {
+      let thumbnailUrl = edm.thumbnailUrl
+      if (thumbnailUrl && isObjectKey(thumbnailUrl)) {
+        try {
+          thumbnailUrl = await getPresignedUrl(thumbnailUrl)
+        } catch (e) {
+          console.warn('Presigned URL 실패(목록 thumbnail):', e)
+        }
+      }
+      return { ...edm, thumbnailUrl }
+    })
+  )
+
+  return NextResponse.json({
+    edms,
+    pagination: {
+      page,
+      limit,
+      total,
+      hasMore: skip + edms.length < total,
+    },
+  })
+}, 'eDM 목록을 불러오는데 실패했습니다.')
 
 // POST /api/edm - 새 eDM 생성
-export async function POST(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
-
-    const formData = await request.formData()
-    const image = formData.get('image') as File
-    const title = formData.get('title') as string
-    const description = (formData.get('description') as string) || ''
-    const gridConfig = JSON.parse((formData.get('gridConfig') as string) || '{}') as GridConfig
-    const cellLinks = (JSON.parse((formData.get('cellLinks') as string) || '{}') || {}) as CellLinks
-    const alignment = (formData.get('alignment') as Alignment) || 'left'
-
-    if (!title?.trim()) {
-      return NextResponse.json({ error: '제목은 필수입니다.' }, { status: 400 })
-    }
-
-    if (!image || !(image instanceof File)) {
-      return NextResponse.json({ error: '이미지 파일이 필요합니다.' }, { status: 400 })
-    }
-
-    const arrayBuffer = await image.arrayBuffer()
-    const imageBuffer = Buffer.from(arrayBuffer)
-    const metadata = await sharp(imageBuffer).metadata()
-    const imageWidth = metadata.width || 1920
-    const imageHeight = metadata.height || 1080
-
-    const cells = parseGridToCells(gridConfig)
-    const cellImages: Record<string, string> = {}
-    const timestamp = Date.now()
-    const basePath = `${timestamp}`
-
-    for (const cell of cells) {
-      const left = Math.round((cell.left / 100) * imageWidth)
-      const top = Math.round((cell.top / 100) * imageHeight)
-      const width = Math.round((cell.width / 100) * imageWidth)
-      const height = Math.round((cell.height / 100) * imageHeight)
-
-      const cropped = await sharp(imageBuffer)
-        .extract({ left, top, width, height })
-        .jpeg({ quality: 85 })
-        .toBuffer()
-
-      const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.jpg`
-      const uploadResult = await uploadEdmFile(cropped, filePath, 'image/jpeg')
-      cellImages[cell.id] = uploadResult.fileUrl ?? uploadResult.filePath
-    }
-
-    const cellImagesForHtml: Record<string, string> = {}
-    for (const [cellId, val] of Object.entries(cellImages)) {
-      cellImagesForHtml[cellId] = isObjectKey(val)
-        ? await getPresignedUrl(val)
-        : val
-    }
-    const htmlCode = generateHtmlCode(
-      gridConfig,
-      cellImagesForHtml,
-      cellLinks,
-      alignment,
-      imageWidth,
-      imageHeight
-    )
-
-    // 썸네일: 너비 318px로 정비율 축소 후, 상단 167px만 잘라 사용 (카드 이미지 영역에 맞춤)
-    const THUMB_WIDTH = 318
-    const THUMB_HEIGHT = 167
-    let thumbnailUrl: string | null = null
-    try {
-      const scaled = await sharp(imageBuffer)
-        .resize(THUMB_WIDTH, null, { fit: 'inside' })
-        .toBuffer()
-      const scaledMeta = await sharp(scaled).metadata()
-      const scaledHeight = scaledMeta.height ?? THUMB_HEIGHT
-      const extractHeight = Math.min(scaledHeight, THUMB_HEIGHT)
-
-      const thumbBuffer = await sharp(scaled)
-        .extract({ left: 0, top: 0, width: THUMB_WIDTH, height: extractHeight })
-        .jpeg({ quality: 85 })
-        .toBuffer()
-
-      const thumbResult = await uploadEdmFile(
-        thumbBuffer,
-        `${basePath}/thumbnail.jpg`,
-        'image/jpeg'
-      )
-      thumbnailUrl = thumbResult.fileUrl ?? thumbResult.filePath
-    } catch (thumbErr) {
-      console.warn('Thumbnail upload failed:', thumbErr)
-    }
-
-    const edm = await prisma.edm.create({
-      data: {
-        title: title.trim(),
-        description: description.trim() || null,
-        thumbnailUrl,
-        imageWidth,
-        imageHeight,
-        gridConfig: gridConfig as object,
-        cellLinks: cellLinks as object,
-        cellImages: cellImages as object,
-        htmlCode,
-        alignment,
-        authorId: session.user.id,
-      },
-    })
-
-    const resolvedThumbnailUrl =
-      thumbnailUrl && isObjectKey(thumbnailUrl)
-        ? await getPresignedUrl(thumbnailUrl)
-        : thumbnailUrl
-    const resolvedCellImages: Record<string, string> = {}
-    for (const [cellId, val] of Object.entries(cellImages)) {
-      resolvedCellImages[cellId] = isObjectKey(val)
-        ? await getPresignedUrl(val)
-        : val
-    }
-
-    return NextResponse.json(
-      {
-        edm: {
-          ...edm,
-          thumbnailUrl: resolvedThumbnailUrl,
-          cellImages: resolvedCellImages,
-        },
-      },
-      { status: 201 }
-    )
-  } catch (error: unknown) {
-    console.error('Error creating edm:', error)
-    const message = error instanceof Error ? error.message : 'eDM 생성에 실패했습니다.'
-    return NextResponse.json(
-      { error: 'eDM 생성에 실패했습니다.', detail: process.env.NODE_ENV === 'development' ? message : undefined },
-      { status: 500 }
-    )
+export const POST = withRouteHandler(async (request: NextRequest) => {
+  const session = await auth()
+  if (!session?.user?.id) {
+    throw new UnauthorizedError('인증이 필요합니다.')
   }
-}
+
+  const formData = await request.formData()
+  const image = formData.get('image') as File
+  const title = formData.get('title') as string
+  const description = (formData.get('description') as string) || ''
+  const gridConfig = JSON.parse((formData.get('gridConfig') as string) || '{}') as GridConfig
+  const cellLinks = (JSON.parse((formData.get('cellLinks') as string) || '{}') || {}) as CellLinks
+  const alignment = (formData.get('alignment') as Alignment) || 'left'
+
+  if (!title?.trim()) {
+    throw new BadRequestError('제목은 필수입니다.')
+  }
+
+  if (!image || !(image instanceof File)) {
+    throw new BadRequestError('이미지 파일이 필요합니다.')
+  }
+
+  const arrayBuffer = await image.arrayBuffer()
+  const imageBuffer = Buffer.from(arrayBuffer)
+  const metadata = await sharp(imageBuffer).metadata()
+  const imageWidth = metadata.width || 1920
+  const imageHeight = metadata.height || 1080
+
+  const cells = parseGridToCells(gridConfig)
+  const cellImages: Record<string, string> = {}
+  const timestamp = Date.now()
+  const basePath = `${timestamp}`
+
+  for (const cell of cells) {
+    const left = Math.round((cell.left / 100) * imageWidth)
+    const top = Math.round((cell.top / 100) * imageHeight)
+    const width = Math.round((cell.width / 100) * imageWidth)
+    const height = Math.round((cell.height / 100) * imageHeight)
+
+    const cropped = await sharp(imageBuffer)
+      .extract({ left, top, width, height })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+
+    const filePath = `${basePath}/cell_${cell.id}_${width}x${height}.jpg`
+    const uploadResult = await uploadEdmFile(cropped, filePath, 'image/jpeg')
+    cellImages[cell.id] = uploadResult.fileUrl ?? uploadResult.filePath
+  }
+
+  const cellImagesForHtml: Record<string, string> = {}
+  for (const [cellId, val] of Object.entries(cellImages)) {
+    cellImagesForHtml[cellId] = isObjectKey(val)
+      ? await getPresignedUrl(val)
+      : val
+  }
+  const htmlCode = generateHtmlCode(
+    gridConfig,
+    cellImagesForHtml,
+    cellLinks,
+    alignment,
+    imageWidth,
+    imageHeight
+  )
+
+  // 썸네일: 너비 318px로 정비율 축소 후, 상단 167px만 잘라 사용 (카드 이미지 영역에 맞춤)
+  const THUMB_WIDTH = 318
+  const THUMB_HEIGHT = 167
+  let thumbnailUrl: string | null = null
+  try {
+    const scaled = await sharp(imageBuffer)
+      .resize(THUMB_WIDTH, null, { fit: 'inside' })
+      .toBuffer()
+    const scaledMeta = await sharp(scaled).metadata()
+    const scaledHeight = scaledMeta.height ?? THUMB_HEIGHT
+    const extractHeight = Math.min(scaledHeight, THUMB_HEIGHT)
+
+    const thumbBuffer = await sharp(scaled)
+      .extract({ left: 0, top: 0, width: THUMB_WIDTH, height: extractHeight })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+
+    const thumbResult = await uploadEdmFile(
+      thumbBuffer,
+      `${basePath}/thumbnail.jpg`,
+      'image/jpeg'
+    )
+    thumbnailUrl = thumbResult.fileUrl ?? thumbResult.filePath
+  } catch (thumbErr) {
+    console.warn('Thumbnail upload failed:', thumbErr)
+  }
+
+  const edm = await prisma.edm.create({
+    data: {
+      title: title.trim(),
+      description: description.trim() || null,
+      thumbnailUrl,
+      imageWidth,
+      imageHeight,
+      gridConfig: gridConfig as object,
+      cellLinks: cellLinks as object,
+      cellImages: cellImages as object,
+      htmlCode,
+      alignment,
+      authorId: session.user.id,
+    },
+  })
+
+  const resolvedThumbnailUrl =
+    thumbnailUrl && isObjectKey(thumbnailUrl)
+      ? await getPresignedUrl(thumbnailUrl)
+      : thumbnailUrl
+  const resolvedCellImages: Record<string, string> = {}
+  for (const [cellId, val] of Object.entries(cellImages)) {
+    resolvedCellImages[cellId] = isObjectKey(val)
+      ? await getPresignedUrl(val)
+      : val
+  }
+
+  return NextResponse.json(
+    {
+      edm: {
+        ...edm,
+        thumbnailUrl: resolvedThumbnailUrl,
+        cellImages: resolvedCellImages,
+      },
+    },
+    { status: 201 }
+  )
+}, 'eDM 생성에 실패했습니다.')
