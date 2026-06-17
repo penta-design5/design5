@@ -66,6 +66,11 @@ function getImageUrlForOutput(url: string, cellId: string, usePlaceholders: bool
   if (usePlaceholders && url.startsWith('data:')) {
     return `cell_${cellId}.png`
   }
+  // presigned 등으로 붙은 쿼리스트링(?X-Amz-...)은 HTML 출력에서 제거하고 평문 URL만 사용
+  // (이메일에서 만료/서명 문제 없이 표시되도록 — edms 버킷 공개 읽기 전제)
+  if ((url.startsWith('http://') || url.startsWith('https://')) && url.includes('?')) {
+    return url.slice(0, url.indexOf('?'))
+  }
   return url
 }
 

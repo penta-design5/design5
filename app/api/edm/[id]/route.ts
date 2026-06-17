@@ -7,6 +7,7 @@ import {
   isObjectKey,
   deleteEdmFileByUrl,
 } from '@/lib/r2-edm-storage'
+import { publicUrlForEdmsKey } from '@/lib/s3/config'
 import sharp from 'sharp'
 import { parseGridToCells, generateHtmlCode } from '@/lib/edm-utils'
 import type { GridConfig, CellLinks, Alignment } from '@/types/edm'
@@ -201,10 +202,11 @@ export const PATCH = withRouteHandler(async (
     }
   }
 
+  // HTML(이메일)용: presign 대신 만료 없는 평문 공개 URL 사용 ({endpoint}/edms/{key})
   const cellImagesForHtml: Record<string, string> = {}
   for (const [cellId, val] of Object.entries(cellImages)) {
     cellImagesForHtml[cellId] = isObjectKey(val)
-      ? await getPresignedUrl(val)
+      ? publicUrlForEdmsKey(val)
       : val
   }
   const htmlCode = generateHtmlCode(
