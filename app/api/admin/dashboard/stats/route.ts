@@ -13,8 +13,9 @@ export const GET = withRouteHandler(async () => {
   // ADMIN과 ETC 타입 카테고리 제외
   const excludedTypes = [CategoryType.ADMIN, CategoryType.ETC]
 
-  // 전체 게시물 수 (ADMIN, ETC 제외)
-  const totalPosts = await prisma.post.count({
+  // Post 기반 게시물 수 (ADMIN, ETC 제외)
+  // ※ 공지사항(Notice)·디자인 의뢰(DesignRequest)는 별도 모델이라 Post 통계에 포함되지 않음(자동 제외)
+  const postCount = await prisma.post.count({
     where: {
       category: {
         type: {
@@ -23,6 +24,12 @@ export const GET = withRouteHandler(async () => {
       },
     },
   })
+
+  // HW는 Post가 아니라 HardwareProduct 모델(HW 카테고리 = SOURCE 타입)이므로 별도로 합산
+  const hardwareCount = await prisma.hardwareProduct.count()
+
+  // 전체 게시물 수 = Post + HardwareProduct (SOURCE 버킷에도 동일하게 합산되어 총계 = 4개 버킷 합과 일치)
+  const totalPosts = postCount + hardwareCount
 
   // 전체 게시물의 이미지 총 개수 계산
   const postsWithImages = await prisma.post.findMany({
@@ -65,6 +72,9 @@ export const GET = withRouteHandler(async () => {
     }
   })
 
+  // HW 제품 이미지(제품당 imageUrl 1개)도 전체 이미지에 합산
+  totalImages += hardwareCount
+
   // 카테고리 타입별 게시물 수 (더 효율적인 방법)
   const postsWithCategory = await prisma.post.findMany({
     where: {
@@ -96,6 +106,10 @@ export const GET = withRouteHandler(async () => {
       categoryTypeCounts[type]++
     }
   })
+
+  // HW(HardwareProduct)는 SOURCE 타입 카테고리이므로 SOURCE 버킷에 합산
+  // → 4개 버킷 합 == totalPosts (총계와 카테고리별 합계 일치)
+  categoryTypeCounts.SOURCE += hardwareCount
 
   return NextResponse.json({
     totalPosts,
