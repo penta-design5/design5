@@ -9,7 +9,8 @@
 ## 0. 한눈에 보기 (TL;DR)
 
 - **목표**: Layerary(Next.js 14 + Prisma + NextAuth 사내 디자인 자산 포털)의 구조적 부채 제거. 회귀 위험을 통제하며(테스트·CI 우선) 중복을 config 기반 추상화로 통합.
-- **진행 상태**: **Phase 0·1·2 완료 + 사내망 검증 중 발견된 후속 수정 완료.** Phase 3 미착수.
+- **진행 상태**: **Phase 0·1·2 완료 + 후속 수정 완료. Phase 3 대부분 완료**(svg/diagram 분리,
+  스키마 스토리지 유틸 통합 ✅ / 서버 스토리지 통합은 런타임 검증 대기로 일부 보류 — §3 Phase 3 참조).
 - **현재 브랜치**: 로컬 `refactor/phase2-api-layer`. **GitHub 푸시 대상은 `2026-06-17-tiper` 브랜치**
   (main 아님). 푸시: `git push -u origin refactor/phase2-api-layer:2026-06-17-tiper` (이후 `git push`).
 - **검증/반영 흐름**: design6(개발 사내망)에서 테스트 → 통과 시 design5(운영망)에 반영. design5는 추후 외부 공개 예정.
@@ -23,8 +24,13 @@
   이메일 하드코딩을 `lib/access-control.ts`로 집약, **모든 Pattern A/B 라우트(~40개)를
   `withRouteHandler` + 표준 ApiError로 변환**(인증 응답 표준화: 미인증 401 / 권한부족 403).
 - **Phase 2 이후 후속 수정(사내망 검증 중 발견)**: eDM HTML 이미지 URL, 스토리지 공개 URL 버킷 인식형,
-  대시보드 통계 누락, 인프라 카드 정리 — **§2.6 참조**. 단위 테스트 47→**128개**.
-- **다음 작업**: Phase 3 (스토리지 & 대형 유틸 정리). 그 전에 **Phase 1·2 사내망 dev 검증** + **배포 시 §2.7 환경변수 적용** 필요.
+  대시보드 통계 누락, 인프라 카드 정리 — **§2.6 참조**.
+- **Phase 3 (대형 유틸 분리 + 스토리지 일부)**: `svg-utils.ts`→`lib/svg/{color,resize,stroke,properties}`,
+  `diagram-utils.ts`→`lib/diagram/{shapes,render,export}`(둘 다 배럴 유지·import 무변경),
+  스키마 localStorage 유틸 3종을 `lib/preset-storage.ts` 팩토리로 통합, 클라이언트 URL 분류
+  진입점 `lib/storage/client.ts` 신설. **단위 테스트 47→128→165개**. **서버 스토리지 통합 일부 보류**(§3 Phase 3).
+- **다음 작업**: Phase 3 잔여(서버 스토리지 진입점 통합·`extractKeyFromPublicUrl` dedup)는
+  **사내망 dev 런타임 검증과 함께** 진행. 그 전에 **배포 시 §2.7 환경변수 적용** 필요.
 
 ### ⚠️ 핵심 제약 (반드시 기억)
 - 이 프로젝트의 **DB·오브젝트 스토리지는 사내망 개발 서버에 있고 외부에서 접근 불가**.
@@ -156,11 +162,29 @@ npm test            # 6 files / 47 tests passed
 - 이메일(eDM): 외부 수신자에게 이미지가 보이려면 호스트가 **외부 도달 가능한 공개 도메인**이어야 함
   (`127.0.0.1`·사내 전용 호스트는 Gmail 프록시 등에서 불가). design5 외부 공개 후 충족.
 
-### Phase 3 — 스토리지 & 대형 유틸 정리
-- `lib/storage/`로 URL 분류·업로드 진입점 단일화. B2→S3 마이그레이션 완료 여부 확인 후 `lib/legacy-asset-bases.ts` 아카이브 판단(**사용처 확인 필수, 아직 active일 수 있음**).
-- `diagram-utils.ts` → `lib/diagram/{shapes,render,export}.ts`, `svg-utils.ts` → `lib/svg/{color,resize,filter}.ts`. 분리 시 Phase 0 테스트로 회귀 검증.
-- `getShapeBounds`를 Konva 비의존 순수 모듈로 분리 후 테스트 추가.
-- 스키마 localStorage 유틸을 `createStorageUtils<T>(prefix)`로 공통화.
+### Phase 3 — 스토리지 & 대형 유틸 정리 (대부분 완료)
+- ✅ `svg-utils.ts`(698줄) → `lib/svg/{color,resize,stroke,properties}.ts`. 전부 순수 함수라 코드 이동만.
+  `lib/svg-utils.ts`는 배럴 재export로 유지 → import 7곳·테스트 무변경. (계획의 `filter`는 실제 함수에 맞춰 `stroke`로.)
+- ✅ `diagram-utils.ts`(1086줄) → `lib/diagram/{shapes,render,export}.ts`(배럴 유지·import 5곳 무변경).
+  `getShapeBounds` 등 순수 기하 함수를 konva 비의존 `shapes.ts`로 분리하고 **단위 테스트 14개 추가**
+  (Phase 0에서 미뤘던 항목 해소). 미사용 jsPDF import 제거.
+- ✅ 스키마 localStorage 유틸을 `lib/preset-storage.ts`의 `createPresetStorageUtils<TPreset, TAutosave>(config)`로
+  통합. card/welcomeboard(append)·desktop(upsert+SSR 가드)·welcomeboard(logErrors) 차이는 config로 흡수,
+  각 파일은 기존 공개 메서드명을 그대로 노출 → import 36곳 무변경. desktop/welcomeboard 누락 테스트 추가.
+- ✅ 클라이언트 URL 분류 진입점 `lib/storage/client.ts` 신설(재export, 동작 무변경) + 특성 테스트 13개.
+- ⏸ **보류(사내망 런타임 검증 필요)**:
+  - **서버 스토리지 진입점 단일화**: `b2.ts`/`s3/*`/`r2-edm-storage.ts`는 @aws-sdk 의존(서버 전용)이라
+    클라이언트 번들 분리 경계를 깨지 않으려면 별도 `lib/storage/server.ts`로 묶어야 함. 업로드/다운로드 경로라
+    런타임 검증 없이는 위험 → dev에서 함께 진행.
+  - **`extractKeyFromPublicUrl`(r2-edm) → `s3ObjectKeyFromAnyPublicUrl`(s3/url-helpers) dedup**: base 출처는
+    동일(`getEdmPublicBase`=`getS3PublicBaseUrl`)이나, `S3_PUBLIC_BASE_URL`이 빈 값인 **엔드포인트 폴백 모드**에서
+    전자는 `null`(삭제 불가), 후자는 엔드포인트 host 파싱으로 키 복원 → **비등가**. 운영(§2.7, base=도메인)에서는
+    동일하게 동작. §2.6에서 방금 고친 eDM 삭제 경로라 보류.
+  - **`lib/legacy-asset-bases.ts` 아카이브 금지**: `b2.ts`·`b2-client-url.ts`·`public-asset-url.ts`가 여전히
+    사용 중(사용처 확인 완료). B2→S3는 코드상 완료(B2 SDK 미설치, `b2.ts`는 S3 위임)지만 DB에 남은 옛 URL
+    판별용으로 active.
+- 잔여(미착수): `diagram-utils`/`svg-utils` 추가 세분화는 불필요(이미 분리됨). localStorage 스키마 외 다른
+  대형 유틸은 현 시점 추가 분리 대상 없음.
 
 ---
 
