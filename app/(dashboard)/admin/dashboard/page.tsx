@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import {
-  SquareArrowOutUpRight,
   Image,
   HardDrive,
   Wallpaper,
   FileText as FileTextIcon,
   BookOpen,
-  Database,
 } from 'lucide-react'
-import { Loader2, Images } from 'lucide-react'
+import { Images } from 'lucide-react'
 import { StatsCardSkeleton } from '@/components/ui/stats-card-skeleton'
 
 interface DashboardStats {
@@ -48,9 +45,6 @@ export default function DashboardPage() {
 
     fetchStats()
   }, [])
-
-  const minioConsoleUrl = process.env.NEXT_PUBLIC_MINIO_CONSOLE_URL || ''
-  const adminerUrl = process.env.NEXT_PUBLIC_ADMINER_URL || ''
 
   if (loading) {
     return (
@@ -192,44 +186,13 @@ export default function DashboardPage() {
             <CardDescription>사내망 DB·객체 스토리지(MinIO S3)·Adminer</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                운영 절·백업은 <code className="text-xs">deploy/rocky/README.md</code>·
-                <code className="text-xs">docs/DEPLOYMENT.md</code> 참고. MinIO 콘솔(예: 9001)·Adminer(예: 18080)는
-                SSH 터널로 붙인 뒤 <code className="text-xs">NEXT_PUBLIC_MINIO_CONSOLE_URL</code> /{' '}
-                <code className="text-xs">NEXT_PUBLIC_ADMINER_URL</code>에 맞춥니다. 객체 공개 URL은{' '}
-                <code className="text-xs">S3_PUBLIC_BASE_URL</code> / <code className="text-xs">NEXT_PUBLIC_S3_PUBLIC_BASE_URL</code>
-                입니다.
-              </p>
-              <div className="flex flex-col gap-2">
-                {minioConsoleUrl ? (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={() => window.open(minioConsoleUrl, '_blank', 'noopener,noreferrer')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <HardDrive className="h-4 w-4" />
-                      <span>MinIO 콘솔</span>
-                    </div>
-                    <SquareArrowOutUpRight className="h-4 w-4" />
-                  </Button>
-                ) : null}
-                {adminerUrl ? (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between"
-                    onClick={() => window.open(adminerUrl, '_blank', 'noopener,noreferrer')}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      <span>Adminer (PostgreSQL)</span>
-                    </div>
-                    <SquareArrowOutUpRight className="h-4 w-4" />
-                  </Button>
-                ) : null}
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              운영 절차·백업은 <code className="text-xs">deploy/rocky/README.md</code>·
+              <code className="text-xs">docs/DEPLOYMENT.md</code>를 참고하세요. DB·객체 스토리지(MinIO S3)는
+              사내망에 있어 외부에서 직접 접근할 수 없으며, 필요 시 SSH 터널로 접속합니다(MinIO 콘솔 예: 9001,
+              Adminer 예: 18080). 객체 공개 URL은 <code className="text-xs">S3_PUBLIC_BASE_URL</code> /{' '}
+              <code className="text-xs">NEXT_PUBLIC_S3_PUBLIC_BASE_URL</code>로 설정합니다.
+            </p>
           </CardContent>
         </Card>
       </div>
