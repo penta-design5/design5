@@ -55,7 +55,8 @@ export async function uploadEdmFile(
   const result: UploadResult = { filePath }
   const pub = getEdmPublicBase()
   if (pub) {
-    result.fileUrl = `${pub.replace(/\/$/, '')}/${filePath.replace(/^\//, '')}`
+    // 버킷 인식형: {공개베이스}/{edms 버킷}/{키}
+    result.fileUrl = `${pub.replace(/\/$/, '')}/${b}/${filePath.replace(/^\//, '')}`
   }
   return result
 }
@@ -98,7 +99,12 @@ export async function deleteEdmFileByKey(objectKey: string): Promise<void> {
 function extractKeyFromPublicUrl(url: string): string | null {
   const base = getEdmPublicBase()
   if (!base || !url.startsWith(base)) return null
-  const key = url.slice(base.length).replace(/^\//, '')
+  let key = url.slice(base.length).replace(/^\//, '')
+  // 버킷 인식형 URL({base}/{edms}/{key})의 경우 선행 버킷 세그먼트 제거
+  const bucket = getBucketEdms()
+  if (key.startsWith(`${bucket}/`)) {
+    key = key.slice(bucket.length + 1)
+  }
   return key || null
 }
 

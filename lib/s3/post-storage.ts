@@ -51,7 +51,9 @@ export function getPostObjectKeyFromUrl(fileUrl: string): string {
   const bucket = getBucketPosts()
   const base = getS3PublicBaseUrl()
   if (base && fileUrl.startsWith(base)) {
-    return fileUrl.slice(base.length).replace(/^\//, '')
+    const rest = fileUrl.slice(base.length).replace(/^\//, '')
+    // 버킷 인식형 URL({base}/{posts}/{key})의 경우 선행 버킷 세그먼트 제거
+    return rest.startsWith(`${bucket}/`) ? rest.slice(bucket.length + 1) : rest
   }
   try {
     const u = new URL(fileUrl)

@@ -11,7 +11,9 @@ export function s3ObjectKeyFromAnyPublicUrl(
   if (!url) return null
   const base = getS3PublicBaseUrl()
   if (base && url.startsWith(base)) {
-    return url.slice(base.length).replace(/^\//, '')
+    const rest = url.slice(base.length).replace(/^\//, '')
+    // 버킷 인식형 URL({base}/{bucket}/{key})의 경우 선행 버킷 세그먼트 제거
+    return rest.startsWith(`${bucket}/`) ? rest.slice(bucket.length + 1) : rest
   }
   try {
     const u = new URL(url)

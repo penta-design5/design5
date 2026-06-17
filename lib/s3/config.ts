@@ -67,14 +67,16 @@ export function publicUrlForS3ObjectKey(key: string): string {
   return k
 }
 
+/**
+ * 버킷 인식형 공개 URL: `{베이스 또는 엔드포인트}/{버킷}/{키}`.
+ * S3_PUBLIC_BASE_URL은 버킷을 포함하지 않는 공개 호스트(예: https://design5.pentasecurity.com)로 두면
+ * 모든 버킷(posts/edms/avatars/...)이 path-style로 올바르게 매핑된다.
+ */
 function publicUrlForBucketKey(bucket: string, key: string): string {
   const k = key.replace(/^\//, '')
   const base = getS3PublicBaseUrl()
-  if (base) {
-    return `${base}/${k}`
-  }
-  const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
-  return ep ? `${ep}/${bucket}/${k}` : k
+  const prefix = base || process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
+  return prefix ? `${prefix}/${bucket}/${k}` : k
 }
 
 /** icons 버킷 — 베이스 없으면 path-style `엔드포인트/icons/키` */
@@ -93,28 +95,15 @@ export function publicUrlForPptThumbnailsKey(key: string): string {
 }
 
 /**
- * posts 버킷 객체의 브라우저용 URL (S3_PUBLIC_BASE_URL/엔드포인트+버킷)
+ * posts 버킷 객체의 브라우저용 URL — `{베이스/엔드포인트}/posts/{키}`
  */
 export function publicUrlForPostsKey(key: string): string {
-  const base = getS3PublicBaseUrl()
-  if (base) {
-    return `${base}/${key.replace(/^\//, '')}`
-  }
-  const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
-  const b = getBucketPosts()
-  return ep ? `${ep}/${b}/${key.replace(/^\//, '')}` : key
+  return publicUrlForBucketKey(getBucketPosts(), key)
 }
 
 /**
- * eDM 객체 공개 URL — S3_PUBLIC_BASE_URL(게이트웨이) + 키 (버킷 prefix는 public 베이스 정책에 따름)
+ * eDM 객체 공개 URL — `{베이스/엔드포인트}/edms/{키}`
  */
 export function publicUrlForEdmsKey(key: string): string {
-  const k = key.replace(/^\//, '')
-  const base = getS3PublicBaseUrl()
-  if (base) {
-    return `${base}/${k}`
-  }
-  const ep = process.env.S3_ENDPOINT?.replace(/\/$/, '') || ''
-  const b = getBucketEdms()
-  return ep ? `${ep}/${b}/${k}` : k
+  return publicUrlForBucketKey(getBucketEdms(), key)
 }
