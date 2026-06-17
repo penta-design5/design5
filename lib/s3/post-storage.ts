@@ -9,6 +9,7 @@ import { streamToBuffer } from '@/lib/s3/stream-utils'
 import {
   getBucketPosts,
   getS3Client,
+  getS3PresignClient,
   getS3PublicBaseUrl,
   isS3StorageConfigured,
   publicUrlForPostsKey,
@@ -169,7 +170,8 @@ export async function s3GetPresignedPostUpload(
   fileName: string,
   contentType: string
 ): Promise<PresignedPostUploadS3> {
-  const client = getS3Client()
+  // 브라우저가 직접 PUT하므로 공개 엔드포인트로 서명(S3_PUBLIC_ENDPOINT). 미설정 시 S3_ENDPOINT 폴백.
+  const client = getS3PresignClient()
   const bucket = getBucketPosts()
   const command = new PutObjectCommand({
     Bucket: bucket,

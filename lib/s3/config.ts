@@ -1,6 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3'
 
 let _client: S3Client | null = null
+let _presignClient: S3Client | null = null
 
 /** MinIO/사내 S3 — env.example.txt 의 S3_* (S3_ENDPOINT, 자격 증명) */
 export function isS3StorageConfigured(): boolean {
@@ -11,23 +12,51 @@ export function isS3StorageConfigured(): boolean {
   )
 }
 
+function buildS3Client(endpoint: string): S3Client {
+  const forcePathStyle = process.env.S3_FORCE_PATH_STYLE !== 'false'
+  return new S3Client({
+    region: process.env.S3_REGION?.trim() || 'us-east-1',
+    endpoint,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+    forcePathStyle,
+  })
+}
+
+/** 서버 내부 작업용 클라이언트 — 컨테이너 내부 호스트(S3_ENDPOINT, 예: http://minio:9000) */
 export function getS3Client(): S3Client {
   if (!isS3StorageConfigured()) {
     throw new Error('S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY가 설정되지 않았습니다.')
   }
   if (!_client) {
-    const forcePathStyle = process.env.S3_FORCE_PATH_STYLE !== 'false'
-    _client = new S3Client({
-      region: process.env.S3_REGION?.trim() || 'us-east-1',
-      endpoint: process.env.S3_ENDPOINT!.trim(),
-      credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
-      },
-      forcePathStyle,
-    })
+    _client = buildS3Client(process.env.S3_ENDPOINT!.trim())
   }
   return _client
+}
+
+/**
+ * 브라우저에 전달되는 presigned URL(업로드 PUT·표시용 GET) 서명 전용 클라이언트.
+ * `S3_PUBLIC_ENDPOINT`(브라우저가 도달 가능한 공개 HTTPS 호스트)가 있으면 그 엔드포인트로 서명하고,
+ * 없으면 `getS3Client()`(=S3_ENDPOINT)로 폴백 → **미설정 시 기존 동작과 완전히 동일**.
+ *
+ * 내부 호스트(예: http://minio:9000)로 서명하면 브라우저가 그 URL에 도달하지 못해(또는 HTTPS 페이지의
+ * http URL → mixed content) presigned 업로드가 'Failed to fetch'로 실패한다. 서버 내부 업로드/다운로드/
+ * 삭제는 그대로 getS3Client()(내부 엔드포인트)를 쓴다.
+ * ⚠️ S3_PUBLIC_ENDPOINT는 버킷 경로 미포함 순수 호스트(예: https://design6.pentasecurity.com).
+ *    리버스 프록시가 해당 호스트의 인증 PUT을 MinIO로 전달 + Host 헤더 보존해야 함.
+ */
+export function getS3PresignClient(): S3Client {
+  const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT?.trim()
+  if (!publicEndpoint) return getS3Client()
+  if (!isS3StorageConfigured()) {
+    throw new Error('S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY가 설정되지 않았습니다.')
+  }
+  if (!_presignClient) {
+    _presignClient = buildS3Client(publicEndpoint)
+  }
+  return _presignClient
 }
 
 export function getS3PublicBaseUrl(): string {

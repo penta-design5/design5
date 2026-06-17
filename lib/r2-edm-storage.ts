@@ -7,6 +7,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import {
   getBucketEdms,
   getS3Client,
+  getS3PresignClient,
   getS3PublicBaseUrl,
   isS3StorageConfigured,
 } from '@/lib/s3/config'
@@ -65,7 +66,8 @@ export async function getPresignedUrl(
   objectKey: string,
   expiresInSeconds: number = PRESIGNED_EXPIRES_IN
 ): Promise<string> {
-  const client = requireClient()
+  // 브라우저 표시용 GET presigned → 공개 엔드포인트로 서명(S3_PUBLIC_ENDPOINT). 미설정 시 S3_ENDPOINT 폴백.
+  const client = getS3PresignClient()
   return getSignedUrl(
     client,
     new GetObjectCommand({
