@@ -28,8 +28,47 @@ export const GET = withRouteHandler(async () => {
   // HW는 Post가 아니라 HardwareProduct 모델(HW 카테고리 = SOURCE 타입)이므로 별도로 합산
   const hardwareCount = await prisma.hardwareProduct.count()
 
-  // 전체 게시물 수 = Post + HardwareProduct (SOURCE 버킷에도 동일하게 합산되어 총계 = 4개 버킷 합과 일치)
-  const totalPosts = postCount + hardwareCount
+  // TEMPLATE 타입 카테고리(카드/웰컴보드/다이어그램/eDM/바탕화면)도 Post가 아니라 각각 별도 모델.
+  // 게시물 수와 이미지 수를 함께 집계한다.
+  const [cardTemplates, edms, desktops, welcomeCount, diagramCount] =
+    await Promise.all([
+      prisma.cardTemplate.findMany({ select: { backgroundImages: true } }),
+      prisma.edm.findMany({ select: { cellImages: true } }),
+      prisma.desktopWallpaper.findMany({
+        select: { backgroundUrlWindows: true, backgroundUrlMac: true },
+      }),
+      prisma.welcomeBoardTemplate.count(),
+      prisma.diagram.count(),
+    ])
+
+  const templateCount =
+    cardTemplates.length +
+    edms.length +
+    desktops.length +
+    welcomeCount +
+    diagramCount
+
+  // TEMPLATE 이미지 수: 카드(backgroundImages 배열) + eDM(cellImages 맵) +
+  // 바탕화면(windows/mac) + 웰컴보드(backgroundUrl 1개). 다이어그램은 업로드 이미지 없음.
+  let templateImages = 0
+  cardTemplates.forEach((c) => {
+    if (Array.isArray(c.backgroundImages)) templateImages += c.backgroundImages.length
+  })
+  edms.forEach((e) => {
+    const cells = e.cellImages
+    if (cells && typeof cells === 'object' && !Array.isArray(cells)) {
+      templateImages += Object.keys(cells).length
+    }
+  })
+  desktops.forEach((d) => {
+    if (d.backgroundUrlWindows) templateImages += 1
+    if (d.backgroundUrlMac) templateImages += 1
+  })
+  templateImages += welcomeCount // 웰컴보드는 backgroundUrl(필수) 1개
+
+  // 전체 게시물 수 = Post + HardwareProduct + TEMPLATE 모델들
+  // (각 버킷에도 동일하게 합산되어 총계 = 4개 버킷 합과 일치)
+  const totalPosts = postCount + hardwareCount + templateCount
 
   // 전체 게시물의 이미지 총 개수 계산
   const postsWithImages = await prisma.post.findMany({
@@ -72,8 +111,8 @@ export const GET = withRouteHandler(async () => {
     }
   })
 
-  // HW 제품 이미지(제품당 imageUrl 1개)도 전체 이미지에 합산
-  totalImages += hardwareCount
+  // HW 제품 이미지(제품당 imageUrl 1개) + TEMPLATE 모델 이미지도 전체 이미지에 합산
+  totalImages += hardwareCount + templateImages
 
   // 카테고리 타입별 게시물 수 (더 효율적인 방법)
   const postsWithCategory = await prisma.post.findMany({
@@ -107,9 +146,9 @@ export const GET = withRouteHandler(async () => {
     }
   })
 
-  // HW(HardwareProduct)는 SOURCE 타입 카테고리이므로 SOURCE 버킷에 합산
-  // → 4개 버킷 합 == totalPosts (총계와 카테고리별 합계 일치)
-  categoryTypeCounts.SOURCE += hardwareCount
+  // 별도 모델로 저장되는 카테고리를 해당 타입 버킷에 합산 → 4개 버킷 합 == totalPosts
+  categoryTypeCounts.SOURCE += hardwareCount // HW
+  categoryTypeCounts.TEMPLATE += templateCount // 카드/웰컴보드/다이어그램/eDM/바탕화면
 
   return NextResponse.json({
     totalPosts,
