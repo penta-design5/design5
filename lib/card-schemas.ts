@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { createPresetStorageUtils } from './preset-storage'
 
 // 배경 이미지 1개 (동일 디자인, 다른 크기/비율)
 export const backgroundImageSchema = z.object({
@@ -199,76 +200,20 @@ export function generateCardFileName(templateName: string, format: ExportFormat)
   return `Card_${safeName}_${dateStr}.${format}`
 }
 
+// 공통 프리셋 저장 팩토리로 통합 (Phase 3). 기존 동작: 추가 방식 savePreset, SSR 가드 없음.
+const cardPresetStorageBase = createPresetStorageUtils<SavedCardPreset, CardUserEditData>({
+  presetsKey: CARD_STORAGE_KEYS.PRESETS,
+  autosaveKey: CARD_STORAGE_KEYS.AUTOSAVE,
+  foreignKey: 'templateId',
+})
+
 export const cardPresetStorageUtils = {
-  getAllPresets: (): SavedCardPreset[] => {
-    try {
-      const stored = localStorage.getItem(CARD_STORAGE_KEYS.PRESETS)
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
-  },
-
-  getPresetsByTemplateId: (templateId: string): SavedCardPreset[] => {
-    return cardPresetStorageUtils.getAllPresets().filter((p) => p.templateId === templateId)
-  },
-
-  savePreset: (preset: SavedCardPreset): boolean => {
-    try {
-      const all = cardPresetStorageUtils.getAllPresets()
-      localStorage.setItem(CARD_STORAGE_KEYS.PRESETS, JSON.stringify([...all, preset]))
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  deletePreset: (presetId: string): boolean => {
-    try {
-      const all = cardPresetStorageUtils.getAllPresets().filter((p) => p.id !== presetId)
-      localStorage.setItem(CARD_STORAGE_KEYS.PRESETS, JSON.stringify(all))
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  cleanupOrphanedPresets: (existingTemplateIds: string[]): number => {
-    try {
-      const all = cardPresetStorageUtils.getAllPresets()
-      const valid = all.filter((p) => existingTemplateIds.includes(p.templateId))
-      const removed = all.length - valid.length
-      if (removed > 0) localStorage.setItem(CARD_STORAGE_KEYS.PRESETS, JSON.stringify(valid))
-      return removed
-    } catch {
-      return 0
-    }
-  },
-
-  saveAutosave: (templateId: string, userEditData: CardUserEditData): boolean => {
-    try {
-      localStorage.setItem(`${CARD_STORAGE_KEYS.AUTOSAVE}-${templateId}`, JSON.stringify(userEditData))
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  getAutosave: (templateId: string): CardUserEditData | null => {
-    try {
-      const stored = localStorage.getItem(`${CARD_STORAGE_KEYS.AUTOSAVE}-${templateId}`)
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  },
-
-  clearAutosave: (templateId: string): boolean => {
-    try {
-      localStorage.removeItem(`${CARD_STORAGE_KEYS.AUTOSAVE}-${templateId}`)
-      return true
-    } catch {
-      return false
-    }
-  },
+  getAllPresets: cardPresetStorageBase.getAllPresets,
+  getPresetsByTemplateId: cardPresetStorageBase.getPresetsByForeignId,
+  savePreset: cardPresetStorageBase.savePreset,
+  deletePreset: cardPresetStorageBase.deletePreset,
+  cleanupOrphanedPresets: cardPresetStorageBase.cleanupOrphanedPresets,
+  saveAutosave: cardPresetStorageBase.saveAutosave,
+  getAutosave: cardPresetStorageBase.getAutosave,
+  clearAutosave: cardPresetStorageBase.clearAutosave,
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { createPresetStorageUtils } from './preset-storage'
 
 // 요소 타입
 export const elementTypeSchema = z.enum(['title', 'description', 'calendar'])
@@ -227,67 +228,24 @@ export const STORAGE_KEYS = {
   AUTOSAVE: 'desktop-editor-autosave',
 } as const
 
-// localStorage 유틸리티
+// localStorage 유틸리티 — 공통 프리셋 저장 팩토리로 통합 (Phase 3).
+// 기존 동작 유지: 동일 id 교체(upsert) 방식 savePreset, SSR 가드(typeof window) 적용.
+// (cleanupOrphanedPresets·clearAutosave는 기존에 없던 메서드라 노출하지 않는다)
+const desktopPresetStorageBase = createPresetStorageUtils<SavedDesktopPreset, DesktopEditorData>({
+  presetsKey: STORAGE_KEYS.PRESETS,
+  autosaveKey: STORAGE_KEYS.AUTOSAVE,
+  foreignKey: 'wallpaperId',
+  upsert: true,
+  ssrGuard: true,
+})
+
 export const desktopStorageUtils = {
-  getAllPresets: (): SavedDesktopPreset[] => {
-    try {
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.PRESETS) : null
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
-  },
-
-  getPresetsByWallpaperId: (wallpaperId: string): SavedDesktopPreset[] => {
-    return desktopStorageUtils.getAllPresets().filter((p) => p.wallpaperId === wallpaperId)
-  },
-
-  savePreset: (preset: SavedDesktopPreset): boolean => {
-    try {
-      const all = desktopStorageUtils.getAllPresets()
-      const updated = [...all.filter((p) => p.id !== preset.id), preset]
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.PRESETS, JSON.stringify(updated))
-      }
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  deletePreset: (presetId: string): boolean => {
-    try {
-      const all = desktopStorageUtils.getAllPresets().filter((p) => p.id !== presetId)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEYS.PRESETS, JSON.stringify(all))
-      }
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  saveAutosave: (wallpaperId: string, data: DesktopEditorData): boolean => {
-    try {
-      const key = `${STORAGE_KEYS.AUTOSAVE}-${wallpaperId}`
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(key, JSON.stringify(data))
-      }
-      return true
-    } catch {
-      return false
-    }
-  },
-
-  getAutosave: (wallpaperId: string): DesktopEditorData | null => {
-    try {
-      const key = `${STORAGE_KEYS.AUTOSAVE}-${wallpaperId}`
-      const stored = typeof window !== 'undefined' ? localStorage.getItem(key) : null
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  },
+  getAllPresets: desktopPresetStorageBase.getAllPresets,
+  getPresetsByWallpaperId: desktopPresetStorageBase.getPresetsByForeignId,
+  savePreset: desktopPresetStorageBase.savePreset,
+  deletePreset: desktopPresetStorageBase.deletePreset,
+  saveAutosave: desktopPresetStorageBase.saveAutosave,
+  getAutosave: desktopPresetStorageBase.getAutosave,
 }
 
 // 바탕화면 게시물 타입 (DB 응답용)
