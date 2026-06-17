@@ -1,7 +1,7 @@
 # 리팩토링 핸드오프 (Refactoring Handoff)
 
 > 새 채팅 세션에서 이 프로젝트의 리팩토링을 이어가기 위한 인수인계 문서.
-> 작성일: 2026-06-16 · 작성: Claude Code 세션
+> 작성일: 2026-06-16 · 최종 갱신: 2026-06-17 · 작성: Claude Code 세션
 > 전체 계획 원본: `~/.claude/plans/keen-drifting-fairy.md` (있으면 참조, 없으면 이 문서가 단일 출처)
 
 ---
@@ -9,8 +9,10 @@
 ## 0. 한눈에 보기 (TL;DR)
 
 - **목표**: Layerary(Next.js 14 + Prisma + NextAuth 사내 디자인 자산 포털)의 구조적 부채 제거. 회귀 위험을 통제하며(테스트·CI 우선) 중복을 config 기반 추상화로 통합.
-- **진행 상태**: **Phase 0·1·2 완료 및 커밋됨.** Phase 3 미착수.
-- **현재 브랜치**: `refactor/phase2-api-layer` (Phase 1·2 작업 포함)
+- **진행 상태**: **Phase 0·1·2 완료 + 사내망 검증 중 발견된 후속 수정 완료.** Phase 3 미착수.
+- **현재 브랜치**: 로컬 `refactor/phase2-api-layer`. **GitHub 푸시 대상은 `2026-06-17-tiper` 브랜치**
+  (main 아님). 푸시: `git push -u origin refactor/phase2-api-layer:2026-06-17-tiper` (이후 `git push`).
+- **검증/반영 흐름**: design6(개발 사내망)에서 테스트 → 통과 시 design5(운영망)에 반영. design5는 추후 외부 공개 예정.
 - **Phase 0 커밋**: `9ed6ea2` — 테스트·린트·CI 안전망.
 - **Phase 1 (카테고리 페이지 통합)**: 표준 4종(Damo/Cloudbric/iSIGN/WAPPLES)을 config 기반
   제네릭(`components/category-pages/_generic/`, `lib/category-listing-config.ts`,
@@ -20,8 +22,9 @@
   `posts/route.ts` GET 정렬 6블록을 `lib/post-sorting/` 순수함수로 통합(906→373줄),
   이메일 하드코딩을 `lib/access-control.ts`로 집약, **모든 Pattern A/B 라우트(~40개)를
   `withRouteHandler` + 표준 ApiError로 변환**(인증 응답 표준화: 미인증 401 / 권한부족 403).
-  단위 테스트 47→118개.
-- **다음 작업**: Phase 3 (스토리지 & 대형 유틸 정리). 그 전에 **Phase 1·2 사내망 dev 검증** 필요.
+- **Phase 2 이후 후속 수정(사내망 검증 중 발견)**: eDM HTML 이미지 URL, 스토리지 공개 URL 버킷 인식형,
+  대시보드 통계 누락, 인프라 카드 정리 — **§2.6 참조**. 단위 테스트 47→**128개**.
+- **다음 작업**: Phase 3 (스토리지 & 대형 유틸 정리). 그 전에 **Phase 1·2 사내망 dev 검증** + **배포 시 §2.7 환경변수 적용** 필요.
 
 ### ⚠️ 핵심 제약 (반드시 기억)
 - 이 프로젝트의 **DB·오브젝트 스토리지는 사내망 개발 서버에 있고 외부에서 접근 불가**.
@@ -88,7 +91,7 @@ npm test            # 6 files / 47 tests passed
 
 ## 3. 다음 단계 상세
 
-### Phase 1 — 카테고리 페이지 통합 (다음 착수)
+### Phase 1 — 카테고리 페이지 통합 ✅ 완료 (아래는 당시 계획·실제 구현과 거의 일치)
 1. `lib/category-listing-config.ts` 생성 — 카테고리별 메타 중앙화:
    ```ts
    export const CATEGORY_LISTING_CONFIG: Record<string, {
@@ -122,6 +125,37 @@ npm test            # 6 files / 47 tests passed
   무한스크롤 페이지 경계. ② 주요 라우트 인증/검증/생성·수정·삭제 정상 동작.
   ③ design-requests GET의 `{items,...}` + Zod 400 `{error,details}` 형태 유지 확인.
 
+### 2.6 Phase 2 이후 후속 수정 (사내망 검증 중 발견·수정 완료)
+- **eDM HTML 이미지 URL** (`fix(edm)`): 자동 생성 HTML에 presigned URL(`?X-Amz-...`, 7일 만료)이 박혀
+  이메일에서 안 보이던 문제. `app/api/edm/route.ts`·`[id]/route.ts`의 HTML용 이미지 맵을 presign 대신
+  평문 공개 URL(`publicUrlForEdmsKey`)로 생성하고, `lib/edm-utils.ts` `getImageUrlForOutput`에서
+  http(s) URL의 `?` 이후 제거. (썸네일·에디터 표시용 resolved* 는 매 요청 재생성이라 presign 유지)
+- **스토리지 공개 URL 버킷 인식형** (`fix(storage)`): 단일 `S3_PUBLIC_BASE_URL`이 `.../edms`로 고정돼
+  posts/갤러리(HW·바탕화면·웰컴보드·카드 포함, 전부 posts 버킷) 이미지가 깨지던 문제. `lib/s3/config.ts`의
+  `publicUrlForBucketKey/Posts/Edms`(+icons/avatars/ppt)를 **`{base}/{버킷}/{키}`** 로 통일.
+  URL→키 역변환 3곳(`r2-edm-storage.ts`/`s3/post-storage.ts`/`s3/url-helpers.ts`)도 선행 버킷 세그먼트 제거.
+  → **base는 버킷 미포함 순수 도메인**으로 둬야 함(§2.7). 모든 이미지 메뉴가 같은 `publicUrlFor*Key`를 경유.
+- **대시보드 통계 누락** (`fix(dashboard)`): 통계가 `Post`만 세어 별도 모델 콘텐츠가 빠지던 문제.
+  HW(`HardwareProduct`→SOURCE)와 TEMPLATE 5종(`CardTemplate`/`WelcomeBoardTemplate`/`Diagram`/`Edm`/
+  `DesktopWallpaper`→TEMPLATE)을 각 버킷·전체 게시물·전체 이미지에 합산 → **4개 버킷 합 == 전체 게시물**.
+  공지사항(`Notice`)·디자인 의뢰(`DesignRequest`)는 별도 모델이라 본래 미포함(요청대로 제외).
+- **대시보드 인프라 카드** (`chore(dashboard)`): MinIO 콘솔/Adminer 이동 버튼 2개 제거 + 설명 문구 정리.
+
+### 2.7 ⚠️ 배포(design5/design6) 환경변수 — 필수
+- 스토리지 URL이 버킷 인식형(`{base}/{버킷}/{키}`)으로 바뀌었으므로, **서버 env를 반드시 아래처럼** 설정:
+  ```
+  S3_PUBLIC_BASE_URL="https://design5.pentasecurity.com"          # 버킷 경로(/edms 등) 미포함, 순수 도메인
+  NEXT_PUBLIC_S3_PUBLIC_BASE_URL="https://design5.pentasecurity.com"  # 동일 값
+  ```
+  - 기존 `.../edms` 값을 그대로 두면 `.../edms/edms/...`로 중복돼 eDM이 깨짐. **반드시 `/edms` 제거.**
+- 게이트웨이/리버스 프록시가 **모든 버킷을 path-style로 공개 서빙**해야 함:
+  `/posts/`, `/edms/`, `/icons/`, `/avatars/`, `/ppt-thumbnails/` (+ 익명 읽기 허용, HTTPS).
+  eDM `/edms/`만 열려 있으면 다른 메뉴 이미지가 404 남.
+- 기존에 잘못된 base로 저장된 게시물(이미지 URL이 DB에 절대경로로 박힘)은 **재업로드해야** 새 경로로 갱신됨.
+- `.env`/`.env.local`은 gitignore라 푸시에 포함 안 됨 → **서버에서 직접 설정**.
+- 이메일(eDM): 외부 수신자에게 이미지가 보이려면 호스트가 **외부 도달 가능한 공개 도메인**이어야 함
+  (`127.0.0.1`·사내 전용 호스트는 Gmail 프록시 등에서 불가). design5 외부 공개 후 충족.
+
 ### Phase 3 — 스토리지 & 대형 유틸 정리
 - `lib/storage/`로 URL 분류·업로드 진입점 단일화. B2→S3 마이그레이션 완료 여부 확인 후 `lib/legacy-asset-bases.ts` 아카이브 판단(**사용처 확인 필수, 아직 active일 수 있음**).
 - `diagram-utils.ts` → `lib/diagram/{shapes,render,export}.ts`, `svg-utils.ts` → `lib/svg/{color,resize,filter}.ts`. 분리 시 Phase 0 테스트로 회귀 검증.
@@ -139,6 +173,9 @@ npm test            # 6 files / 47 tests passed
 - DB/스토리지 접근이 필요한 검증은 사용자에게 요청 (Claude 환경에서 불가).
 
 ## 5. 새 세션 시작 멘트(예시)
-> "REFACTORING_HANDOFF.md 기준으로 Phase 1 시작해줘. Damo 파일럿부터."
+> "REFACTORING_HANDOFF.md 기준으로 Phase 3(스토리지 & 대형 유틸 정리) 시작해줘."
+
+또는 먼저 사내망 검증을 마쳤다면:
+> "Phase 1·2 사내망 검증 끝났어. §2.7 배포 환경변수 확인하고 Phase 3로 넘어가줘."
 
 기존 메모리에 사내 개발 서버 제약(`dev-server-environment`)이 기록돼 있어 자동으로 참조됨.
