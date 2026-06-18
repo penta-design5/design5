@@ -119,9 +119,14 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     pathname.startsWith('/icon'))
 
   // Chart Generator 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isChartGeneratorPage = Boolean(pathname && 
+  const isChartGeneratorPage = Boolean(pathname &&
     !pathname.startsWith('/admin') &&
     pathname.startsWith('/chart-generator'))
+
+  // Penta Design System(정적 HTML iframe) 페이지인지 확인 — 전역 헤더 유지, 본문만 풀-블리드
+  const isPentaDesignSystemPage = Boolean(pathname &&
+    !pathname.startsWith('/admin') &&
+    pathname.startsWith('/penta-design-system'))
 
   // eDM 편집 페이지인지 확인 (전체 화면 에디터, 헤더 숨김)
   const isEdmEditorPage = Boolean(pathname && 
@@ -131,7 +136,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
   // CI/BI, 캐릭터, WAPPLES, D.AMO, iSIGN, Cloudbric, PPT, PDF Extractor, ICON, Chart Generator, eDM 편집 페이지인지 확인
   // 웰컴보드는 에디터 모드일 때 자체 헤더를 사용하므로 제외
   const isSpecialPage = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isEdmEditorPage
-  const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage || isHwPage
+  const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage || isHwPage || isPentaDesignSystemPage
 
   // 헤더 너비 제한이 필요한 페이지 (우측 패널이 있는 페이지만)
   const hasRightPanel = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage

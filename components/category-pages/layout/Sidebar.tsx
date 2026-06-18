@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
@@ -176,6 +176,43 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
             {category.children.map((child) => renderCategory(child, level + 1))}
           </div>
         )}
+      </div>
+    )
+  }
+
+  // DB 카테고리가 아닌 정적 메뉴(자산 HTML 페이지 등)를 카테고리 사이에 삽입하기 위한 leaf 렌더러.
+  // renderCategory의 leaf 분기와 동일한 스타일·세션 가드를 사용한다.
+  const renderStaticLink = (slug: string, label: string) => {
+    const isActive =
+      pathname !== '/' &&
+      (pathname === `/${slug}` || pathname.startsWith(`/${slug}/`))
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (!session) {
+        e.preventDefault()
+        router.push('/login')
+      }
+      if (onLinkClick) onLinkClick()
+    }
+
+    return (
+      <div key={slug} className='pr-4'>
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
+            isActive
+              ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+              : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
+          )}
+        >
+          <Link
+            href={`/${slug}`}
+            className='flex items-center flex-1 gap-2'
+            onClick={handleClick}
+          >
+            <span className='flex-1 text-sm'>{label}</span>
+          </Link>
+        </div>
       </div>
     )
   }
@@ -428,7 +465,25 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                   <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     {getCategoryLabel(type)}
                   </div>
-                  {displayCats.map((category) => renderCategory(category))}
+                  {displayCats.map((category) => {
+                    const item = renderCategory(category)
+                    // WORK: "Penta Design"과 "디자인 의뢰" 사이에 정적 메뉴 삽입
+                    if (
+                      type === CategoryType.WORK &&
+                      category.slug === 'penta-design'
+                    ) {
+                      return (
+                        <Fragment key={category.id}>
+                          {item}
+                          {renderStaticLink(
+                            'penta-design-system',
+                            'Penta Design System'
+                          )}
+                        </Fragment>
+                      )
+                    }
+                    return item
+                  })}
                 </div>
               )
             })}
