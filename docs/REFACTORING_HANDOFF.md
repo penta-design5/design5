@@ -9,8 +9,9 @@
 ## 0. 한눈에 보기 (TL;DR)
 
 - **목표**: Layerary(Next.js 14 + Prisma + NextAuth 사내 디자인 자산 포털)의 구조적 부채 제거. 회귀 위험을 통제하며(테스트·CI 우선) 중복을 config 기반 추상화로 통합.
-- **진행 상태**: **Phase 0·1·2 완료 + 후속 수정 완료. Phase 3 대부분 완료**(svg/diagram 분리,
-  스키마 스토리지 유틸 통합 ✅ / 서버 스토리지 통합은 런타임 검증 대기로 일부 보류 — §3 Phase 3 참조).
+- **진행 상태**: **리팩토링 종료(2026-06-18).** Phase 0·1·2 완료 + 후속 수정·사내망 런타임 검증 완료.
+  Phase 3는 핵심 분리/통합 완료, 잔여 2건(서버 스토리지 진입점 단일화·`extractKeyFromPublicUrl` dedup)은
+  **동작에 영향 없는 선택적 정리**라 미진행으로 **종료**(필요 시 후속 세션에서 — §3 Phase 3 ⏸ 참조).
 - **현재 브랜치**: 로컬 `refactor/phase2-api-layer`. **GitHub 푸시 대상은 `2026-06-17-tiper` 브랜치**
   (main 아님). 푸시: `git push -u origin refactor/phase2-api-layer:2026-06-17-tiper` (이후 `git push`).
 - **검증/반영 흐름**: design6(개발 사내망)에서 테스트 → 통과 시 design5(운영망)에 반영. design5는 추후 외부 공개 예정.
@@ -29,8 +30,11 @@
   `diagram-utils.ts`→`lib/diagram/{shapes,render,export}`(둘 다 배럴 유지·import 무변경),
   스키마 localStorage 유틸 3종을 `lib/preset-storage.ts` 팩토리로 통합, 클라이언트 URL 분류
   진입점 `lib/storage/client.ts` 신설. **단위 테스트 47→128→165개**. **서버 스토리지 통합 일부 보류**(§3 Phase 3).
-- **다음 작업**: Phase 3 잔여(서버 스토리지 진입점 통합·`extractKeyFromPublicUrl` dedup)는
-  **사내망 dev 런타임 검증과 함께** 진행. 그 전에 **배포 시 §2.7 환경변수 적용** 필요.
+- **리팩토링 종료 후 잔여(코드 아님 / 선택)**:
+  - **운영팀**: eDM 이메일 이미지를 위해 `design6`(최소 `/edms/*`) **공인 인터넷 노출** (§2.8).
+  - **선택적 후속**: Phase 3 ⏸ 2건(서버 스토리지 진입점 단일화·`extractKeyFromPublicUrl` dedup) — 동작 영향 없음.
+  - **배포 시**: §2.7 환경변수 + §2.8 nginx(`Host $host`) 적용 확인.
+- **이후 세션**: 추가 기능 개발은 본 핸드오프(특히 §2.6~2.8 사내망 운영 메모)와 §4 작업 규칙을 참고해 진행.
 
 ### ⚠️ 핵심 제약 (반드시 기억)
 - 이 프로젝트의 **DB·오브젝트 스토리지는 사내망 개발 서버에 있고 외부에서 접근 불가**.
