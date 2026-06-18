@@ -66,10 +66,13 @@
   - [app/(dashboard)/admin/users/page.tsx](<../app/(dashboard)/admin/users/page.tsx>): "의뢰 알림" 컬럼·`handleMailToggle`·`updatingMail` 상태 추가.
     추가로 사용자 요청에 따라 **"공지사항 수" 컬럼을 UI에서 숨김**(헤더·셀만 제거, API select `_count.notices`는 유지 — 기능 보존. 복원 시 헤더/셀만 되살리면 됨).
 - **게이트**: `typecheck` 클린 / `lint` 신규 경고 0 / `test` 165 통과.
-- **⚠️ 메일 미발송 이슈(코드 무관·환경 문제)**: 로컬 검증 중 토글대로 수신자(toggle ON 관리자+의뢰자)는 정확히 계산되나 **메일이 전혀 안 감**.
-  원인은 **Gmail SMTP 자격증명 거부**(`535-5.7.8 Username and Password not accepted`) — `GMAIL_APP_PASSWORD` 무효(만료/취소/정책). [design-request-notification.ts](../lib/mail/design-request-notification.ts)가
-  발송 오류를 삼키고 로그만 남겨(게시물 등록은 201 성공) 증상이 "조용한 미발송"으로 나타남.
-  **조치**: `tiper@pentasecurity.com` 계정에서 새 앱 비밀번호 발급(2단계 인증 필요, Workspace 정책 확인) → 로컬 `.env.local`·서버 env의 `GMAIL_APP_PASSWORD` 갱신. 코드 변경 불필요.
+- **✅ 메일 발송 이슈 해결됨(코드 무관·환경 문제, 2026-06-18)**: 검증 중 토글대로 수신자(toggle ON 관리자+의뢰자)는 정확히 계산되나 **메일이 전혀 안 가던** 증상.
+  [design-request-notification.ts](../lib/mail/design-request-notification.ts)가 발송 오류를 삼키고 로그만 남겨(게시물 등록은 201 성공) "조용한 미발송"으로 나타남. 원인·교훈 2가지:
+  1. **Gmail SMTP 자격증명 무효**(`535-5.7.8 Username and Password not accepted`): `GMAIL_APP_PASSWORD`가 만료/취소됨(앱 비밀번호는 기간 만료는 없고 2단계 인증 해제·비번 변경·취소·정책으로 무효화). →
+     `tiper@pentasecurity.com`에서 **새 앱 비밀번호 발급**(2단계 인증 필요) 후 모든 env(`.env`/`.env.local`/사내 `.env`/`.env.app`)의 `GMAIL_APP_PASSWORD` 갱신. `nodemailer.verify()`로 250 확인.
+  2. **Docker env 미반영**: `.env.app` 비번을 바꿔도 **`docker compose restart`는 기존 env 그대로 재시작**이라 새 값이 안 들어감.
+     → `docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env up -d --force-recreate app` 로 **컨테이너 재생성**해야 `.env.app` 새 값 주입(`exec app printenv GMAIL_APP_PASSWORD`로 대조).
+  - 운영(`GMAIL_USER`)이 곧 수신자이기도 한 자기발송도 정상 수신 확인. **코드 변경 없이 환경 조치만으로 해결.**
 
 ---
 
@@ -81,13 +84,12 @@
 - [x] 메뉴 클릭 시 `/penta-design-system`에서 문서가 iframe으로 전체 표시(헤더 아래 영역 채움, 데스크톱/모바일).
 - [x] 미로그인 클릭 시 `/login` 이동, 활성 메뉴 하이라이트 정상.
 
-### 2.2 디자인 의뢰 알림 — 특정 관리자 제외 토글
-- [ ] **마이그레이션 적용**: 사내망에서 `npx prisma migrate deploy` 실행 → `users.receiveDesignRequestMail` 컬럼 생성(기존 행 모두 true).
-- [ ] 회원 관리(`/admin/users`)에 "의뢰 알림" 컬럼 표시, **관리자 행만 토글**·사용자 행은 `—`.
-- [ ] 회원 관리 테이블에서 **"공지사항 수" 컬럼 미표시**(데이터 조회는 유지, 화면만 숨김).
-- [ ] 토글 off → 새 디자인 의뢰 등록 시 해당 관리자에게 **메일 미발송**, 나머지 관리자·의뢰자에게는 정상 발송.
-- [ ] 토글 on 복귀 시 다시 수신. 비관리자 권한으로 PATCH 호출 시 403.
-- [ ] **SMTP 자격증명 점검**: 사내망 서버 env의 `GMAIL_APP_PASSWORD`가 유효한지 확인(로컬에선 `535 BadCredentials`로 미발송 확인됨). 서버 발송 여부 검증.
+### 2.2 디자인 의뢰 알림 — 특정 관리자 제외 토글 ✅ (design6 검증 완료)
+- [x] **마이그레이션 적용**: `npx prisma migrate deploy` → `users.receiveDesignRequestMail` 컬럼 생성(기존 행 모두 true). ※ 로컬 터널(`127.0.0.1:15432`)과 design6이 같은 DB라 로컬 실행분이 그대로 적용됨.
+- [x] 회원 관리(`/admin/users`)에 "의뢰 알림" 컬럼 표시, **관리자 행만 토글**·사용자 행은 `—`.
+- [x] 회원 관리 테이블에서 **"공지사항 수" 컬럼 미표시**(데이터 조회는 유지, 화면만 숨김).
+- [x] 토글 ON인 관리자(+의뢰자)에게만 메일 발송, OFF 관리자에게는 미발송 — design6에서 정상 확인.
+- [x] **SMTP 자격증명 점검**: 새 `GMAIL_APP_PASSWORD` 갱신 + `--force-recreate`로 컨테이너 재생성 후 정상 발송 확인(§1.2 참고).
 
 ---
 
