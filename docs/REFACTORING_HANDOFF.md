@@ -162,6 +162,33 @@ npm test            # 6 files / 47 tests passed
 - 이메일(eDM): 외부 수신자에게 이미지가 보이려면 호스트가 **외부 도달 가능한 공개 도메인**이어야 함
   (`127.0.0.1`·사내 전용 호스트는 Gmail 프록시 등에서 불가). design5 외부 공개 후 충족.
 
+### 2.8 사내망 런타임 검증 — presigned 업로드 실패(SignatureDoesNotMatch) 해결 ✅ (2026-06-18)
+- **증상**: CI/BI 등 모든 메뉴에서 파일 업로드 시 브라우저 직접 PUT(presigned)이 MinIO에서
+  `SignatureDoesNotMatch`로 거부. 자격증명(`S3_ACCESS_KEY_ID/SECRET`=MinIO root와 일치)·
+  `S3_PUBLIC_ENDPOINT`(`https://design6.pentasecurity.com`, 포트·슬래시 없는 순수 호스트)·
+  `S3_REGION`(us-east-1)·`S3_FORCE_PATH_STYLE`(true)는 모두 정상이었음.
+- **근본 원인**: 리버스 프록시 `design5-nginx`(컨테이너 `/etc/nginx/conf.d/default.conf` ← 호스트
+  `deploy/rocky/nginx/app-http.conf` **바인드 마운트**)의 **모든 MinIO location**에
+  `proxy_set_header Host minio:9000;`. presigned URL은 `design6...` 호스트로 서명되고 **SigV4는
+  Host를 서명에 포함**하는데, nginx가 Host를 `minio:9000`으로 덮어써 MinIO가 다른 Host로 서명을
+  재계산 → 항상 불일치. 공개 GET 이미지는 서명이 없어 영향 없음 → **"표시는 되는데 업로드만 실패"**의 정체.
+- **수정**: MinIO로 가는 모든 location의 `proxy_set_header Host minio:9000;` → **`Host $host;`** (10곳).
+- **적용 시 함정(실제로 겪음)**:
+  - `sed -i`는 새 파일로 교체(inode 변경) → **단일 파일 바인드 마운트**에선 컨테이너가 옛 inode를 계속 봄.
+    `nginx -s reload`로 반영 안 됨 → **`docker restart design5-nginx`** 로 마운트를 재연결해야 함.
+    (근본 회피: compose에서 파일 1개 대신 **디렉터리** 마운트 `./nginx/conf.d:/etc/nginx/conf.d`.)
+- **참고(선택, 아직 미적용)**: `/posts/`·`/edms/`의 `proxy_pass http://minio:9000/posts/;`처럼 뒤 경로가
+  붙으면 URI 재인코딩으로 **한글/인코딩 파일명**에서 서명이 깨질 수 있음 → 그 두 곳만
+  `proxy_pass http://minio:9000;`(뒤 경로 제거) 권장.
+- **⚠️ 레포 미반영(후속 필요)**: 서버의 `default.conf`(MinIO 라우팅 전체 포함 완성본)는 git의
+  `deploy/rocky/nginx/app-http.conf`(현재 `location /` 만 있는 **구버전**)와 다름. 다음 배포 시
+  **원복 위험** → 서버의 동작 설정을 레포 `app-http.conf`로 동기화해야 함.
+- **eDM 이메일 이미지(미검증, 다음 작업)**: 이메일은 앱 바깥(메일 클라이언트)에서 며칠 뒤 열리므로
+  `<img src>`가 **만료·서명 없는 평문 URL** + **익명 읽기 가능** 이어야 함. HTML 생성은 이미 평문 URL로
+  출력([edm-utils.ts](../lib/edm-utils.ts) `getImageUrlForOutput`)하므로, 남은 건 **`edms` 버킷에 익명
+  download 정책 부여**(`mc anonymous set download <alias>/edms`) + 공개 도메인 도달성. 전체 스토리지를
+  공개할 필요는 없음(앱 내 표시는 프록시 경유, 외부 노출 불필요).
+
 ### Phase 3 — 스토리지 & 대형 유틸 정리 (대부분 완료)
 - ✅ `svg-utils.ts`(698줄) → `lib/svg/{color,resize,stroke,properties}.ts`. 전부 순수 함수라 코드 이동만.
   `lib/svg-utils.ts`는 배럴 재export로 유지 → import 7곳·테스트 무변경. (계획의 `filter`는 실제 함수에 맞춰 `stroke`로.)
@@ -195,6 +222,8 @@ npm test            # 6 files / 47 tests passed
 - [ ] **바탕화면(DESKTOP) 에디터**: 프리셋 저장 시 **같은 항목 덮어쓰기(upsert)** 동작, 자동저장.
 - [ ] **웰컴보드(WELCOMEBOARD) 에디터**: 프리셋 저장(추가 방식)/정리, 자동저장.
 - [ ] **이미지 표시 전반**: 게시물/갤러리 썸네일·원본 URL이 정상 표시(클라이언트 URL 분류 진입점 변경 영향 없음 확인).
+- [x] **presigned 업로드(전 메뉴)**: nginx `Host $host` 수정 후 CI/BI 외 메뉴 업로드 정상 확인(§2.8, 2026-06-18).
+- [ ] **eDM 이메일 이미지**: `edms` 버킷 익명 읽기 + 공개 도메인 적용 후 외부 메일에서 표시 확인(§2.8 미검증).
 
 ---
 
