@@ -18,6 +18,7 @@ export const GET = withRouteHandler(async () => {
       name: true,
       avatar: true,
       role: true,
+      receiveDesignRequestMail: true,
       createdAt: true,
       updatedAt: true,
       _count: {

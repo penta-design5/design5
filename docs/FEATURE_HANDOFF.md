@@ -49,6 +49,28 @@
 - **라우트 충돌 주의**: 라우트 `/penta-design-system`(page.tsx)과 정적 파일 `/penta-design-system/penta-design-system.html`은
   경로가 달라 충돌하지 않음. 정적 메뉴 slug를 정할 때 `public/` 하위 파일 경로와 동일 세그먼트로 겹치지 않게 할 것.
 
+### 1.2 디자인 의뢰 알림 — 특정 관리자 제외 토글 ✅ (2026-06-18, 코드 완료·사내망 검증 대기)
+- **요구**: 디자인 의뢰 게시물 등록 시 의뢰자+모든 관리자에게 자동 메일이 가는데, **특정 관리자는 알림 대상에서 제외**할 수 있게.
+- **설계 판단**: 사용자가 **회원 관리 화면의 on/off 토글**로 직접 관리하길 원함 → User에 boolean 필드 추가 방식 채택.
+  - `receiveDesignRequestMail Boolean @default(true)` — 기본 수신(기존 동작 보존). false인 관리자만 제외.
+  - 의뢰자 본인은 토글과 무관하게 항상 수신(자기 의뢰 확인). 알림 자체는 관리자만 받으므로 토글 UI는 **ADMIN 행에만** 노출, MEMBER는 `—`.
+  - `@radix-ui/react-switch` 미설치 → **의존성 없는 경량 Switch** 신규 컴포넌트로 구현.
+- **변경 파일(6 + 마이그레이션)**:
+  - [prisma/schema.prisma](../prisma/schema.prisma): User에 `receiveDesignRequestMail Boolean @default(true)`.
+  - `prisma/migrations/20260618120000_add_user_receive_design_request_mail/migration.sql`: `users` 컬럼 추가(NOT NULL DEFAULT true).
+    **⚠️ 사내망에서 `npx prisma migrate deploy` 실행 필요**(Claude 환경 DB 접근 불가).
+  - [lib/mail/design-request-notification.ts](../lib/mail/design-request-notification.ts): 관리자 조회 `where`에 `receiveDesignRequestMail: true` 추가.
+  - [app/api/admin/users/route.ts](../app/api/admin/users/route.ts): GET select에 필드 추가.
+  - [app/api/admin/users/[id]/notification/route.ts](<../app/api/admin/users/[id]/notification/route.ts>): 신규 PATCH(`requireAdmin`, boolean 검증) — 기존 role 라우트 패턴 복제.
+  - [components/ui/switch.tsx](../components/ui/switch.tsx): 신규 경량 토글(`role="switch"`, 무의존성).
+  - [app/(dashboard)/admin/users/page.tsx](<../app/(dashboard)/admin/users/page.tsx>): "의뢰 알림" 컬럼·`handleMailToggle`·`updatingMail` 상태 추가.
+    추가로 사용자 요청에 따라 **"공지사항 수" 컬럼을 UI에서 숨김**(헤더·셀만 제거, API select `_count.notices`는 유지 — 기능 보존. 복원 시 헤더/셀만 되살리면 됨).
+- **게이트**: `typecheck` 클린 / `lint` 신규 경고 0 / `test` 165 통과.
+- **⚠️ 메일 미발송 이슈(코드 무관·환경 문제)**: 로컬 검증 중 토글대로 수신자(toggle ON 관리자+의뢰자)는 정확히 계산되나 **메일이 전혀 안 감**.
+  원인은 **Gmail SMTP 자격증명 거부**(`535-5.7.8 Username and Password not accepted`) — `GMAIL_APP_PASSWORD` 무효(만료/취소/정책). [design-request-notification.ts](../lib/mail/design-request-notification.ts)가
+  발송 오류를 삼키고 로그만 남겨(게시물 등록은 201 성공) 증상이 "조용한 미발송"으로 나타남.
+  **조치**: `tiper@pentasecurity.com` 계정에서 새 앱 비밀번호 발급(2단계 인증 필요, Workspace 정책 확인) → 로컬 `.env.local`·서버 env의 `GMAIL_APP_PASSWORD` 갱신. 코드 변경 불필요.
+
 ---
 
 ## 2. 사내망 dev 검증 체크리스트 (코드 완료분)
@@ -58,6 +80,14 @@
 - [x] 사이드바 WORK 섹션 순서: **Penta Design → Penta Design System → 디자인 의뢰** (로컬 확인 완료).
 - [x] 메뉴 클릭 시 `/penta-design-system`에서 문서가 iframe으로 전체 표시(헤더 아래 영역 채움, 데스크톱/모바일).
 - [x] 미로그인 클릭 시 `/login` 이동, 활성 메뉴 하이라이트 정상.
+
+### 2.2 디자인 의뢰 알림 — 특정 관리자 제외 토글
+- [ ] **마이그레이션 적용**: 사내망에서 `npx prisma migrate deploy` 실행 → `users.receiveDesignRequestMail` 컬럼 생성(기존 행 모두 true).
+- [ ] 회원 관리(`/admin/users`)에 "의뢰 알림" 컬럼 표시, **관리자 행만 토글**·사용자 행은 `—`.
+- [ ] 회원 관리 테이블에서 **"공지사항 수" 컬럼 미표시**(데이터 조회는 유지, 화면만 숨김).
+- [ ] 토글 off → 새 디자인 의뢰 등록 시 해당 관리자에게 **메일 미발송**, 나머지 관리자·의뢰자에게는 정상 발송.
+- [ ] 토글 on 복귀 시 다시 수신. 비관리자 권한으로 PATCH 호출 시 403.
+- [ ] **SMTP 자격증명 점검**: 사내망 서버 env의 `GMAIL_APP_PASSWORD`가 유효한지 확인(로컬에선 `535 BadCredentials`로 미발송 확인됨). 서버 발송 여부 검증.
 
 ---
 

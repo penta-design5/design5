@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Switch } from '@/components/ui/switch'
 import { UserRole } from '@prisma/client'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ interface User {
   name: string | null
   avatar: string | null
   role: UserRole
+  receiveDesignRequestMail: boolean
   createdAt: string
   updatedAt: string
   _count: {
@@ -46,6 +48,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<Set<string>>(new Set())
+  const [updatingMail, setUpdatingMail] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<RoleFilter>('ALL')
 
   // 관리자 우선 정렬 (관리자 → 사용자, 그룹 내에서는 이름/이메일순)
@@ -143,6 +146,48 @@ export default function UsersPage() {
     }
   }
 
+  // 디자인 의뢰 알림 메일 수신 여부 토글(관리자 대상)
+  const handleMailToggle = async (userId: string, next: boolean) => {
+    try {
+      setUpdatingMail((prev) => new Set(prev).add(userId))
+
+      const response = await fetch(`/api/admin/users/${userId}/notification`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ receiveDesignRequestMail: next }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '알림 설정 변경에 실패했습니다.')
+      }
+
+      // 로컬 상태 업데이트
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === userId
+            ? { ...user, receiveDesignRequestMail: next }
+            : user
+        )
+      )
+    } catch (error) {
+      console.error('Error updating mail preference:', error)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : '알림 설정 변경에 실패했습니다.'
+      )
+    } finally {
+      setUpdatingMail((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(userId)
+        return newSet
+      })
+    }
+  }
+
   const getRoleLabel = (role: UserRole) => {
     return role === UserRole.ADMIN ? '관리자' : '사용자'
   }
@@ -176,8 +221,8 @@ export default function UsersPage() {
                   <TableHead>사용자</TableHead>
                   <TableHead>이메일</TableHead>
                   <TableHead className='text-center'>역할</TableHead>
+                  <TableHead className='text-center'>의뢰 알림</TableHead>
                   <TableHead className='text-center'>게시물 수</TableHead>
-                  <TableHead className='text-center'>공지사항 수</TableHead>
                   <TableHead className='text-center'>가입일</TableHead>
                 </TableRow>
               </TableHeader>
@@ -233,8 +278,8 @@ export default function UsersPage() {
                 <TableHead>사용자</TableHead>
                 <TableHead>이메일</TableHead>
                 <TableHead className='text-center'>역할</TableHead>
+                <TableHead className='text-center'>의뢰 알림</TableHead>
                 <TableHead className='text-center'>게시물 수</TableHead>
-                <TableHead className='text-center'>공지사항 수</TableHead>
                 <TableHead className='text-center'>가입일</TableHead>
               </TableRow>
             </TableHeader>
@@ -300,8 +345,27 @@ export default function UsersPage() {
                         </Select>
                       )}
                     </TableCell>
+                    <TableCell className='text-center'>
+                      {/* 디자인 의뢰 알림은 관리자만 수신 — 사용자 역할은 해당 없음(—) */}
+                      {user.role === UserRole.ADMIN ? (
+                        <div className="flex items-center justify-center gap-2">
+                          {updatingMail.has(user.id) ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Switch
+                              checked={user.receiveDesignRequestMail}
+                              onCheckedChange={(next) =>
+                                handleMailToggle(user.id, next)
+                              }
+                              aria-label="디자인 의뢰 알림 메일 수신"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className='text-center'>{user._count.posts}</TableCell>
-                    <TableCell className='text-center'>{user._count.notices}</TableCell>
                     <TableCell className='text-center'>{formatDate(user.createdAt)}</TableCell>
                   </TableRow>
                 ))

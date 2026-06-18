@@ -43,6 +43,8 @@ model User {
   password  String? // hashed (Google OAuth 사용자는 null 가능)
   avatar    String? // Backblaze B2 URL
   role      UserRole @default(MEMBER)
+  // 디자인 의뢰 등록 알림 메일 수신 여부(관리자 대상). false면 해당 관리자 제외. 기본 수신.
+  receiveDesignRequestMail Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

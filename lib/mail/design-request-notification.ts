@@ -80,8 +80,9 @@ export async function notifyDesignRequestCreated(
     const slug = category?.slug ?? 'design-request'
     const detailUrl = `${getSiteOrigin()}/${slug}/${created.id}`
 
+    // 알림 수신 동의(receiveDesignRequestMail=true)한 관리자만 — 특정 관리자는 회원 관리에서 제외 가능
     const admins = await prisma.user.findMany({
-      where: { role: UserRole.ADMIN },
+      where: { role: UserRole.ADMIN, receiveDesignRequestMail: true },
       select: { email: true },
     })
 
