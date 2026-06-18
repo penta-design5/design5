@@ -1,7 +1,7 @@
 # 리팩토링 핸드오프 (Refactoring Handoff)
 
 > 새 채팅 세션에서 이 프로젝트의 리팩토링을 이어가기 위한 인수인계 문서.
-> 작성일: 2026-06-16 · 최종 갱신: 2026-06-17 · 작성: Claude Code 세션
+> 작성일: 2026-06-16 · 최종 갱신: 2026-06-18 · 작성: Claude Code 세션
 > 전체 계획 원본: `~/.claude/plans/keen-drifting-fairy.md` (있으면 참조, 없으면 이 문서가 단일 출처)
 
 ---
@@ -184,9 +184,12 @@ npm test            # 6 files / 47 tests passed
 - **참고(선택, 아직 미적용)**: `/posts/`·`/edms/`의 `proxy_pass http://minio:9000/posts/;`처럼 뒤 경로가
   붙으면 URI 재인코딩으로 **한글/인코딩 파일명**에서 서명이 깨질 수 있음 → 그 두 곳만
   `proxy_pass http://minio:9000;`(뒤 경로 제거) 권장.
-- **⚠️ 레포 미반영(후속 필요)**: 서버의 `default.conf`(MinIO 라우팅 전체 포함 완성본)는 git의
-  `deploy/rocky/nginx/app-http.conf`(현재 `location /` 만 있는 **구버전**)와 다름. 다음 배포 시
-  **원복 위험** → 서버의 동작 설정을 레포 `app-http.conf`로 동기화해야 함.
+- **✅ 레포 동기화 완료** (`8c5101b`, 2026-06-18): 서버(design6) 실제 가동 설정(nginx `app-http.conf`의
+  MinIO `Host $host` 라우팅 전체 + `docker-compose.app.yml`의 TLS 인증서 볼륨·`design5-net`·80/443 +
+  `Dockerfile`)을 `2026-06-17-tiper` 브랜치에 커밋. 브랜치의 기존 `deploy/rocky`는 미사용 템플릿
+  (8080·TLS없음·host.docker.internal)이었음. → **이제 `git pull`만으로 배포설정까지 일치, 원복 위험 해소.**
+  (운영 design5는 design6 이미지를 받아 적용하는 방식이라 호스트별 런타임 설정은 별도 관리 — 향후 환경별 값
+  차이 발생 시 `.env`/`.env.app` 변수로 파라미터화 권장.)
 - **eDM 이메일 이미지 미표시 — 원인 규명 완료, 운영팀 작업만 남음** (2026-06-18):
   - 이메일은 앱 바깥(메일 클라이언트)에서 며칠 뒤 열리므로 `<img src>`가 **만료·서명 없는 평문 URL** +
     **익명 읽기 가능** 이어야 함. HTML 생성은 이미 평문 URL로 출력([edm-utils.ts](../lib/edm-utils.ts)
