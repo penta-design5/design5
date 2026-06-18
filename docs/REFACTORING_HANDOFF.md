@@ -183,11 +183,20 @@ npm test            # 6 files / 47 tests passed
 - **⚠️ 레포 미반영(후속 필요)**: 서버의 `default.conf`(MinIO 라우팅 전체 포함 완성본)는 git의
   `deploy/rocky/nginx/app-http.conf`(현재 `location /` 만 있는 **구버전**)와 다름. 다음 배포 시
   **원복 위험** → 서버의 동작 설정을 레포 `app-http.conf`로 동기화해야 함.
-- **eDM 이메일 이미지(미검증, 다음 작업)**: 이메일은 앱 바깥(메일 클라이언트)에서 며칠 뒤 열리므로
-  `<img src>`가 **만료·서명 없는 평문 URL** + **익명 읽기 가능** 이어야 함. HTML 생성은 이미 평문 URL로
-  출력([edm-utils.ts](../lib/edm-utils.ts) `getImageUrlForOutput`)하므로, 남은 건 **`edms` 버킷에 익명
-  download 정책 부여**(`mc anonymous set download <alias>/edms`) + 공개 도메인 도달성. 전체 스토리지를
-  공개할 필요는 없음(앱 내 표시는 프록시 경유, 외부 노출 불필요).
+- **eDM 이메일 이미지 미표시 — 원인 규명 완료, 운영팀 작업만 남음** (2026-06-18):
+  - 이메일은 앱 바깥(메일 클라이언트)에서 며칠 뒤 열리므로 `<img src>`가 **만료·서명 없는 평문 URL** +
+    **익명 읽기 가능** 이어야 함. HTML 생성은 이미 평문 URL로 출력([edm-utils.ts](../lib/edm-utils.ts)
+    `getImageUrlForOutput`)하고, **`edms` 버킷은 이미 익명 공개**(점검 결과 `public` — 오히려 읽기전용
+    `download`로 좁히는 게 안전)라 **스토리지·URL·nginx·버킷정책은 모두 정상**으로 확인됨(`curl -I` 200).
+  - **진짜 원인**: **Gmail 등 웹메일의 이미지 프록시**(`ci3.googleusercontent.com/...#<원본URL>`)가 이미지를
+    **사용자 노트북이 아니라 구글 서버(공인 인터넷)에서 대신 fetch**함. `design6.pentasecurity.com`이
+    **사내망 전용(외부 미노출)** 이라 그 프록시가 도달하지 못해 깨짐. (노트북 브라우저로 원본 URL 직접 열면
+    200으로 보임 ↔ 메일에선 깨짐 — 프록시 문제의 전형. Gmail "외부 이미지 항상 표시" 설정과 무관.)
+  - **남은 작업(운영팀)**: `design6.pentasecurity.com`(최소 `/edms/*` 경로)을 **공인 인터넷에서 도달 가능**하게
+    노출. 공인 DNS resolve + 방화벽 443 허용 + TLS(`*.pentasecurity.com` 와일드카드라 외부 유효 가능성 높음).
+    **보안 권장**: 전체 사이트 공개 대신 **`/edms/*`만 외부 공개**(다른 location은 사내 IP `allow/deny` 유지),
+    또는 eDM 전용 **공개 호스트/CDN** 분리 후 eDM 이미지 URL만 그쪽으로(코드상 eDM 전용 public base 분리 필요).
+  - 코드/스토리지/nginx 쪽에서 더 고칠 것 없음 — **순수 네트워크 노출 이슈**.
 
 ### Phase 3 — 스토리지 & 대형 유틸 정리 (대부분 완료)
 - ✅ `svg-utils.ts`(698줄) → `lib/svg/{color,resize,stroke,properties}.ts`. 전부 순수 함수라 코드 이동만.
@@ -223,7 +232,8 @@ npm test            # 6 files / 47 tests passed
 - [ ] **웰컴보드(WELCOMEBOARD) 에디터**: 프리셋 저장(추가 방식)/정리, 자동저장.
 - [ ] **이미지 표시 전반**: 게시물/갤러리 썸네일·원본 URL이 정상 표시(클라이언트 URL 분류 진입점 변경 영향 없음 확인).
 - [x] **presigned 업로드(전 메뉴)**: nginx `Host $host` 수정 후 CI/BI 외 메뉴 업로드 정상 확인(§2.8, 2026-06-18).
-- [ ] **eDM 이메일 이미지**: `edms` 버킷 익명 읽기 + 공개 도메인 적용 후 외부 메일에서 표시 확인(§2.8 미검증).
+- [~] **eDM 이메일 이미지**: 스토리지·URL·버킷공개 모두 정상 확인(curl 200). 미표시 원인은 **Gmail 이미지
+  프록시 + design6 외부 미노출**로 규명 완료 → **운영팀의 design6(`/edms/*`) 공인 인터넷 노출만 남음**(§2.8).
 
 ---
 
