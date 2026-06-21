@@ -175,6 +175,33 @@
                 line-height: 24px;
                 color: var(--color-text-secondary);
                 margin: 0 0 8px;
+                display: flex;
+                align-items: center;
+                gap: 24px;
+                flex-wrap: wrap;
+            }
+            .download-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 12px;
+                font-size: 13px;
+                font-weight: 600;
+                color: var(--color-text-brand);
+                background: var(--color-brand-primary-subtle, transparent);
+                border: 1px solid var(--color-brand-primary);
+                border-radius: 8px;
+                text-decoration: none;
+                cursor: pointer;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+            .download-btn:hover {
+                background: var(--color-brand-primary);
+                color: #fff;
+            }
+            .download-btn svg {
+                width: 14px;
+                height: 14px;
             }
             section {
                 padding-top: 56px;
@@ -1289,7 +1316,23 @@
             <div class="eyebrow">PENTA SECURITY</div>
             <h1 class="title">Penta Design System</h1>
             <p class="sub">
-                컬러 · 타이포그래피 · 스페이싱 · 컴포넌트 · 아이콘 v1.0
+                <span>컬러 · 타이포그래피 · 스페이싱 · 컴포넌트 · 아이콘 v1.0</span>
+                <a
+                    class="download-btn"
+                    href="/penta-design-system/penta-design-system.md"
+                    download="penta-design-system.md"
+                >
+                    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path
+                            d="M8 1.5v8m0 0L4.5 6M8 9.5L11.5 6M2.5 12.5h11"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                    penta-design-system.md
+                </a>
             </p>
 
             <!-- COLOR -->

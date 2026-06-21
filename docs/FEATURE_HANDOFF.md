@@ -74,6 +74,26 @@
      → `docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env up -d --force-recreate app` 로 **컨테이너 재생성**해야 `.env.app` 새 값 주입(`exec app printenv GMAIL_APP_PASSWORD`로 대조).
   - 운영(`GMAIL_USER`)이 곧 수신자이기도 한 자기발송도 정상 수신 확인. **코드 변경 없이 환경 조치만으로 해결.**
 
+### 1.3 Penta Design System .md 다운로드 버튼 + 사이드바 Mind5 메뉴 ✅ (2026-06-22, 로컬 확인 완료)
+- **요구 1**: Penta Design System 페이지 상단 부제(`컬러 · 타이포그래피 … v1.0`) **바로 옆**에 `penta-design-system.md`
+  다운로드 버튼 추가. (초안에서 호버 툴팁을 요청했다가 → 자체 Tooltip이 지저분하다는 피드백으로 **툴팁 전면 제거**, `title` 속성도 미사용.)
+- **요구 2**: 사이드바 **LABs 카테고리 맨 아래** "Mind5" 메뉴 추가 → `https://penta-mind5.vercel.app` 외부 링크.
+  메뉴 **마우스 오버 시 텍스트 우측 끝에 외부 링크 아이콘** 표시.
+- **설계 판단**:
+  - 디자인시스템 페이지는 **iframe으로 로드되는 자체 완결형 정적 HTML**이라 React/Radix `Tooltip`·다운로드 컴포넌트를 쓸 수 없음 →
+    버튼은 **plain `<a download>`**(같은 `public/penta-design-system/` 폴더의 `.md`를 `/penta-design-system/penta-design-system.md` 경로로 받음, 별도 API/라우트 불필요).
+  - Mind5는 외부 URL이라 Next.js `Link` 대신 **`<a target="_blank" rel="noopener noreferrer">`**(새 탭). 호버 아이콘은 이미 import만 돼 있던
+    **미사용 `SquareArrowOutUpRight`** 활용 + `group`/`opacity-0 group-hover:opacity-100`로 평소 숨김·호버 시 페이드인. 기존 LABs 항목과 동일 색상 스타일 유지.
+- **변경 파일(2 + 정적 자산)**:
+  - [public/penta-design-system/penta-design-system.html](../public/penta-design-system/penta-design-system.html):
+    `.sub`를 flex 레이아웃으로(텍스트-버튼 간격 `gap: 24px`) + `.download-btn` 스타일·다운로드 `<a>` 추가(브랜드 컬러 토큰·호버 채움, 라이트/다크 대응).
+  - [components/category-pages/layout/Sidebar.tsx](../components/category-pages/layout/Sidebar.tsx):
+    `CategoryType.ETC`(LABs) 분기 Chart Generator 아래에 Mind5 외부 링크 항목 추가(호버 시 외부 링크 아이콘).
+  - 정적 자산: `public/penta-design-system/penta-design-system.md`(다운로드 대상 신규 파일).
+- **게이트**: DB·네트워크 비의존 변경(정적 HTML·사이드바 마크업만). 사내망 빌드/런타임 UI 확인은 §2.3.
+- **재사용 패턴**: 외부 링크 leaf 메뉴는 "`<a target=_blank>` + `group`-호버 외부아이콘" 조합으로 복제 가능. iframe 정적 문서 페이지의
+  버튼/링크는 React 컴포넌트가 아닌 **순수 HTML/CSS로** 추가해야 함(스타일·하이드레이션 충돌 회피).
+
 ---
 
 ## 2. 사내망 dev 검증 체크리스트 (코드 완료분)
@@ -90,6 +110,12 @@
 - [x] 회원 관리 테이블에서 **"공지사항 수" 컬럼 미표시**(데이터 조회는 유지, 화면만 숨김).
 - [x] 토글 ON인 관리자(+의뢰자)에게만 메일 발송, OFF 관리자에게는 미발송 — design6에서 정상 확인.
 - [x] **SMTP 자격증명 점검**: 새 `GMAIL_APP_PASSWORD` 갱신 + `--force-recreate`로 컨테이너 재생성 후 정상 발송 확인(§1.2 참고).
+
+### 2.3 Penta Design System .md 다운로드 버튼 + Mind5 메뉴
+- [ ] 디자인시스템 페이지 상단 부제 옆 `penta-design-system.md` 버튼 표시(부제와 24px 간격), 클릭 시 `.md` 파일 다운로드.
+- [ ] 버튼 호버 시 브랜드 컬러 채움, 라이트/다크 모두 정상. **툴팁 미표시**(의도된 제거).
+- [ ] 사이드바 LABs 맨 아래 "Mind5" 표시, 클릭 시 새 탭으로 `https://penta-mind5.vercel.app` 열림.
+- [ ] Mind5 메뉴 **마우스 오버 시에만** 우측 끝 외부 링크 아이콘 표시.
 
 ---
 

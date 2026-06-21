@@ -372,6 +372,16 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     >
                       <span className="flex-1 text-sm">Chart Generator</span>
                     </Link>
+                    <a
+                      href="https://penta-mind5.vercel.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-2 px-3 py-1 rounded-md transition-colors hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky"
+                      onClick={onLinkClick}
+                    >
+                      <span className="flex-1 text-sm">Mind5</span>
+                      <SquareArrowOutUpRight className="h-3.5 w-3.5 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                    </a>
                   </div>
                 )
               }
