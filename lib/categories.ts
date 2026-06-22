@@ -63,6 +63,30 @@ export const getCategoryBySlug = cache(async (slug: string) => {
   return getCachedCategory(slug)
 })
 
+/** 구독 대상이 될 수 있는 카테고리 타입 */
+const SUBSCRIBABLE_TYPES: CategoryType[] = [
+  CategoryType.SOURCE,
+  CategoryType.TEMPLATE,
+  CategoryType.BROCHURE,
+]
+
+/** 구독에서 제외되는 메뉴 slug (사이드바에 숨겨진 메뉴) */
+const SUBSCRIPTION_EXCLUDED_SLUGS = new Set(['diagram', 'edm'])
+
+/**
+ * 카테고리가 메뉴 구독 대상인지 판별한다.
+ * 대상 = SOURCE/TEMPLATE/BROCHURE 타입이면서 slug ∉ {diagram, edm}.
+ */
+export function isSubscribableCategory(category: {
+  type: CategoryType
+  slug: string
+}): boolean {
+  return (
+    SUBSCRIBABLE_TYPES.includes(category.type) &&
+    !SUBSCRIPTION_EXCLUDED_SLUGS.has(category.slug)
+  )
+}
+
 export const getCategoriesByType = unstable_cache(
   async (type: CategoryType) => {
     const categories = await prisma.category.findMany({

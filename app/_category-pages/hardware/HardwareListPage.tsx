@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { Loader2, HardDrive } from 'lucide-react'
 import { toast } from 'sonner'
 import { HardwareCard } from '@/components/category-pages/HardwareCategory/HardwareCard'
@@ -158,17 +159,20 @@ export function HardwareListPage({ category }: HardwareListPageProps) {
               하드웨어 제품 이미지를 선택하여 크게 보고 다운로드하세요.
             </p>
           </div>
-          {isAdmin && (
-            <Button
-              onClick={() => {
-                setEditingProduct(null)
-                setUploadOpen(true)
-              }}
-              className="page-header-action-btn"
-            >
-              제품 추가
-            </Button>
-          )}
+          <div className="flex items-center gap-3 shrink-0">
+            <SubscribeButton categoryId={category.id} />
+            {isAdmin && (
+              <Button
+                onClick={() => {
+                  setEditingProduct(null)
+                  setUploadOpen(true)
+                }}
+                className="page-header-action-btn"
+              >
+                제품 추가
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}

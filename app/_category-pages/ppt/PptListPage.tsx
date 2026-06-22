@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { useSession } from 'next-auth/react'
 import { PptUploadDialog } from '@/components/category-pages/PptCategory/PptUploadDialog'
 import { PptCard } from '@/components/category-pages/PptCategory/PptCard'
@@ -402,14 +403,17 @@ export function PptListPage({ category }: PptListPageProps) {
         <div className="px-8 pt-16 pb-8">
           <div className="page-header-row">
             <h1 className="page-header-title">{category.name}</h1>
-            {isAdmin && (
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="page-header-action-btn"
-              >
-                게시물 추가
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              <SubscribeButton categoryId={category.id} />
+              {isAdmin && (
+                <Button
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="page-header-action-btn"
+                >
+                  게시물 추가
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* ZIP 파일 섹션 (필터 메뉴 대신) */}

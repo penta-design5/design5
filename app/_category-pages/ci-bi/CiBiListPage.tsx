@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { useSession } from 'next-auth/react'
 import { CiBiUploadDialog } from '@/components/category-pages/CiBiCategory/CiBiUploadDialog'
@@ -522,14 +523,17 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
         <div className="w-full min-w-0 box-border pt-16 pb-8 px-8">
           <div className="page-header-row">
             <h1 className="page-header-title">{category.name}</h1>
-            {isAdmin && (
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="page-header-action-btn"
-              >
-                게시물 추가
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              <SubscribeButton categoryId={category.id} />
+              {isAdmin && (
+                <Button
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="page-header-action-btn"
+                >
+                  게시물 추가
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { Input } from '@/components/ui/input'
 import { Loader2, Search } from 'lucide-react'
 import { toast } from 'sonner'
@@ -510,14 +511,17 @@ export function IconListPage({ category }: IconListPageProps) {
         <div className="flex-none px-8 pt-16 pb-4 bg-neutral-50 dark:bg-neutral-900">
           <div className="page-header-row">
             <h1 className="page-header-title">{category.name}</h1>
-            {isAdmin && (
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="page-header-action-btn"
-              >
-                아이콘 추가
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              <SubscribeButton categoryId={category.id} />
+              {isAdmin && (
+                <Button
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="page-header-action-btn"
+                >
+                  아이콘 추가
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* 검색 및 액션 버튼 */}

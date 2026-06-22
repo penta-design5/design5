@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { Plus, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { WelcomeBoardGallery } from '@/components/category-pages/WelcomeBoardCategory/WelcomeBoardGallery'
@@ -185,14 +186,17 @@ export function WelcomeBoardPage({ category }: WelcomeBoardPageProps) {
               템플릿을 선택하여 웰컴보드를 제작하세요. 텍스트와 로고를 편집하고 이미지 또는 PDF로 내보낼 수 있습니다.
             </p>
           </div>
-          {isAdmin && (
-            <Button
-              onClick={() => setAdminDialogOpen(true)}
-              className="page-header-action-btn"
-            >
-              템플릿 추가
-            </Button>
-          )}
+          <div className="flex items-center gap-3 shrink-0">
+            <SubscribeButton categoryId={category.id} />
+            {isAdmin && (
+              <Button
+                onClick={() => setAdminDialogOpen(true)}
+                className="page-header-action-btn"
+              >
+                템플릿 추가
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* 템플릿 갤러리 */}

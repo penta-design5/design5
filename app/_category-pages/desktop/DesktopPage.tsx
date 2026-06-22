@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { Loader2, Monitor } from 'lucide-react'
 import { toast } from 'sonner'
 import { DesktopCard } from '@/components/category-pages/DesktopCategory/DesktopCard'
@@ -153,17 +154,20 @@ export function DesktopPage({ category }: DesktopPageProps) {
               관리자가 업로드한 바탕화면을 선택하여 제목, 설명, 캘린더를 추가하고 배경 이미지로 다운로드하세요.
             </p>
           </div>
-          {isAdmin && (
-            <Button
-              onClick={() => {
-                setEditingWallpaper(null)
-                setUploadOpen(true)
-              }}
-              className="page-header-action-btn"
-            >
-              바탕화면 추가
-            </Button>
-          )}
+          <div className="flex items-center gap-3 shrink-0">
+            <SubscribeButton categoryId={category.id} />
+            {isAdmin && (
+              <Button
+                onClick={() => {
+                  setEditingWallpaper(null)
+                  setUploadOpen(true)
+                }}
+                className="page-header-action-btn"
+              >
+                바탕화면 추가
+              </Button>
+            )}
+          </div>
         </div>
 
         {loading && wallpapers.length === 0 && (

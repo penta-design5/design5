@@ -2,6 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { SubscribeButton } from '@/components/category-pages/SubscribeButton'
 import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import { PostCardSkeleton } from '@/components/ui/post-card-skeleton'
@@ -78,14 +79,17 @@ export function GenericListPage({ category, config }: GenericListPageProps) {
                 업로드된 게시물은 디자인팀의 최신 버전이며, 회사 공식 버전은 마케팅 또는 기획에 문의하시기 바랍니다.
               </p>
             </div>
-            {isAdmin && (
-              <Button
-                onClick={() => list.setUploadDialogOpen(true)}
-                className="page-header-action-btn"
-              >
-                게시물 추가
-              </Button>
-            )}
+            <div className="flex items-center gap-3 shrink-0">
+              <SubscribeButton categoryId={category.id} />
+              {isAdmin && (
+                <Button
+                  onClick={() => list.setUploadDialogOpen(true)}
+                  className="page-header-action-btn"
+                >
+                  게시물 추가
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* 필터 메뉴 (한 줄 + 가로 스크롤 + 엣지 페이드) */}
