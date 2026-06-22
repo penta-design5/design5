@@ -114,38 +114,37 @@ export function SubscribeButton({ categoryId }: SubscribeButtonProps) {
   // 전역 OFF, 로딩 중, 미로그인 → 렌더 보류
   if (enabled !== true || subscribed === null) return null
 
-  if (subscribed) {
-    return (
-      <Button
-        variant="outline"
-        className="page-header-action-btn"
-        onClick={handleUnsubscribe}
-        disabled={pending}
-      >
-        구독 취소
-      </Button>
-    )
-  }
-
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              className="page-header-action-btn"
-              onClick={handleSubscribe}
-              disabled={pending}
-            >
-              구독
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            구독 시 업데이트 내용이 자동으로 메일로 발송됩니다.
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {subscribed ? (
+        <Button
+          variant="outline"
+          className="page-header-action-btn"
+          onClick={handleUnsubscribe}
+          disabled={pending}
+        >
+          구독 취소
+        </Button>
+      ) : (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="page-header-action-btn"
+                onClick={handleSubscribe}
+                disabled={pending}
+              >
+                구독
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              구독 시 업데이트 내용이 메일로 자동 발송됩니다.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
 
+      {/* Dialog는 구독 상태와 무관하게 항상 마운트 (구독 직후 언마운트 방지) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
