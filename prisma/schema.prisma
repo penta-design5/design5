@@ -58,6 +58,7 @@ model User {
   hardwareProducts        HardwareProduct[]
   cardTemplates           CardTemplate[]
   designRequests          DesignRequest[]
+  menuSubscriptions       MenuSubscription[]
 
   @@map("users")
 }
@@ -78,8 +79,24 @@ model Category {
   parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
   children Category[] @relation("CategoryParent")
   posts    Post[]
+  subscriptions MenuSubscription[]
 
   @@map("categories")
+}
+
+// 메뉴(카테고리)별 사용자 구독 — 게시물 추가/수정 시 이메일 알림 대상
+model MenuSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@index([categoryId])
+  @@map("menu_subscriptions")
 }
 
 model Post {
@@ -314,9 +331,10 @@ model DesignRequest {
 
 // 전역 앱 설정 (단일 행)
 model AppSettings {
-  id                   String   @id @default("default")
-  showCredentialsLogin Boolean  @default(true)
-  updatedAt            DateTime @updatedAt
+  id                      String   @id @default("default")
+  showCredentialsLogin    Boolean  @default(true)
+  menuSubscriptionEnabled Boolean  @default(true) // 메뉴 구독 알림 기능 전역 on/off
+  updatedAt               DateTime @updatedAt
 
   @@map("app_settings")
 }
