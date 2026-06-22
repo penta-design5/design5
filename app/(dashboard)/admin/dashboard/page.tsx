@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { Images } from 'lucide-react'
 import { StatsCardSkeleton } from '@/components/ui/stats-card-skeleton'
+import { MenuSubscriptionToggleCard } from '@/components/admin/MenuSubscriptionToggleCard'
 
 interface DashboardStats {
   totalPosts: number
@@ -195,6 +196,11 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* 기능 설정 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <MenuSubscriptionToggleCard />
       </div>
     </div>
   )

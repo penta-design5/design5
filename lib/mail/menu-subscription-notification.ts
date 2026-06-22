@@ -33,19 +33,14 @@ export async function notifyMenuUpdate(
   input: NotifyMenuUpdateInput
 ): Promise<void> {
   try {
-    console.log(
-      `[mail][menu-sub] notifyMenuUpdate 진입 categoryId=${input.categoryId} action=${input.action}`
-    )
-
     if (!(await getMenuSubscriptionEnabled())) {
-      console.warn('[mail][menu-sub] 전역 토글 OFF → 스킵')
       return
     }
 
     const transporter = getMailTransporter()
     if (!transporter) {
       console.warn(
-        '[mail][menu-sub] GMAIL_USER 또는 GMAIL_APP_PASSWORD 미설정 → 스킵'
+        '[mail] GMAIL_USER or GMAIL_APP_PASSWORD missing; skip menu subscription notification'
       )
       return
     }
@@ -65,12 +60,8 @@ export async function notifyMenuUpdate(
       if (e) recipientMap.set(e.toLowerCase(), e)
     }
 
-    console.log(
-      `[mail][menu-sub] 구독자 ${subscriptions.length}건 → 수신자 ${recipientMap.size}명 [${[...recipientMap.values()].join(', ')}]`
-    )
-
     if (recipientMap.size === 0) {
-      console.warn('[mail][menu-sub] 수신자 0명 → 스킵')
+      // 구독자 없음 — 정상 (로그 불필요)
       return
     }
 
@@ -126,13 +117,12 @@ export async function notifyMenuUpdate(
       [...recipientMap.values()].map(async (to) => {
         try {
           await transporter.sendMail({ ...mailOptions, to })
-          console.log(`[mail][menu-sub] 발송 성공 → ${to}`)
         } catch (err) {
-          console.error('[mail][menu-sub] 발송 실패 →', to, err)
+          console.error('[mail] menu subscription notification failed for', to, err)
         }
       })
     )
   } catch (e) {
-    console.error('[mail][menu-sub] notifyMenuUpdate 예외', e)
+    console.error('[mail] notifyMenuUpdate', e)
   }
 }

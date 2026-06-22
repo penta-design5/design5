@@ -349,9 +349,6 @@ export const PUT = withRouteHandler(async (
     })
 
     // 구독 알림 (구독 대상 메뉴만; diagram·gallery 등 비대상은 스킵)
-    console.log(
-      `[mail][menu-sub] posts PUT 훅 categoryId=${updatedPost.categoryId} type=${updatedPost.category.type} slug=${updatedPost.category.slug} subscribable=${isSubscribableCategory(updatedPost.category)}`
-    )
     if (isSubscribableCategory(updatedPost.category)) {
       await notifyMenuUpdate({
         categoryId: updatedPost.categoryId,
