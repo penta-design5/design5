@@ -16,11 +16,14 @@ export async function GET() {
         data: { id: SETTINGS_ROW_ID, showCredentialsLogin: true },
       })
     }
-    return NextResponse.json({ showCredentialsLogin: row.showCredentialsLogin })
+    return NextResponse.json({
+      showCredentialsLogin: row.showCredentialsLogin,
+      menuSubscriptionEnabled: row.menuSubscriptionEnabled,
+    })
   } catch (e) {
     console.error('GET /api/app-settings/public', e)
     return NextResponse.json(
-      { showCredentialsLogin: true },
+      { showCredentialsLogin: true, menuSubscriptionEnabled: true },
       { status: 200 }
     )
   }
