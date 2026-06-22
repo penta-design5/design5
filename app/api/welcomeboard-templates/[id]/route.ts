@@ -5,6 +5,8 @@ import { updateTemplateSchema } from '@/lib/welcomeboard-schemas'
 import { deleteFileByUrl, isB2StorageUrl } from '@/lib/b2'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/api/errors'
+import { resolveCategoryByPageType } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -93,6 +95,17 @@ export const PUT = withRouteHandler(async (request: NextRequest, { params }: Rou
       },
     },
   })
+
+  // 구독 알림 (웰컴보드 메뉴 구독자에게 메일 — 링크는 메뉴 페이지)
+  const subscribeCategory = await resolveCategoryByPageType('welcomeboard')
+  if (subscribeCategory) {
+    await notifyMenuUpdate({
+      categoryId: subscribeCategory.id,
+      action: 'updated',
+      title: template.name,
+      slug: subscribeCategory.slug,
+    })
+  }
 
   return NextResponse.json(template)
 }, '템플릿 수정에 실패했습니다.')

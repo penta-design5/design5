@@ -5,6 +5,8 @@ import { downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import sharp from 'sharp'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { UnauthorizedError, ForbiddenError, BadRequestError } from '@/lib/api/errors'
+import { resolveCategoryByPageType } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,6 +115,17 @@ export const POST = withRouteHandler(async (request: NextRequest) => {
       },
     },
   })
+
+  // 구독 알림 (HW 메뉴 구독자에게 메일 — 링크는 메뉴 페이지)
+  const subscribeCategory = await resolveCategoryByPageType('hardware')
+  if (subscribeCategory) {
+    await notifyMenuUpdate({
+      categoryId: subscribeCategory.id,
+      action: 'created',
+      title: product.title,
+      slug: subscribeCategory.slug,
+    })
+  }
 
   return NextResponse.json(product, { status: 201 })
 }, '제품 추가에 실패했습니다.')

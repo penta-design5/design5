@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { NotFoundError } from '@/lib/api/errors'
+import { isSubscribableCategory } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 import { z } from 'zod'
 
 const imageSchema = z.object({
@@ -345,6 +347,17 @@ export const PUT = withRouteHandler(async (
         },
       },
     })
+
+    // 구독 알림 (구독 대상 메뉴만; diagram·gallery 등 비대상은 스킵)
+    if (isSubscribableCategory(updatedPost.category)) {
+      await notifyMenuUpdate({
+        categoryId: updatedPost.categoryId,
+        action: 'updated',
+        title: updatedPost.title,
+        slug: updatedPost.category.slug,
+        postId: updatedPost.id,
+      })
+    }
 
     return NextResponse.json({ post: updatedPost })
 }, '게시물을 수정하는 중 오류가 발생했습니다.')

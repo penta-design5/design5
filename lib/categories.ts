@@ -87,6 +87,17 @@ export function isSubscribableCategory(category: {
   )
 }
 
+/**
+ * pageType로 카테고리를 역매핑한다 (독립 모델 메뉴의 구독 알림용).
+ * 예: 'hardware' | 'desktop' | 'welcomeboard' | 'card'.
+ */
+export async function resolveCategoryByPageType(pageType: string) {
+  return prisma.category.findFirst({
+    where: { pageType },
+    select: { id: true, slug: true, type: true },
+  })
+}
+
 export const getCategoriesByType = unstable_cache(
   async (type: CategoryType) => {
     const categories = await prisma.category.findMany({

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { createTemplateSchema } from '@/lib/welcomeboard-schemas'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { UnauthorizedError, ForbiddenError } from '@/lib/api/errors'
+import { resolveCategoryByPageType } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 // GET: 템플릿 목록 조회
 export const GET = withRouteHandler(async (request: NextRequest) => {
@@ -93,6 +95,17 @@ export const POST = withRouteHandler(async (request: NextRequest) => {
       },
     },
   })
+
+  // 구독 알림 (웰컴보드 메뉴 구독자에게 메일 — 링크는 메뉴 페이지)
+  const subscribeCategory = await resolveCategoryByPageType('welcomeboard')
+  if (subscribeCategory) {
+    await notifyMenuUpdate({
+      categoryId: subscribeCategory.id,
+      action: 'created',
+      title: template.name,
+      slug: subscribeCategory.slug,
+    })
+  }
 
   return NextResponse.json(template, { status: 201 })
 }, '템플릿 생성에 실패했습니다.')

@@ -2,6 +2,7 @@ import { UserRole } from '@prisma/client'
 import { BRAND_EN } from '@/lib/brand'
 import { prisma } from '@/lib/prisma'
 import { getMailTransporter } from './transporter'
+import { getSiteOrigin, escapeHtml, formatTitleForEmailSubject } from './utils'
 
 type CreatedWithAuthor = {
   id: string
@@ -11,46 +12,11 @@ type CreatedWithAuthor = {
   author: { email: string; name: string | null }
 }
 
-/** app/layout.tsx 의 metadataBase 와 동일한 origin 규칙 */
-function getSiteOrigin(): string {
-  const raw = process.env.NEXT_PUBLIC_APP_URL
-  if (raw) {
-    try {
-      return new URL(raw).origin.replace(/\/$/, '')
-    } catch {
-      return raw.replace(/\/$/, '')
-    }
-  }
-  return 'https://layerary.com'
-}
-
 function formatDueYmdUtc(d: Date): string {
   const y = d.getUTCFullYear()
   const m = String(d.getUTCMonth() + 1).padStart(2, '0')
   const day = String(d.getUTCDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-/** 메일 제목용: 줄바꿈·제어문자 제거, 공백 정리, 길이 상한(스레드 묶임·표시 깨짐 완화) */
-const SUBJECT_TITLE_MAX_LEN = 70
-
-function formatTitleForEmailSubject(raw: string): string {
-  let s = raw
-    .trim()
-    .replace(/\r\n|\r|\n/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[\u0000-\u001F\u007F]/g, '')
-    .trim()
-  if (s.length <= SUBJECT_TITLE_MAX_LEN) return s
-  return `${s.slice(0, SUBJECT_TITLE_MAX_LEN - 1)}…`
 }
 
 /**

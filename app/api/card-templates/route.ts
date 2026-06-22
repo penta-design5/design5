@@ -7,6 +7,8 @@ import { downloadFile, uploadFile, isB2StorageUrl } from '@/lib/b2'
 import type { BackgroundImageItem } from '@/lib/card-schemas'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { UnauthorizedError, ForbiddenError } from '@/lib/api/errors'
+import { resolveCategoryByPageType } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 const CARD_THUMB_WIDTH = 318
 const CARD_THUMB_HEIGHT = 167
@@ -125,6 +127,17 @@ export const POST = withRouteHandler(async (request: NextRequest) => {
       },
     },
   })
+
+  // 구독 알림 (카드 메뉴 구독자에게 메일 — 썸네일 갱신 분기 전, 두 응답 경로 공통)
+  const subscribeCategory = await resolveCategoryByPageType('card')
+  if (subscribeCategory) {
+    await notifyMenuUpdate({
+      categoryId: subscribeCategory.id,
+      action: 'created',
+      title: template.name,
+      slug: subscribeCategory.slug,
+    })
+  }
 
   const images = backgroundImages as BackgroundImageItem[] | undefined
   if (images?.length && images[0].url) {

@@ -3,10 +3,11 @@ import { CategoryType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth-helpers'
 import { z } from 'zod'
-import { getCategoryBySlug } from '@/lib/categories'
+import { getCategoryBySlug, isSubscribableCategory } from '@/lib/categories'
 import { getInMemoryPostSorter } from '@/lib/post-sorting'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { NotFoundError } from '@/lib/api/errors'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 export const dynamic = 'force-dynamic'
 
@@ -330,6 +331,17 @@ export const POST = withRouteHandler(async (request: Request) => {
         },
       },
     })
+
+    // 구독 알림 (구독 대상 메뉴만; diagram·gallery 등 비대상은 스킵)
+    if (isSubscribableCategory(post.category)) {
+      await notifyMenuUpdate({
+        categoryId: post.categoryId,
+        action: 'created',
+        title: post.title,
+        slug: post.category.slug,
+        postId: post.id,
+      })
+    }
 
     return NextResponse.json({ post }, { status: 201 })
 }, '게시물을 생성하는 중 오류가 발생했습니다.')

@@ -5,6 +5,8 @@ import { deleteFileByUrl, downloadFile, uploadFile, isB2StorageUrl } from '@/lib
 import sharp from 'sharp'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '@/lib/api/errors'
+import { resolveCategoryByPageType } from '@/lib/categories'
+import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -121,6 +123,17 @@ export const PUT = withRouteHandler(async (request: NextRequest, { params }: Rou
       },
     },
   })
+
+  // 구독 알림 (바탕화면 메뉴 구독자에게 메일 — 링크는 메뉴 페이지)
+  const subscribeCategory = await resolveCategoryByPageType('desktop')
+  if (subscribeCategory) {
+    await notifyMenuUpdate({
+      categoryId: subscribeCategory.id,
+      action: 'updated',
+      title: wallpaper.title,
+      slug: subscribeCategory.slug,
+    })
+  }
 
   return NextResponse.json(wallpaper)
 }, '바탕화면 수정에 실패했습니다.')
