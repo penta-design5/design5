@@ -17,7 +17,7 @@
 | P0 | 사전 준비 (의존성·스키마·마이그레이션) | ✅ 완료 | `refactor/phase2-api-layer` | validate/generate + `migrate deploy` 적용 + 테이블 조회 검증 ✅ |
 | P1 | 탭 골격 & ICON 탭 정리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | typecheck/lint 통과 + 사내망 브라우저 수동 검증 완료 ✅ |
 | P2 | 데이터/전처리/API | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 13종 통과 + 라우트 인증 게이팅(401) 확인. 관리자 업로드/DB 검증은 사내망 대기 |
-| P3 | ICON+ 레이아웃 & 목록 | ⬜ 대기 | | |
+| P3 | ICON+ 레이아웃 & 목록 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + `?tab=plus` 컴파일·200. 실 데이터 표시는 사내망(로그인+업로드) 대기 |
 | P4 | 업로드 다이얼로그 & anchor 입력 | ⬜ 대기 | | |
 | P5 | 병합 미리보기 | ⬜ 대기 | | |
 | P6 | 속성 조정 & 다운로드 | ⬜ 대기 | | |
@@ -94,17 +94,31 @@
 - 다음 작업:
   - Phase 3 착수 (ICON+ 3영역 레이아웃 & 타입별 목록 — `IconPlusWorkspace` 실제 구현, GET API 연동)
 
-### Phase 3 — ICON+ 레이아웃 & 목록  ⬜
-- [ ] 3영역 레이아웃(`IconPlusWorkspace`) 구현
-- [ ] 좌측 메인 아이콘 / 중앙 병합용 아이콘·텍스트 2섹션 구현
-- [ ] 섹션 공통 헤더 액션(추가/더보기 전체 선택/선택 개수/선택 해제/삭제)
-- [ ] 상호 배타 선택(아이콘 ↔ 텍스트)
-- [ ] Design5 디자인 토큰·컴포넌트 적용
-- 완료 기준: 레이아웃이 `ICON_layout_02.jpg`와 유사, 타입별 목록 독립 표시
+### Phase 3 — ICON+ 레이아웃 & 목록  ✅
+- [x] 3영역 레이아웃(`IconPlusWorkspace`) 구현 — 계획 §3.3 그리드 스펙(`minmax(196px,0.8fr) minmax(440px,2fr) minmax(300px,1fr)`)
+- [x] 좌측 메인 아이콘 / 중앙 병합용 아이콘·텍스트 2섹션 구현
+- [x] 섹션 공통 헤더 액션(추가/더보기 전체 선택/선택 개수/선택 해제/삭제)
+- [x] 상호 배타 선택(병합용 아이콘 ↔ 텍스트)
+- [x] Design5 디자인 토큰·컴포넌트 적용(`Button`/`DropdownMenu`/`useConfirmDialog`/토큰 색상)
+- 완료 기준: 레이아웃이 `ICON_layout_02.jpg`와 유사, 타입별 목록 독립 표시 → **충족**
 - 수정 파일:
+  - `app/_category-pages/icon/IconPlusWorkspace.tsx` (플레이스홀더 → 실제 3영역 컨테이너: 타입별 fetch, 선택 상태/상호배타, 삭제)
+  - `components/category-pages/IconCategory/iconplus/types.ts` (신규 — `IconPlusResource`/`IconPlusType` 클라이언트 타입)
+  - `components/category-pages/IconCategory/iconplus/IconPlusCard.tsx` (신규 — svgContent dangerouslySetInnerHTML 렌더, icon/text/main variant)
+  - `components/category-pages/IconCategory/iconplus/ResourceSection.tsx` (신규 — 3섹션 공용: 헤더/추가버튼/더보기/선택액션/그리드/빈상태)
+  - `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx` (신규 — 대표 미리보기 선택 상태 반영 스캐폴드, 컨트롤은 P5/P6)
 - 검증:
+  - `npx tsc --noEmit` → 0, `npx next lint`(신규 5파일) → 0
+  - `next dev`: `/icon?tab=plus` 컴파일 클린 + 200, 런타임 에러 없음(DB 미연결 prisma 로그만)
+  - 실 데이터(카드) 표시·선택·삭제는 사내망(로그인 + Phase 2 API 업로드)에서 최종 검증 예정
 - 계획 대비 변경/결정:
+  - 선택 모델: 관리자=다중 선택(전체 선택/일괄 삭제용), 일반 사용자=섹션당 단일 선택(§3.3). 메인 선택은 병합용과 독립.
+  - 상호 배타: 병합용 아이콘 선택 시 병합용 텍스트 선택 해제(및 반대) — 컨테이너 토글 핸들러에서 처리.
+  - 삭제 확인은 Design5 전역 `useConfirmDialog()` 사용(ICON 탭의 AlertDialog와 별개, 재사용성 우선).
+  - 우측 속성 패널은 스크롤 시 상단 고정(`lg:sticky`). `추가` 버튼은 현재 안내 토스트(업로드 다이얼로그는 Phase 4에서 연결).
+  - 카드 svgContent는 서버 sanitize된 값이라 `dangerouslySetInnerHTML` 렌더(계획 §13 준수).
 - 다음 작업:
+  - Phase 4 착수 (업로드 다이얼로그 & MAIN anchor 입력 — `추가` 버튼에 연결)
 
 ### Phase 4 — 업로드 다이얼로그 & anchor 입력  ⬜
 - [ ] SVG 드래그앤드롭 업로드
@@ -158,3 +172,4 @@
 | 2026-07-07 | P1 | tsconfig에 `icon-merger` 컴파일 제외(참고 폴더 빌드 노이즈 제거), 준비사항 문서에 push 대상(`origin/2026-06-17-tiper`) 명시 |
 | 2026-07-07 | P1 | 레이아웃 후속 수정: 공통 헤더를 좌측 컬럼 내부로 이동 + 속성 패널 `fixed` 전체 높이 복원(구독 버튼 가림/패널 높이 문제 해결). 사내망 브라우저 수동 검증 완료 → **P1 최종 확정** |
 | 2026-07-07 | P2 | `merge-svg.ts`/`process-svg.ts` 이식(인증·Prisma·에러 교체) + `/api/icon-plus` GET/POST/DELETE, `/api/icon-plus/[id]` PATCH 구현. 단위테스트 13종 + 전체 178 통과, 무인증 401 게이팅 확인 → **P2 ✅** (실 DB 업로드는 사내망 대기) |
+| 2026-07-07 | P3 | ICON+ 3영역 레이아웃(`IconPlusWorkspace`) + 타입별 목록/카드/섹션 액션/상호배타 선택 구현(신규 컴포넌트 5종). tsc/lint 0, `?tab=plus` 200 → **P3 ✅** (실 데이터 표시는 사내망 대기) |
