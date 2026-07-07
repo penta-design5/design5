@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { ResourceSection } from '@/components/category-pages/IconCategory/iconplus/ResourceSection'
 import { IconPlusPropertyPanel } from '@/components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel'
+import { IconPlusUploadDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusUploadDialog'
 import type { IconPlusResource, IconPlusType } from '@/components/category-pages/IconCategory/iconplus/types'
 
 interface Category {
@@ -44,6 +45,9 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
   const [mainSelected, setMainSelected] = useState<Set<string>>(new Set())
   const [mergeIconSelected, setMergeIconSelected] = useState<Set<string>>(new Set())
   const [mergeTextSelected, setMergeTextSelected] = useState<Set<string>>(new Set())
+
+  // 업로드 다이얼로그 대상 타입 (null이면 닫힘)
+  const [uploadType, setUploadType] = useState<IconPlusType | null>(null)
 
   const fetchType = useCallback(async (type: IconPlusType): Promise<IconPlusResource[]> => {
     try {
@@ -161,10 +165,11 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
     [confirm, refresh]
   )
 
-  const handleAdd = useCallback(() => {
-    // Phase 4에서 업로드 다이얼로그로 대체
-    toast.info('업로드 기능은 곧 제공됩니다.')
-  }, [])
+  const handleUploadSuccess = useCallback(() => {
+    if (!uploadType) return
+    toast.success('리소스가 업로드되었습니다.')
+    void refresh(uploadType)
+  }, [uploadType, refresh])
 
   const selectedMain = mainResources.find((r) => mainSelected.has(r.id)) ?? null
   const selectedResource =
@@ -197,7 +202,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
               onSelectAll={() => setMainSelected(new Set(mainResources.map((r) => r.id)))}
               onDeselectAll={() => setMainSelected(new Set())}
               onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
-              onAdd={handleAdd}
+              onAdd={() => setUploadType('MAIN')}
             />
 
             {/* 병합용 아이콘 + 병합용 텍스트 */}
@@ -222,7 +227,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
                 onDelete={() =>
                   handleDelete('MERGE_ICON', mergeIconSelected, () => setMergeIconSelected(new Set()))
                 }
-                onAdd={handleAdd}
+                onAdd={() => setUploadType('MERGE_ICON')}
               />
 
               <ResourceSection
@@ -245,7 +250,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
                 onDelete={() =>
                   handleDelete('MERGE_TEXT', mergeTextSelected, () => setMergeTextSelected(new Set()))
                 }
-                onAdd={handleAdd}
+                onAdd={() => setUploadType('MERGE_TEXT')}
               />
             </div>
           </div>
@@ -256,6 +261,16 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
       <div className="hidden md:block">
         <IconPlusPropertyPanel selectedMain={selectedMain} selectedResource={selectedResource} />
       </div>
+
+      {/* 업로드 다이얼로그 (관리자 전용, 섹션별 타입) */}
+      {isAdmin && uploadType && (
+        <IconPlusUploadDialog
+          open={uploadType !== null}
+          type={uploadType}
+          onClose={() => setUploadType(null)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
     </div>
   )
 }

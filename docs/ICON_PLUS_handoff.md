@@ -4,7 +4,7 @@
 > **구현 진행 상태의 단일 원본(source of truth)은 이 문서다.** 계획서는 스펙으로 고정하고, 단계 진행/완료 시 이 문서만 갱신한다.
 
 - 대상: SOURCE > ICON 페이지에 ICON+ 탭 추가
-- 최종 업데이트: 2026-07-07
+- 최종 업데이트: 2026-07-08
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -17,8 +17,8 @@
 | P0 | 사전 준비 (의존성·스키마·마이그레이션) | ✅ 완료 | `refactor/phase2-api-layer` | validate/generate + `migrate deploy` 적용 + 테이블 조회 검증 ✅ |
 | P1 | 탭 골격 & ICON 탭 정리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | typecheck/lint 통과 + 사내망 브라우저 수동 검증 완료 ✅ |
 | P2 | 데이터/전처리/API | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 13종 통과 + 라우트 인증 게이팅(401) 확인. 관리자 업로드/DB 검증은 사내망 대기 |
-| P3 | ICON+ 레이아웃 & 목록 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + `?tab=plus` 컴파일·200. 실 데이터 표시는 사내망(로그인+업로드) 대기 |
-| P4 | 업로드 다이얼로그 & anchor 입력 | ⬜ 대기 | | |
+| P3 | ICON+ 레이아웃 & 목록 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + `?tab=plus` 컴파일·200 + 사내망 UI 피드백(폰트/미리보기 배경/간격) 반영 완료. 실 데이터 표시는 사내망 대기 |
+| P4 | 업로드 다이얼로그 & anchor 입력 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 178 통과 + `?tab=plus` 컴파일·200. 실 업로드/anchor 저장은 사내망(로그인+DB) 대기 |
 | P5 | 병합 미리보기 | ⬜ 대기 | | |
 | P6 | 속성 조정 & 다운로드 | ⬜ 대기 | | |
 | P7 | 반응형/접근성/QA | ⬜ 대기 | | |
@@ -120,15 +120,25 @@
 - 다음 작업:
   - Phase 4 착수 (업로드 다이얼로그 & MAIN anchor 입력 — `추가` 버튼에 연결)
 
-### Phase 4 — 업로드 다이얼로그 & anchor 입력  ⬜
-- [ ] SVG 드래그앤드롭 업로드
-- [ ] MAIN 단건 + anchor 클릭/드래그 지정(십자선 표시)
-- [ ] 병합용 아이콘/텍스트 다중 업로드
-- 완료 기준: 검증/sanitize 통과, MAIN anchor 저장, 위험 SVG 차단
+### Phase 4 — 업로드 다이얼로그 & anchor 입력  ✅
+- [x] SVG 드래그앤드롭 업로드(Design5 `Dialog`/`Button`/`Input`/`Label` 기반)
+- [x] MAIN 단건 + anchor 클릭/드래그 지정(미리보기 위 십자선 마커, 좌표 직접 입력 병행)
+- [x] 병합용 아이콘/텍스트 다중 업로드
+- 완료 기준: 검증/sanitize 통과, MAIN anchor 저장, 위험 SVG 차단 → **코드/게이팅 충족** (실 업로드는 사내망 검증 대기)
 - 수정 파일:
+  - `components/category-pages/IconCategory/iconplus/IconPlusUploadDialog.tsx` (신규 — 타입별 업로드 다이얼로그. MERGE_*는 다중, MAIN은 단건+anchor. 미리보기는 object URL+`<img>`(sanitize 전이므로 dangerouslySetInnerHTML 미사용). anchor 좌표 계산 헬퍼(clamp/getContainedRect/readClientSvgSize/formatCoordinate/isClientSvgFile) icon-merger에서 순수 함수로 이식)
+  - `app/_category-pages/icon/IconPlusWorkspace.tsx` (`handleAdd` 토스트 → `uploadType` 상태 + 섹션별 `onAdd`로 다이얼로그 오픈, 업로드 성공 시 `refresh(type)`)
 - 검증:
+  - `npx tsc --noEmit` → 0, `npx next lint`(신규/수정 2파일) → 0
+  - `npx vitest run` → 전체 178 통과(회귀 없음)
+  - 서버 게이팅(P2): POST `/api/icon-plus` 관리자 전용 + MAIN anchor 필수(400) + processSvgFile sanitize/크기/MIME 검증 — 이미 구현·테스트됨. 다이얼로그는 이 API에 FormData(type/files/anchorX/anchorY) 전송
+  - 실 업로드/anchor 저장/위험 SVG 차단 육안 확인은 사내망(로그인+DB)에서 최종 검증 예정
 - 계획 대비 변경/결정:
+  - 미리보기 렌더: icon-merger와 동일하게 **object URL + `<img>`** 방식(SVG를 이미지로 로드 → 스크립트 실행 불가). 업로드 전 파일은 아직 서버 sanitize 전이므로 `dangerouslySetInnerHTML` 사용 안 함.
+  - 하드코딩 색/폰트(`#1E6FFF` 등) → Design5 토큰(`primary`/`border`/`muted`/`destructive`)으로 치환.
+  - **범위 결정**: 기존 MAIN 카드의 anchor 재편집(§3.3 "카드 마우스 오버 시 anchor 편집" + PATCH `/api/icon-plus/[id]`)은 Phase 4 완료 기준(업로드 시 anchor 저장)에 포함되지 않아 **후속 작업으로 이연**. 카드가 `<button>`이라 중첩 버튼 회피 위해 카드 래퍼/오버레이 구조 필요 → P5/P6 UI 손볼 때 함께 처리 권장. (PATCH 라우트는 P2에서 구현되어 대기 중)
 - 다음 작업:
+  - Phase 5 착수 (병합 미리보기 — 선택 조합 → `mergeSvgsByAnchor` 실시간 렌더)
 
 ### Phase 5 — 병합 미리보기  ⬜
 - [ ] 선택 조합 → `mergeSvgsByAnchor` 실시간 미리보기(`메인 + 리소스 = 결과`)
@@ -162,14 +172,14 @@
 ## 미해결 / 결정 대기
 - (없음)
 
-## 다음 세션 착수점 (2026-07-07 세션 종료 시점)
-- **다음 작업: Phase 4 — 업로드 다이얼로그 & anchor 입력.**
-  - ICON+ 각 섹션의 `추가` 버튼(현재 안내 토스트)에 실제 업로드 다이얼로그를 연결한다.
-  - SVG 드래그앤드롭 업로드, MAIN 단건 + anchor 클릭/드래그 지정(십자선), 병합용(아이콘/텍스트) 다중 업로드.
-  - 서버 API(`POST /api/icon-plus`)는 P2에서 완료 — 클라이언트 다이얼로그만 구현하면 됨. MAIN은 `anchorX/anchorY` 필수(미입력 시 400).
-  - 참고 UI: `icon-merger/src/components/icon-workspace.tsx`(anchor 편집 다이얼로그), 기존 `IconUploadDialog.tsx` 패턴.
-  - 연결 지점: `app/_category-pages/icon/IconPlusWorkspace.tsx`의 `handleAdd`(현재 토스트) → 다이얼로그 오픈. 업로드 성공 시 `refresh(type)` 호출로 목록 갱신.
-- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P3 후속(우측 패널 전체높이·테두리 제거) 육안 확인. (P1은 검증 완료)
+## 다음 세션 착수점 (2026-07-08 세션 종료 시점)
+- **다음 작업: Phase 5 — 병합 미리보기.**
+  - 선택된 (메인 + 병합용 리소스) 조합을 `lib/svg/merge-svg.ts`의 `mergeSvgsByAnchor()`로 실시간 병합해 우측 속성 패널 대표 미리보기 "결과" 슬롯에 렌더.
+  - 완료 기준: 절단 영역 상단/좌측 정렬, 결과 viewBox 재계산, 미선택/anchor 없음 시 상태 안내 + (P6) 다운로드 비활성.
+  - 연결 지점: `IconPlusPropertyPanel`(현재 "결과" 슬롯은 placeholder). `selectedMain`(anchorX/Y 보유)과 `selectedResource`를 받아 병합 결과 SVG 문자열 생성 → 렌더. 병합 함수는 P2에서 이식 완료(순수 함수, 단위테스트 4종 통과).
+  - 참고 UI: `icon-merger/src/components/icon-workspace.tsx`의 `PropertiesPanel`(병합 미리보기 렌더 로직).
+- **Phase 4 후속(이연) 항목**: 기존 MAIN 카드 anchor 재편집(§3.3 hover 편집 + PATCH `/api/icon-plus/[id]`). 카드가 `<button>`이라 오버레이/래퍼 구조 필요 → P5/P6 UI 작업 시 함께 처리 권장.
+- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 실 업로드(드롭존/anchor 클릭·드래그/다중)·MAIN anchor 저장·위험 SVG 차단 육안 확인. (P1은 검증 완료)
 - 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push. HEAD == origin (동기화 완료).
 
 ## 변경 이력
@@ -184,3 +194,5 @@
 | 2026-07-07 | P2 | `merge-svg.ts`/`process-svg.ts` 이식(인증·Prisma·에러 교체) + `/api/icon-plus` GET/POST/DELETE, `/api/icon-plus/[id]` PATCH 구현. 단위테스트 13종 + 전체 178 통과, 무인증 401 게이팅 확인 → **P2 ✅** (실 DB 업로드는 사내망 대기) |
 | 2026-07-07 | P3 | ICON+ 3영역 레이아웃(`IconPlusWorkspace`) + 타입별 목록/카드/섹션 액션/상호배타 선택 구현(신규 컴포넌트 5종). tsc/lint 0, `?tab=plus` 200 → **P3 ✅** (실 데이터 표시는 사내망 대기) |
 | 2026-07-07 | P3 | 사내망 UI 피드백 반영: ICON+ 우측 속성 패널을 ICON 탭과 동일하게 화면 전체 높이 `fixed` + 테두리 제거(배경색 차이로 구분). 워크스페이스를 좌측 스크롤 컬럼(헤더 포함, `pr-[410px]`) + 우측 고정 패널 구조로 재편(두 탭 레이아웃 일관) |
+| 2026-07-08 | P3 | 사내망 UI 피드백 2차: "아이콘 속성" 폰트 20px(ICON 탭과 통일), 대표 미리보기 컨테이너 테두리 제거 + 배경을 좌측 콘텐츠 영역과 동일(`bg-neutral-50 dark:bg-neutral-900`), 미리보기 메인/리소스 슬롯 배경 흰색(`bg-background`), 탭↔카드 간격 `pt-2`→`pt-4`. ICON 탭 설명글 `mt-1` 통일 → **P3 최종 확정** |
+| 2026-07-08 | P4 | 업로드 다이얼로그(`IconPlusUploadDialog`) 구현: SVG 드래그앤드롭, MAIN 단건+anchor 클릭·드래그(십자선)·좌표 입력, 병합용 다중. 워크스페이스 `추가` 버튼(토스트 → 다이얼로그 오픈, 성공 시 refresh). tsc/lint 0 + 178 통과 → **P4 ✅** (실 업로드는 사내망 대기). 기존 MAIN anchor 재편집(PATCH)은 후속 이연 |
