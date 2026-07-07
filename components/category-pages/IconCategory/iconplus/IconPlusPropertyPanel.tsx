@@ -53,7 +53,8 @@ export function IconPlusPropertyPanel({
   const hasCombination = Boolean(selectedMain && selectedResource)
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-border bg-background p-5">
+    // ICON 탭 속성 패널과 동일: 화면 전체 높이 고정 + 테두리 없음(배경색 차이로 구분)
+    <div className="fixed bottom-0 right-0 top-0 flex h-full w-[410px] flex-col gap-6 overflow-y-auto bg-background px-8 pb-8 pt-14">
       <div>
         <h2 className="text-base font-semibold text-foreground">아이콘 속성</h2>
         <p className="mt-1 text-sm text-muted-foreground">색상, 두께, 크기를 조정할 수 있습니다.</p>

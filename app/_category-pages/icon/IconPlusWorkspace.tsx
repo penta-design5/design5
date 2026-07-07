@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
@@ -18,6 +18,8 @@ interface Category {
 
 interface IconPlusWorkspaceProps {
   category: Category
+  /** 공통 헤더(타이틀 + 구독 버튼 + 탭 바). 좌측 컬럼(pr-[410px]) 안에 렌더되어 우측 속성 패널과 겹치지 않는다. */
+  header?: ReactNode
 }
 
 /**
@@ -28,7 +30,7 @@ interface IconPlusWorkspaceProps {
  * - 업로드 다이얼로그/anchor 입력은 Phase 4, 병합 미리보기는 Phase 5, 속성/다운로드는 Phase 6.
  * @see docs/ICON_PLUS_개발계획.md §3.3
  */
-export function IconPlusWorkspace(_props: IconPlusWorkspaceProps) {
+export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'ADMIN'
   const { confirm } = useConfirmDialog()
@@ -171,80 +173,88 @@ export function IconPlusWorkspace(_props: IconPlusWorkspaceProps) {
     null
 
   return (
-    <div className="absolute inset-0 overflow-y-auto px-8 pb-10 pt-2">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(196px,0.8fr)_minmax(440px,2fr)_minmax(300px,1fr)]">
-        {/* 좌측: 메인 아이콘 */}
-        <ResourceSection
-          title="메인 아이콘"
-          description="병합 기준점이 저장되는 원본 아이콘입니다."
-          addLabel="메인 추가"
-          resources={mainResources}
-          selectedIds={mainSelected}
-          loading={loading}
-          isAdmin={isAdmin}
-          deleting={deletingType === 'MAIN'}
-          cardVariant="main"
-          gridClassName="grid grid-cols-2 gap-3"
-          onToggleSelect={handleToggleMain}
-          onSelectAll={() => setMainSelected(new Set(mainResources.map((r) => r.id)))}
-          onDeselectAll={() => setMainSelected(new Set())}
-          onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
-          onAdd={handleAdd}
-        />
+    <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
+      {/* 좌측: 헤더 + 메인/병합용 섹션 (모바일에서는 속성 패널 없음 → pr-0) */}
+      <div className="flex-1 min-w-0 pr-0 md:pr-[410px] overflow-y-auto">
+        {/* 공통 헤더(타이틀 + 구독 + 탭) — 좌측 컬럼 안에 두어 우측 속성 패널과 겹치지 않음 */}
+        {header}
 
-        {/* 중앙: 병합용 아이콘 + 병합용 텍스트 */}
-        <div className="flex flex-col gap-5">
-          <ResourceSection
-            title="병합용 아이콘"
-            description="메인 아이콘의 절단 영역에 붙일 아이콘 리소스입니다."
-            addLabel="아이콘 추가"
-            resources={mergeIconResources}
-            selectedIds={mergeIconSelected}
-            loading={loading}
-            isAdmin={isAdmin}
-            deleting={deletingType === 'MERGE_ICON'}
-            cardVariant="icon"
-            gridClassName="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2"
-            onToggleSelect={handleToggleMergeIcon}
-            onSelectAll={() => {
-              setMergeIconSelected(new Set(mergeIconResources.map((r) => r.id)))
-              setMergeTextSelected(new Set())
-            }}
-            onDeselectAll={() => setMergeIconSelected(new Set())}
-            onDelete={() =>
-              handleDelete('MERGE_ICON', mergeIconSelected, () => setMergeIconSelected(new Set()))
-            }
-            onAdd={handleAdd}
-          />
+        <div className="px-8 pb-10 pt-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(196px,0.8fr)_minmax(440px,2fr)]">
+            {/* 메인 아이콘 */}
+            <ResourceSection
+              title="메인 아이콘"
+              description="병합 기준점이 저장되는 원본 아이콘입니다."
+              addLabel="메인 추가"
+              resources={mainResources}
+              selectedIds={mainSelected}
+              loading={loading}
+              isAdmin={isAdmin}
+              deleting={deletingType === 'MAIN'}
+              cardVariant="main"
+              gridClassName="grid grid-cols-2 gap-3"
+              onToggleSelect={handleToggleMain}
+              onSelectAll={() => setMainSelected(new Set(mainResources.map((r) => r.id)))}
+              onDeselectAll={() => setMainSelected(new Set())}
+              onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
+              onAdd={handleAdd}
+            />
 
-          <ResourceSection
-            title="병합용 텍스트"
-            description="문자나 라벨 형태의 SVG 리소스입니다."
-            addLabel="텍스트 추가"
-            resources={mergeTextResources}
-            selectedIds={mergeTextSelected}
-            loading={loading}
-            isAdmin={isAdmin}
-            deleting={deletingType === 'MERGE_TEXT'}
-            cardVariant="text"
-            gridClassName="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"
-            onToggleSelect={handleToggleMergeText}
-            onSelectAll={() => {
-              setMergeTextSelected(new Set(mergeTextResources.map((r) => r.id)))
-              setMergeIconSelected(new Set())
-            }}
-            onDeselectAll={() => setMergeTextSelected(new Set())}
-            onDelete={() =>
-              handleDelete('MERGE_TEXT', mergeTextSelected, () => setMergeTextSelected(new Set()))
-            }
-            onAdd={handleAdd}
-          />
+            {/* 병합용 아이콘 + 병합용 텍스트 */}
+            <div className="flex flex-col gap-5">
+              <ResourceSection
+                title="병합용 아이콘"
+                description="메인 아이콘의 절단 영역에 붙일 아이콘 리소스입니다."
+                addLabel="아이콘 추가"
+                resources={mergeIconResources}
+                selectedIds={mergeIconSelected}
+                loading={loading}
+                isAdmin={isAdmin}
+                deleting={deletingType === 'MERGE_ICON'}
+                cardVariant="icon"
+                gridClassName="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2"
+                onToggleSelect={handleToggleMergeIcon}
+                onSelectAll={() => {
+                  setMergeIconSelected(new Set(mergeIconResources.map((r) => r.id)))
+                  setMergeTextSelected(new Set())
+                }}
+                onDeselectAll={() => setMergeIconSelected(new Set())}
+                onDelete={() =>
+                  handleDelete('MERGE_ICON', mergeIconSelected, () => setMergeIconSelected(new Set()))
+                }
+                onAdd={handleAdd}
+              />
+
+              <ResourceSection
+                title="병합용 텍스트"
+                description="문자나 라벨 형태의 SVG 리소스입니다."
+                addLabel="텍스트 추가"
+                resources={mergeTextResources}
+                selectedIds={mergeTextSelected}
+                loading={loading}
+                isAdmin={isAdmin}
+                deleting={deletingType === 'MERGE_TEXT'}
+                cardVariant="text"
+                gridClassName="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"
+                onToggleSelect={handleToggleMergeText}
+                onSelectAll={() => {
+                  setMergeTextSelected(new Set(mergeTextResources.map((r) => r.id)))
+                  setMergeIconSelected(new Set())
+                }}
+                onDeselectAll={() => setMergeTextSelected(new Set())}
+                onDelete={() =>
+                  handleDelete('MERGE_TEXT', mergeTextSelected, () => setMergeTextSelected(new Set()))
+                }
+                onAdd={handleAdd}
+              />
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* 우측: 속성 패널 (데스크톱에서 상단 고정) */}
-        <div className="lg:sticky lg:top-2 lg:self-start">
-          <IconPlusPropertyPanel selectedMain={selectedMain} selectedResource={selectedResource} />
-        </div>
+      {/* 우측: 속성 패널 (데스크톱) — ICON 탭과 동일하게 화면 전체 높이 고정 */}
+      <div className="hidden md:block">
+        <IconPlusPropertyPanel selectedMain={selectedMain} selectedResource={selectedResource} />
       </div>
     </div>
   )

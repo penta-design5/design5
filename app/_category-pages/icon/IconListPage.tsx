@@ -98,12 +98,5 @@ export function IconListPage({ category }: IconListPageProps) {
     return <IconTab category={category} header={header} />
   }
 
-  return (
-    <div className="w-full h-full flex flex-col absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {header}
-      <div className="relative flex-1 min-h-0">
-        <IconPlusWorkspace category={category} />
-      </div>
-    </div>
-  )
+  return <IconPlusWorkspace category={category} header={header} />
 }
