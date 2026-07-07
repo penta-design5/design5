@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,8 @@ interface Category {
 
 interface IconTabProps {
   category: Category
+  /** 공통 헤더(타이틀 + 구독 버튼 + 탭 바). 좌측 컬럼(pr-[410px]) 안에 렌더되어 우측 속성 패널과 겹치지 않는다. */
+  header?: ReactNode
 }
 
 interface Post {
@@ -44,7 +46,7 @@ interface Post {
   thumbnailUrl?: string | null
 }
 
-export function IconTab({ category }: IconTabProps) {
+export function IconTab({ category, header }: IconTabProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { data: session } = useSession()
@@ -506,6 +508,9 @@ export function IconTab({ category }: IconTabProps) {
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
       {/* 좌측: 게시물 목록 (모바일에서는 속성 패널 없음 → pr-0) */}
       <div className="flex-1 pr-0 md:pr-[410px] overflow-y-auto">
+        {/* 공통 헤더(타이틀 + 구독 + 탭) — 좌측 컬럼 안에 두어 우측 속성 패널과 겹치지 않음 */}
+        {header}
+
         {/* 검색 및 액션 버튼 */}
         <div className="flex-none px-8 pt-4 pb-4 bg-neutral-50 dark:bg-neutral-900">
           <div className="flex items-center gap-4">

@@ -52,49 +52,57 @@ export function IconListPage({ category }: IconListPageProps) {
     [router, searchParams, category.slug]
   )
 
-  return (
-    <div className="w-full h-full flex flex-col absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
-      {/* 공통 헤더: 타이틀 + 구독 버튼 + 탭 (두 탭 공유) */}
-      <div className="flex-none px-8 pt-16 bg-neutral-50 dark:bg-neutral-900">
-        <div className="page-header-row !mb-4">
-          <h1 className="page-header-title">{category.name}</h1>
-          <div className="flex items-center gap-3 shrink-0">
-            <SubscribeButton categoryId={category.id} />
-          </div>
-        </div>
-
-        {/* ICON / ICON+ 탭 */}
-        <div role="tablist" aria-label="ICON 보기 전환" className="flex items-center gap-1 border-b border-border">
-          {TABS.map((tab) => {
-            const isActive = activeTab === tab.key
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => handleTabChange(tab.key)}
-                className={cn(
-                  '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
+  // 공통 헤더: 타이틀 + 구독 버튼 + ICON/ICON+ 탭 (두 탭 공유)
+  // - ICON 탭에서는 IconTab 좌측 컬럼(pr-[410px]) 안에 렌더되어 우측 속성 패널과 겹치지 않는다.
+  // - ICON+ 탭에서는 전체 폭 상단에 렌더된다.
+  const header = (
+    <div className="px-8 pt-16">
+      <div className="page-header-row !mb-4">
+        <h1 className="page-header-title">{category.name}</h1>
+        <div className="flex items-center gap-3 shrink-0">
+          <SubscribeButton categoryId={category.id} />
         </div>
       </div>
 
-      {/* 탭 콘텐츠 */}
+      {/* ICON / ICON+ 탭 */}
+      <div
+        role="tablist"
+        aria-label="ICON 보기 전환"
+        className="flex items-center gap-1 border-b border-border"
+      >
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => handleTabChange(tab.key)}
+              className={cn(
+                '-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  if (activeTab === 'ICON') {
+    return <IconTab category={category} header={header} />
+  }
+
+  return (
+    <div className="w-full h-full flex flex-col absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
+      {header}
       <div className="relative flex-1 min-h-0">
-        {activeTab === 'ICON' ? (
-          <IconTab category={category} />
-        ) : (
-          <IconPlusWorkspace category={category} />
-        )}
+        <IconPlusWorkspace category={category} />
       </div>
     </div>
   )

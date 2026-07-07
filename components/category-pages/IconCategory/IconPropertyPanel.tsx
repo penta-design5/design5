@@ -82,7 +82,7 @@ export function IconPropertyPanel({
       className={
         isSheet
           ? 'w-full min-h-0 overflow-y-auto bg-background'
-          : 'absolute bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
+          : 'fixed bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
       }
     >
       <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-6' : 'space-y-6 px-8 pb-8 pt-14'}>
