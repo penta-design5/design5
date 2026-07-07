@@ -4,7 +4,7 @@
 > 병합용 아이콘/텍스트를 선택해 하나의 새 아이콘으로 합성하고 색상·선 두께·크기·포맷을
 > 조정해 내보낼 수 있는 기능을 구현한다. **본 문서는 계획서이며 구현 코드는 포함하지 않는다.**
 
-> 📊 구현 진행 상태는 [ICON_PLUS_handoff.md](./ICON_PLUS_handoff.md)에서 관리한다(단일 원본). 현재 P1 ✅ 완료 · 다음 P2.
+> 📊 구현 진행 상태는 [ICON_PLUS_handoff.md](./ICON_PLUS_handoff.md)에서 관리한다(단일 원본). 현재 P2 ✅ 완료 · 다음 P3.
 
 - 작성일: 2026-07-07
 - 대상 페이지: SOURCE > ICON (`app/_category-pages/icon/IconListPage.tsx`, 라우트 `[slug]` pageType `list`)

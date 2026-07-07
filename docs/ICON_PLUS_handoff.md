@@ -16,7 +16,7 @@
 | --- | --- | --- | --- | --- |
 | P0 | 사전 준비 (의존성·스키마·마이그레이션) | ✅ 완료 | `refactor/phase2-api-layer` | validate/generate + `migrate deploy` 적용 + 테이블 조회 검증 ✅ |
 | P1 | 탭 골격 & ICON 탭 정리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | typecheck/lint 통과 + 사내망 브라우저 수동 검증 완료 ✅ |
-| P2 | 데이터/전처리/API | ⬜ 대기 | | |
+| P2 | 데이터/전처리/API | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 13종 통과 + 라우트 인증 게이팅(401) 확인. 관리자 업로드/DB 검증은 사내망 대기 |
 | P3 | ICON+ 레이아웃 & 목록 | ⬜ 대기 | | |
 | P4 | 업로드 다이얼로그 & anchor 입력 | ⬜ 대기 | | |
 | P5 | 병합 미리보기 | ⬜ 대기 | | |
@@ -70,16 +70,29 @@
 - 다음 작업:
   - Phase 2 착수 (`merge-svg.ts`/`process-svg.ts` 이식, `/api/icon-plus` 라우트)
 
-### Phase 2 — 데이터/전처리/API  ⬜
-- [ ] `merge-svg.ts` 이식 (인증/Prisma/토큰 교체)
-- [ ] `process-svg.ts` 이식 (sanitize/normalize)
-- [ ] `/api/icon-plus` GET/POST/DELETE 구현
-- [ ] `/api/icon-plus/[id]` PATCH(anchor) 구현
-- 완료 기준: 관리자 업로드/삭제/anchor 수정, 사용자 조회, 비관리자 업로드 403
+### Phase 2 — 데이터/전처리/API  ✅
+- [x] `merge-svg.ts` 이식 (순수 함수, 의존성 없음 — 스타일만 Design5화)
+- [x] `process-svg.ts` 이식 (sanitize/normalize, `SvgProcessingError`를 `BadRequestError`로 통합)
+- [x] `/api/icon-plus` GET/POST/DELETE 구현
+- [x] `/api/icon-plus/[id]` PATCH(anchor) 구현
+- 완료 기준: 관리자 업로드/삭제/anchor 수정, 사용자 조회, 비관리자 업로드 403 → **코드/게이팅 충족** (실 DB 업로드는 사내망 검증 대기)
 - 수정 파일:
+  - `lib/svg/merge-svg.ts` (신규 — `mergeSvgsByAnchor`, 미리보기·다운로드 공용 순수 함수)
+  - `lib/svg/process-svg.ts` (신규 — `processSvgFile`, 검증/sanitize/normalize + `SvgProcessingError extends BadRequestError`)
+  - `app/api/icon-plus/route.ts` (신규 — GET 로그인 조회 / POST 관리자 업로드 / DELETE 관리자 일괄 삭제, `withRouteHandler`+`errorResponse` 컨벤션)
+  - `app/api/icon-plus/[id]/route.ts` (신규 — PATCH 관리자 anchor 수정, MAIN 대상 `updateMany` + 404 처리)
+  - `lib/svg/process-svg.test.ts`, `lib/svg/merge-svg.test.ts` (신규 — DB 비의존 단위 테스트 13종)
 - 검증:
+  - `npx tsc --noEmit` → error 0, `npx next lint` (신규 4파일) → 0
+  - `npx vitest run` → 전체 178 테스트 통과 (신규 SVG 로직 13종 포함: 정규화/viewBox 파생/sanitize 태그 제거/외부 URL 거부/확장자·MIME·크기 검증/anchor 병합·크기 재계산)
+  - `next dev` 로컬: `/api/icon-plus` GET·POST·DELETE, `/api/icon-plus/[id]` PATCH 모두 **무인증 401** 확인 (JWT 세션 → DB 불필요). 관리자 업로드/삭제/조회 및 비관리자 403은 사내망(로그인+DB)에서 최종 검증 예정.
 - 계획 대비 변경/결정:
+  - 인증: icon-merger `getCurrentUser/requireAdminUser` → Design5 `requireAuth()/requireAdmin()` (`@/lib/auth-helpers`). GET은 `requireAuth`(로그인 필수).
+  - Prisma: `@/generated/prisma` `prisma.icon` → `@/lib/prisma` `prisma.iconPlusResource`. 스키마 필드 `userId`→`authorId`. POST는 `$transaction`으로 다중 생성 원자화.
+  - 에러 처리: icon-merger의 수동 try/catch(401/403/400 분기)를 Design5 `withRouteHandler`+`errorResponse`로 대체. `SvgProcessingError`를 `BadRequestError`로 상속시켜 400 자동 매핑.
+  - 라우트 분담(계획 §8): 일괄 삭제는 컬렉션 `DELETE /api/icon-plus`(id 배열), `[id]`는 PATCH(anchor)만. (icon-merger의 `[id]` DELETE는 미이식)
 - 다음 작업:
+  - Phase 3 착수 (ICON+ 3영역 레이아웃 & 타입별 목록 — `IconPlusWorkspace` 실제 구현, GET API 연동)
 
 ### Phase 3 — ICON+ 레이아웃 & 목록  ⬜
 - [ ] 3영역 레이아웃(`IconPlusWorkspace`) 구현
@@ -144,3 +157,4 @@
 | 2026-07-07 | P1 | 탭 골격 도입 + ICON UI를 `IconTab.tsx`로 분리, `아이콘 추가` 버튼 액션 행 이동, `?tab=plus` 동기화, ICON+ 플레이스홀더 추가 → **P1 ✅** (typecheck/lint 통과, 수동 UI 검증 대기) |
 | 2026-07-07 | P1 | tsconfig에 `icon-merger` 컴파일 제외(참고 폴더 빌드 노이즈 제거), 준비사항 문서에 push 대상(`origin/2026-06-17-tiper`) 명시 |
 | 2026-07-07 | P1 | 레이아웃 후속 수정: 공통 헤더를 좌측 컬럼 내부로 이동 + 속성 패널 `fixed` 전체 높이 복원(구독 버튼 가림/패널 높이 문제 해결). 사내망 브라우저 수동 검증 완료 → **P1 최종 확정** |
+| 2026-07-07 | P2 | `merge-svg.ts`/`process-svg.ts` 이식(인증·Prisma·에러 교체) + `/api/icon-plus` GET/POST/DELETE, `/api/icon-plus/[id]` PATCH 구현. 단위테스트 13종 + 전체 178 통과, 무인증 401 게이팅 확인 → **P2 ✅** (실 DB 업로드는 사내망 대기) |
