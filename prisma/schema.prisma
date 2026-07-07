@@ -36,29 +36,59 @@ enum DesignRequestStatus {
   COMPLETED
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String? // hashed (Google OAuth 사용자는 null 가능)
-  avatar    String? // Backblaze B2 URL
-  role      UserRole @default(MEMBER)
-  // 디자인 의뢰 등록 알림 메일 수신 여부(관리자 대상). false면 해당 관리자 제외. 기본 수신.
-  receiveDesignRequestMail Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ICON+ 기능: SVG 리소스를 사내망 DB에 텍스트로 저장(오브젝트 스토리지 미사용).
+// 기존 ICON(Post + MinIO)과 완전 분리. 계획: docs/ICON_PLUS_개발계획.md
+enum IconPlusType {
+  MAIN
+  MERGE_ICON
+  MERGE_TEXT
+}
 
-  posts                   Post[]   @relation("PostAuthor")
-  updatedPosts            Post[]   @relation("PostUpdater")
-  notices                 Notice[]
-  welcomeBoardTemplates   WelcomeBoardTemplate[]
-  diagrams                Diagram[] @relation("DiagramAuthor")
-  edms                    Edm[]     @relation("EdmAuthor")
-  desktopWallpapers       DesktopWallpaper[]
-  hardwareProducts        HardwareProduct[]
-  cardTemplates           CardTemplate[]
-  designRequests          DesignRequest[]
-  menuSubscriptions       MenuSubscription[]
+model IconPlusResource {
+  id         String       @id @default(cuid())
+  type       IconPlusType
+  name       String
+  svgContent String       @db.Text // 정규화·sanitize된 SVG 원본
+  viewBox    String
+  width      Float
+  height     Float
+  baseWidth  Float? // MAIN 전용
+  baseHeight Float? // MAIN 전용
+  anchorX    Float? // MAIN 전용 병합 기준 X
+  anchorY    Float? // MAIN 전용 병합 기준 Y
+  authorId   String? // 업로드한 관리자 추적(감사용)
+  author     User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([type, createdAt])
+  @@map("icon_plus_resources")
+}
+
+model User {
+  id                       String   @id @default(cuid())
+  email                    String   @unique
+  name                     String?
+  password                 String? // hashed (Google OAuth 사용자는 null 가능)
+  avatar                   String? // Backblaze B2 URL
+  role                     UserRole @default(MEMBER)
+  // 디자인 의뢰 등록 알림 메일 수신 여부(관리자 대상). false면 해당 관리자 제외. 기본 수신.
+  receiveDesignRequestMail Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  posts                 Post[]                 @relation("PostAuthor")
+  updatedPosts          Post[]                 @relation("PostUpdater")
+  notices               Notice[]
+  welcomeBoardTemplates WelcomeBoardTemplate[]
+  diagrams              Diagram[]              @relation("DiagramAuthor")
+  edms                  Edm[]                  @relation("EdmAuthor")
+  desktopWallpapers     DesktopWallpaper[]
+  hardwareProducts      HardwareProduct[]
+  cardTemplates         CardTemplate[]
+  designRequests        DesignRequest[]
+  menuSubscriptions     MenuSubscription[]
+  iconPlusResources     IconPlusResource[]
 
   @@map("users")
 }
@@ -76,9 +106,9 @@ model Category {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryParent")
-  posts    Post[]
+  parent        Category?          @relation("CategoryParent", fields: [parentId], references: [id])
+  children      Category[]         @relation("CategoryParent")
+  posts         Post[]
   subscriptions MenuSubscription[]
 
   @@map("categories")
@@ -176,124 +206,124 @@ model Notice {
 
 // 웰컴보드 템플릿 모델
 model WelcomeBoardTemplate {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   name          String
   description   String?
-  thumbnailUrl  String?  // B2 썸네일 이미지 경로
-  backgroundUrl String   // B2 배경 이미지 경로
-  width         Int      @default(1920)
-  height        Int      @default(1080)
-  config        Json     // 텍스트/로고 요소 설정 JSON
-  status        String   @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
-  
-  authorId      String
-  author        User     @relation(fields: [authorId], references: [id])
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  thumbnailUrl  String? // B2 썸네일 이미지 경로
+  backgroundUrl String // B2 배경 이미지 경로
+  width         Int     @default(1920)
+  height        Int     @default(1080)
+  config        Json // 텍스트/로고 요소 설정 JSON
+  status        String  @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("welcomeboard_templates")
 }
 
 // 다이어그램 모델
 model Diagram {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  thumbnailUrl  String?  // B2 썸네일 이미지 경로
-  canvasData    Json     // Konva 캔버스 상태 (도형, 텍스트 등)
-  width         Int      @default(1920)
-  height        Int      @default(1080)
-  
-  authorId      String
-  author        User     @relation("DiagramAuthor", fields: [authorId], references: [id])
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String  @id @default(cuid())
+  title        String
+  description  String?
+  thumbnailUrl String? // B2 썸네일 이미지 경로
+  canvasData   Json // Konva 캔버스 상태 (도형, 텍스트 등)
+  width        Int     @default(1920)
+  height       Int     @default(1080)
+
+  authorId String
+  author   User   @relation("DiagramAuthor", fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("diagrams")
 }
 
 // eDM 모델
 model Edm {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  thumbnailUrl  String?  // Supabase Storage 썸네일 이미지 URL
-  imageWidth    Int      // 원본 이미지 너비
-  imageHeight   Int      // 원본 이미지 높이
-  gridConfig    Json     // { rows: number[], cols: number[], mergedCells: MergedCell[] }
-  cellLinks     Json     // { "row-col": "https://..." }
-  cellImages    Json     // { "row-col": "Supabase Storage URL" } - 저장 시 업로드된 셀 이미지
-  htmlCode      String?  // 생성된 HTML
-  alignment     String   @default("left") // left | center | right
+  id           String  @id @default(cuid())
+  title        String
+  description  String?
+  thumbnailUrl String? // Supabase Storage 썸네일 이미지 URL
+  imageWidth   Int // 원본 이미지 너비
+  imageHeight  Int // 원본 이미지 높이
+  gridConfig   Json // { rows: number[], cols: number[], mergedCells: MergedCell[] }
+  cellLinks    Json // { "row-col": "https://..." }
+  cellImages   Json // { "row-col": "Supabase Storage URL" } - 저장 시 업로드된 셀 이미지
+  htmlCode     String? // 생성된 HTML
+  alignment    String  @default("left") // left | center | right
 
-  authorId      String
-  author        User     @relation("EdmAuthor", fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation("EdmAuthor", fields: [authorId], references: [id])
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("edms")
 }
 
 // 바탕화면 모델
 model DesktopWallpaper {
-  id                   String   @id @default(cuid())
+  id                   String  @id @default(cuid())
   title                String
   description          String?
-  thumbnailUrl         String?  // B2 - 윈도우용 배경에서 자동 생성
-  backgroundUrlWindows String?  // B2 - 16:9, 2560x1440
-  backgroundUrlMac     String?  // B2 - 16:10, 2560x1600
-  widthWindows         Int      @default(2560)
-  heightWindows        Int      @default(1440)
-  widthMac             Int      @default(2560)
-  heightMac            Int      @default(1600)
+  thumbnailUrl         String? // B2 - 윈도우용 배경에서 자동 생성
+  backgroundUrlWindows String? // B2 - 16:9, 2560x1440
+  backgroundUrlMac     String? // B2 - 16:10, 2560x1600
+  widthWindows         Int     @default(2560)
+  heightWindows        Int     @default(1440)
+  widthMac             Int     @default(2560)
+  heightMac            Int     @default(1600)
 
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("desktop_wallpapers")
 }
 
 // 하드웨어 제품 갤러리 모델 (단일 이미지, 뷰어+다운로드 전용)
 model HardwareProduct {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   title        String
   description  String?
-  type         String?  // 제품 타입 (WAPPLES, D.AMO, iSIGN) — 필터용
-  imageUrl     String   // 원본 제품 이미지 (S3/MinIO posts 버킷)
-  thumbnailUrl String?  // 카드용 썸네일 (원본에서 자동 생성)
+  type         String? // 제품 타입 (WAPPLES, D.AMO, iSIGN) — 필터용
+  imageUrl     String // 원본 제품 이미지 (S3/MinIO posts 버킷)
+  thumbnailUrl String? // 카드용 썸네일 (원본에서 자동 생성)
 
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("hardware_products")
 }
 
 // 감사/연말 카드 템플릿 모델
 model CardTemplate {
-  id               String   @id @default(cuid())
+  id               String  @id @default(cuid())
   name             String
   description      String?
-  thumbnailUrl     String?  // B2 썸네일 이미지 경로
-  backgroundImages Json     // [{ url, width, height, label? }] 동일 디자인 여러 크기/비율
-  width            Int      @default(1080)  // 기본 캔버스
-  height           Int      @default(1920)
-  config           Json     // 텍스트/로고 요소 설정 (제목, 부제목, 인사말, 발신자, 로고영역)
-  status           String   @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
+  thumbnailUrl     String? // B2 썸네일 이미지 경로
+  backgroundImages Json // [{ url, width, height, label? }] 동일 디자인 여러 크기/비율
+  width            Int     @default(1080) // 기본 캔버스
+  height           Int     @default(1920)
+  config           Json // 텍스트/로고 요소 설정 (제목, 부제목, 인사말, 발신자, 로고영역)
+  status           String  @default("PUBLISHED") // PUBLISHED, DRAFT, ARCHIVED
 
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("card_templates")
 }
@@ -311,16 +341,16 @@ model DiagramZipConfig {
 }
 
 model DesignRequest {
-  id               String              @id @default(cuid())
-  title            String
-  content          String
-  departmentTeam   String
-  dueDate          DateTime            @db.Date
-  status           DesignRequestStatus @default(REQUESTED)
-  authorId         String
-  author           User                @relation(fields: [authorId], references: [id])
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  id             String              @id @default(cuid())
+  title          String
+  content        String
+  departmentTeam String
+  dueDate        DateTime            @db.Date
+  status         DesignRequestStatus @default(REQUESTED)
+  authorId       String
+  author         User                @relation(fields: [authorId], references: [id])
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
   @@index([authorId])
   @@index([createdAt])
