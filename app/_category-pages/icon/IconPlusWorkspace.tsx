@@ -179,7 +179,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
         {/* 공통 헤더(타이틀 + 구독 + 탭) — 좌측 컬럼 안에 두어 우측 속성 패널과 겹치지 않음 */}
         {header}
 
-        <div className="px-8 pb-10 pt-2">
+        <div className="px-8 pb-10 pt-4">
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(196px,0.8fr)_minmax(440px,2fr)]">
             {/* 메인 아이콘 */}
             <ResourceSection
