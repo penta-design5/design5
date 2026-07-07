@@ -15,7 +15,7 @@
 | Phase | 내용 | 상태 | 브랜치/커밋 | 검증 |
 | --- | --- | --- | --- | --- |
 | P0 | 사전 준비 (의존성·스키마·마이그레이션) | ✅ 완료 | `refactor/phase2-api-layer` | validate/generate + `migrate deploy` 적용 + 테이블 조회 검증 ✅ |
-| P1 | 탭 골격 & ICON 탭 정리 | ✅ 완료 | `refactor/phase2-api-layer` | typecheck(신규 파일 0 error) + lint 통과, 수동 UI 검증 대기 |
+| P1 | 탭 골격 & ICON 탭 정리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | typecheck/lint 통과 + 사내망 브라우저 수동 검증 완료 ✅ |
 | P2 | 데이터/전처리/API | ⬜ 대기 | | |
 | P3 | ICON+ 레이아웃 & 목록 | ⬜ 대기 | | |
 | P4 | 업로드 다이얼로그 & anchor 입력 | ⬜ 대기 | | |
@@ -53,16 +53,20 @@
 - [x] URL 쿼리 `?tab=plus` 동기화 (ICON 은 파라미터 제거, ICON+ 는 `?tab=plus`)
 - 완료 기준: 탭 전환 동작, ICON 탭 기존 기능 회귀 없음, 버튼 위치 변경 반영 → **충족**
 - 수정 파일:
-  - `app/_category-pages/icon/IconListPage.tsx` (thin 컨테이너로 재작성: 공통 헤더 타이틀+구독+탭바, `?tab` 동기화, 탭 콘텐츠 스위칭)
-  - `app/_category-pages/icon/IconTab.tsx` (신규 — 기존 ICON UI/로직 전량 이관, 타이틀·구독 제거, `아이콘 추가` 버튼을 액션 행 `삭제` 우측으로 이동)
+  - `app/_category-pages/icon/IconListPage.tsx` (컨테이너로 재작성: 공통 헤더 노드(타이틀+구독+탭바) 생성, `?tab` 동기화, 탭별 렌더 분기)
+  - `app/_category-pages/icon/IconTab.tsx` (신규 — 기존 ICON UI/로직 전량 이관, `header` prop을 좌측 컬럼 내부에 렌더, `아이콘 추가` 버튼을 액션 행 `삭제` 우측으로 이동)
   - `app/_category-pages/icon/IconPlusWorkspace.tsx` (신규 — Phase 1 안내 플레이스홀더, Phase 3+ 에서 3영역 레이아웃으로 확장 예정)
+  - `components/category-pages/IconCategory/IconPropertyPanel.tsx` (sidebar variant는 원래대로 `fixed` 전체 높이 유지)
 - 검증:
-  - `npx tsc --noEmit` → 신규/수정 3개 파일 error 0 (기존 42 error는 전부 gitignore된 `icon-merger/` 참고 폴더, 무관)
+  - `npx tsc --noEmit` → error 0 (기존 42 error는 전부 gitignore된 `icon-merger/` 참고 폴더 → tsconfig `exclude`에 추가하여 제거)
   - `npx next lint` → 신규 파일 error 0 (`downloading` unused 경고 1건은 원본 `IconListPage`에서 그대로 이관된 기존 경고, 회귀 아님)
+  - `next dev` 로컬 기동 → `/`, `/[slug]` 컴파일 클린 + 200 (DB는 터널 필요; 컴파일 검증은 무관)
+  - **사내망 브라우저 수동 검증 완료**: 탭 노출/전환/`?tab=plus`, `아이콘 추가` 버튼 우측 배치, 속성 패널 전체 높이, ICON 탭 기존 기능 회귀 없음 ✅
 - 계획 대비 변경/결정:
   - 탭 UI는 shadcn `Tabs`(`@radix-ui/react-tabs`) 미설치 → 의존성 추가 대신 Design5 토큰 기반 경량 버튼 탭바로 구현(2개 탭, `role=tablist/tab` + `aria-selected`, 하단 언더라인 인디케이터)
-  - 공통 헤더(타이틀+구독)를 스크롤 영역 밖 `flex-none` 상단으로 승격 → 탭 전환과 무관하게 고정. 구독 버튼은 계획대로 두 탭 공유(`categoryId` 단위)
+  - **레이아웃 구조 결정**: 공통 헤더를 전체 폭 상단바로 빼면 `fixed` 속성 패널(화면 전체 높이)과 겹쳐 구독 버튼이 가려짐 → 헤더를 **원래처럼 IconTab 좌측 컬럼(`pr-[410px]`) 내부**에 두어 해결. ICON+ 탭은 패널이 없어 헤더를 전체 폭 상단에 렌더. (중간에 패널을 `absolute`로 바꿨다가 높이가 줄어 다시 `fixed`로 되돌림)
   - 탭 전환 시 컴포넌트 언마운트로 ICON 탭의 선택/속성 상태는 초기화(계획 §13 "전환 시 초기화 권장" 반영)
+  - **구독 버튼 표시 조건(주의)**: `SubscribeButton`은 `enabled !== true || subscribed === null`이면 렌더하지 않음 → 관리자 전역 메뉴구독 스위치 ON + 로그인 + API(DB) 정상일 때만 노출. 로컬에서 터널/스위치 조건 미충족 시 안 보이는 것은 정상(코드 버그 아님).
 - 다음 작업:
   - Phase 2 착수 (`merge-svg.ts`/`process-svg.ts` 이식, `/api/icon-plus` 라우트)
 
@@ -138,3 +142,5 @@
 | 2026-07-07 | P0 | 의존성 추가 + 스키마(`IconPlusResource`/`IconPlusType`) 추가 + validate/generate 완료. 마이그레이션 적용은 다음 세션으로 보류 |
 | 2026-07-07 | P0 | 터널 연결 확인 후 마이그레이션 `20260707120000_add_icon_plus` 적용·검증 완료 → **P0 ✅**. (diff→deploy 방식, shadow DB 미사용) |
 | 2026-07-07 | P1 | 탭 골격 도입 + ICON UI를 `IconTab.tsx`로 분리, `아이콘 추가` 버튼 액션 행 이동, `?tab=plus` 동기화, ICON+ 플레이스홀더 추가 → **P1 ✅** (typecheck/lint 통과, 수동 UI 검증 대기) |
+| 2026-07-07 | P1 | tsconfig에 `icon-merger` 컴파일 제외(참고 폴더 빌드 노이즈 제거), 준비사항 문서에 push 대상(`origin/2026-06-17-tiper`) 명시 |
+| 2026-07-07 | P1 | 레이아웃 후속 수정: 공통 헤더를 좌측 컬럼 내부로 이동 + 속성 패널 `fixed` 전체 높이 복원(구독 버튼 가림/패널 높이 문제 해결). 사내망 브라우저 수동 검증 완료 → **P1 최종 확정** |
