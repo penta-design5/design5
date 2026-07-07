@@ -21,7 +21,7 @@ function PreviewSlot({
   return (
     <div
       className={cn(
-        'flex aspect-square flex-1 items-center justify-center rounded-lg p-2',
+        'flex aspect-square flex-1 items-center justify-center rounded-lg bg-background p-2',
         emphasized ? 'border border-primary' : ''
       )}
     >
