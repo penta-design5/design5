@@ -162,6 +162,16 @@
 ## 미해결 / 결정 대기
 - (없음)
 
+## 다음 세션 착수점 (2026-07-07 세션 종료 시점)
+- **다음 작업: Phase 4 — 업로드 다이얼로그 & anchor 입력.**
+  - ICON+ 각 섹션의 `추가` 버튼(현재 안내 토스트)에 실제 업로드 다이얼로그를 연결한다.
+  - SVG 드래그앤드롭 업로드, MAIN 단건 + anchor 클릭/드래그 지정(십자선), 병합용(아이콘/텍스트) 다중 업로드.
+  - 서버 API(`POST /api/icon-plus`)는 P2에서 완료 — 클라이언트 다이얼로그만 구현하면 됨. MAIN은 `anchorX/anchorY` 필수(미입력 시 400).
+  - 참고 UI: `icon-merger/src/components/icon-workspace.tsx`(anchor 편집 다이얼로그), 기존 `IconUploadDialog.tsx` 패턴.
+  - 연결 지점: `app/_category-pages/icon/IconPlusWorkspace.tsx`의 `handleAdd`(현재 토스트) → 다이얼로그 오픈. 업로드 성공 시 `refresh(type)` 호출로 목록 갱신.
+- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P3 후속(우측 패널 전체높이·테두리 제거) 육안 확인. (P1은 검증 완료)
+- 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push. HEAD == origin (동기화 완료).
+
 ## 변경 이력
 | 날짜 | Phase | 요약 |
 | --- | --- | --- |
