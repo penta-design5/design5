@@ -60,8 +60,8 @@ export function IconPlusPropertyPanel({
         <p className="mt-1 text-sm text-muted-foreground">색상, 두께, 크기를 조정할 수 있습니다.</p>
       </div>
 
-      {/* 대표 미리보기 — 테두리 없이 <main>(bg-background)과 동일 배경으로 패널에 자연스럽게 블렌드 */}
-      <div className="rounded-lg bg-background p-4">
+      {/* 대표 미리보기 — 테두리 없이 좌측 콘텐츠 영역과 동일 배경(bg-neutral-50 dark:bg-neutral-900) */}
+      <div className="rounded-lg bg-neutral-50 p-4 dark:bg-neutral-900">
         <p className="text-sm font-medium text-foreground">대표 미리보기</p>
         {!hasCombination && (
           <p className="mt-1 text-sm text-muted-foreground">선택된 대표 조합 없음</p>
