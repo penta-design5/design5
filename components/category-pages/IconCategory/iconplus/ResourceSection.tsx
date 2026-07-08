@@ -26,6 +26,10 @@ interface ResourceSectionProps {
   cardVariant?: 'icon' | 'text' | 'main'
   /** 카드 그리드 Tailwind 클래스 */
   gridClassName: string
+  /** 카드 그리드 DOM ref. 병합용 아이콘 카드 높이 측정을 위해 상위에서 주입. */
+  gridRef?: React.Ref<HTMLDivElement>
+  /** text 변형 카드 높이(px). 병합용 아이콘 카드와 높이를 맞추기 위해 주입. */
+  cardHeight?: number
   /** 컨테이너 추가 클래스 */
   className?: string
   onToggleSelect: (id: string) => void
@@ -52,6 +56,8 @@ export function ResourceSection({
   deleting = false,
   cardVariant = 'icon',
   gridClassName,
+  gridRef,
+  cardHeight,
   className,
   onToggleSelect,
   onSelectAll,
@@ -136,7 +142,7 @@ export function ResourceSection({
             <p className="text-sm text-muted-foreground">리소스가 없습니다.</p>
           </div>
         ) : (
-          <div className={gridClassName}>
+          <div ref={gridRef} className={gridClassName}>
             {resources.map((resource) => (
               <IconPlusCard
                 key={resource.id}
@@ -144,6 +150,7 @@ export function ResourceSection({
                 isSelected={selectedIds.has(resource.id)}
                 onClick={onToggleSelect}
                 variant={cardVariant}
+                cardHeight={cardHeight}
                 onEditAnchor={onEditAnchor}
               />
             ))}

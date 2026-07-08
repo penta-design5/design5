@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -48,6 +48,11 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
   const [mergeTextResources, setMergeTextResources] = useState<IconPlusResource[]>([])
   const [loading, setLoading] = useState(true)
   const [deletingType, setDeletingType] = useState<IconPlusType | null>(null)
+
+  // 병합용 아이콘 카드는 정사각(aspect-square)이라 뷰포트 폭에 따라 높이가 유동적이다.
+  // 첫 카드 높이를 측정해 병합용 텍스트 카드 높이를 동일하게 맞춘다.
+  const mergeIconGridRef = useRef<HTMLDivElement>(null)
+  const [mergeCardHeight, setMergeCardHeight] = useState<number | undefined>(undefined)
 
   const [mainSelected, setMainSelected] = useState<Set<string>>(new Set())
   const [mergeIconSelected, setMergeIconSelected] = useState<Set<string>>(new Set())
@@ -102,6 +107,23 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
       active = false
     }
   }, [fetchType])
+
+  // 병합용 아이콘 첫 카드 높이 측정(그리드 폭 변화 시 재측정) → 텍스트 카드 높이에 반영
+  useEffect(() => {
+    const grid = mergeIconGridRef.current
+    if (!grid) return
+    const measure = () => {
+      const first = grid.firstElementChild as HTMLElement | null
+      if (first) {
+        const h = first.getBoundingClientRect().height
+        if (h > 0) setMergeCardHeight(h)
+      }
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(grid)
+    return () => observer.disconnect()
+  }, [mergeIconResources.length])
 
   // 선택 토글: 관리자는 다중 선택, 일반 사용자는 단일 선택
   const toggle = useCallback(
@@ -247,6 +269,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
                 deleting={deletingType === 'MERGE_ICON'}
                 cardVariant="icon"
                 gridClassName="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2"
+                gridRef={mergeIconGridRef}
                 onToggleSelect={handleToggleMergeIcon}
                 onSelectAll={() => {
                   setMergeIconSelected(new Set(mergeIconResources.map((r) => r.id)))
@@ -269,7 +292,8 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
                 isAdmin={isAdmin}
                 deleting={deletingType === 'MERGE_TEXT'}
                 cardVariant="text"
-                gridClassName="flex flex-wrap gap-2"
+                gridClassName="flex flex-wrap items-start gap-2"
+                cardHeight={mergeCardHeight}
                 onToggleSelect={handleToggleMergeText}
                 onSelectAll={() => {
                   setMergeTextSelected(new Set(mergeTextResources.map((r) => r.id)))

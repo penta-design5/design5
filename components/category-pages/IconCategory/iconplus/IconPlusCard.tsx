@@ -16,6 +16,11 @@ interface IconPlusCardProps {
   onClick: (id: string) => void
   /** 카드 형태: icon(정사각) | text(가로형 라벨) | main(정사각, 큰 미리보기) */
   variant?: 'icon' | 'text' | 'main'
+  /**
+   * 병합용 텍스트 카드 높이(px). 병합용 아이콘 카드와 높이를 맞추기 위해 측정값을 주입한다.
+   * 미지정 시 기본 높이(h-20)를 사용한다. text 변형에서만 적용.
+   */
+  cardHeight?: number
   /** 지정 시 카드 우상단에 anchor 편집 버튼 노출(관리자 MAIN 카드). 선택 버튼과 형제로 두어 버튼 중첩 회피 */
   onEditAnchor?: (id: string) => void
 }
@@ -40,15 +45,19 @@ export function IconPlusCard({
   isSelected,
   onClick,
   variant = 'icon',
+  cardHeight,
   onEditAnchor,
 }: IconPlusCardProps) {
   const isText = variant === 'text'
   // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트는 채움 그대로
   const isLine = variant === 'main' || variant === 'icon'
 
-  // 텍스트 카드는 종횡비에 따라 가로 폭이 늘어남(높이 고정)
+  // 텍스트 카드는 종횡비에 따라 가로 폭이 늘어나고(유동), 높이는 병합용 아이콘 카드와 맞춘다.
   const style = isText
-    ? { width: `${getTextCardWidth(resource.width, resource.height)}px` }
+    ? {
+        width: `${getTextCardWidth(resource.width, resource.height)}px`,
+        ...(cardHeight ? { height: `${cardHeight}px` } : {}),
+      }
     : undefined
 
   const selectButton = (
@@ -69,9 +78,9 @@ export function IconPlusCard({
                 ? 'border-penta-blue bg-penta-sky/10 dark:border-penta-sky'
                 : 'border-border bg-background hover:border-penta-sky/50 hover:bg-penta-sky/10',
               isText
-                ? 'h-20 px-4'
+                ? cn('px-4 py-3', cardHeight == null && 'h-20')
                 : variant === 'main'
-                  ? 'aspect-square w-full p-4'
+                  ? 'aspect-square w-full max-w-[90px] p-4'
                   : 'aspect-square w-full p-2'
             )}
           >
@@ -80,7 +89,7 @@ export function IconPlusCard({
                 'flex items-center justify-center text-foreground',
                 isLine && 'svg-line-preview',
                 isText
-                  ? 'h-full w-full [&_svg]:h-10 [&_svg]:w-auto [&_svg]:max-w-full'
+                  ? 'h-full w-full [&_svg]:h-full [&_svg]:w-auto [&_svg]:max-w-full'
                   : 'h-full w-full [&_svg]:h-full [&_svg]:w-full'
               )}
               // svgContent는 업로드 시 서버에서 sanitize됨 (lib/svg/process-svg.ts)
