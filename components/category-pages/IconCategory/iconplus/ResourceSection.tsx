@@ -82,8 +82,8 @@ export function ResourceSection({
       {/* 액션 행: 선택 안내 / 선택 액션 + 더보기 */}
       <div className="mt-4 flex min-h-8 items-center justify-between gap-2">
         {selectedCount > 0 ? (
-          <div className="flex items-center gap-2">
-            <Badge className="border-transparent bg-penta-sky/20 text-penta-blue hover:bg-penta-sky/20 dark:text-penta-sky">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="shrink-0 whitespace-nowrap border-transparent bg-penta-sky/20 text-penta-blue hover:bg-penta-sky/20 dark:text-penta-sky">
               {selectedCount}개 선택됨
             </Badge>
             <Button variant="secondary" size="sm" onClick={onDeselectAll} disabled={deleting}>
