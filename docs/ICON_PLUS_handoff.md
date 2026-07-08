@@ -152,6 +152,7 @@
 - [ ] 색상 10종(흰색 예외) / 선 두께 / 크기 / 포맷 / 초기화
 - [ ] SVG/PNG/JPG 다운로드(병합 결과 기준, `lib/svg/*` 재사용)
 - 완료 기준: 속성 변경이 미리보기·다운로드에 반영, 3포맷 정상 저장
+- **선결 요구(사내망 피드백 2026-07-08)**: 선 두께 조정 시 **fill이 있는 부분에는 stroke-width를 적용하지 않는다**(라인 획 부분에만 적용). 참고: `lib/svg/stroke.ts`의 `changeSvgStrokeWidth`는 이미 stroke 속성이 있는 요소에만 stroke-width를 추가(step 4, `stroke=` 없는 fill-only 요소는 건너뜀). 단 **fill+stroke 동시 보유** 요소까지 제외하려면 조건 보강 필요(현재는 stroke가 있으면 적용). ICON+ 라인 표시 규칙(`.svg-line-preview` = `[stroke]:not([fill])`)과 정합되게 처리할 것.
 - 수정 파일:
 - 검증:
 - 계획 대비 변경/결정:
@@ -197,3 +198,4 @@
 | 2026-07-08 | P3 | 사내망 UI 피드백 2차: "아이콘 속성" 폰트 20px(ICON 탭과 통일), 대표 미리보기 컨테이너 테두리 제거 + 배경을 좌측 콘텐츠 영역과 동일(`bg-neutral-50 dark:bg-neutral-900`), 미리보기 메인/리소스 슬롯 배경 흰색(`bg-background`), 탭↔카드 간격 `pt-2`→`pt-4`. ICON 탭 설명글 `mt-1` 통일 → **P3 최종 확정** |
 | 2026-07-08 | P4 | 업로드 다이얼로그(`IconPlusUploadDialog`) 구현: SVG 드래그앤드롭, MAIN 단건+anchor 클릭·드래그(십자선)·좌표 입력, 병합용 다중. 워크스페이스 `추가` 버튼(토스트 → 다이얼로그 오픈, 성공 시 refresh). tsc/lint 0 + 178 통과 → **P4 ✅** (실 업로드는 사내망 대기). 기존 MAIN anchor 재편집(PATCH)은 후속 이연 |
 | 2026-07-08 | P3/P4 | 사내망 카드 UI 피드백 반영(icon-merger 참고): ①MAIN·MERGE_ICON·미리보기 아이콘 라인 렌더(`svg-line-preview` 전역 CSS, 텍스트는 채움 유지) ②병합용 텍스트 카드 높이 고정+종횡비 가로 확장(`getTextCardWidth`, flex-wrap) ③선택 개수 뱃지화(penta-sky) ④선택 해제 버튼 `secondary`(배경) ⑤카드 우상단 체크 아이콘 제거 ⑥hover/선택 시 연한 포인트 배경+포인트 테두리(penta-sky/blue) ⑦카드 hover 툴팁으로 파일명 표시 |
+| 2026-07-08 | P3/P4 | 라인 렌더 방식 조정: 전체 강제(fill:none/stroke:currentColor) → **조건부**(`[stroke]:not([fill])`만 fill:none)로 변경해 fill이 지정된 부분은 채움 보존. 선 두께-vs-fill 요구는 Phase 6 선결 항목으로 문서화 |

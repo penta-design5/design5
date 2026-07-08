@@ -233,11 +233,18 @@
   shape-rendering: geometricPrecision;
 }
 
-/* ICON+ 라인 아이콘 미리보기 (icon-merger 이식): MAIN·MERGE_ICON은 채움을 제거하고 항상 획(라인)으로 표시.
-   병합용 텍스트(MERGE_TEXT)에는 적용하지 않아 글자는 채움(fill)을 유지한다. */
-.svg-line-preview svg * {
+/* ICON+ 라인 아이콘 미리보기 (MAIN·MERGE_ICON에만 적용, 병합용 텍스트 제외):
+   - stroke만 있고 fill이 없는 요소는 기본 채움(검정)이 상속돼 "속이 찬" 것처럼 보이므로 fill:none으로 강제해 획(라인)만 남긴다.
+   - fill이 지정된 요소는 그대로 유지한다(채움 보존).
+   `.icon-svg-container`(ICON 탭)와 동일한 조건부 방식. */
+.svg-line-preview svg *[stroke]:not([fill]) {
   fill: none !important;
-  stroke: currentColor !important;
-  stroke-width: 1.25px !important;
-  vector-effect: non-scaling-stroke;
+}
+
+/* 점선(dash)으로 저장된 라인 아이콘도 실선으로 표시 */
+.svg-line-preview svg,
+.svg-line-preview svg [stroke],
+.svg-line-preview svg[stroke] {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
 }
