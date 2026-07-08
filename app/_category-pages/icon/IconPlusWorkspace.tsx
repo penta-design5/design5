@@ -247,7 +247,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
               isAdmin={isAdmin}
               deleting={deletingType === 'MAIN'}
               cardVariant="main"
-              gridClassName="grid grid-cols-2 gap-3"
+              gridClassName="grid grid-cols-[repeat(auto-fill,minmax(70px,90px))] gap-3"
               onToggleSelect={handleToggleMain}
               onSelectAll={() => setMainSelected(new Set(mainResources.map((r) => r.id)))}
               onDeselectAll={() => setMainSelected(new Set())}
