@@ -85,6 +85,13 @@ function ensureDesignRequestPurifyHooks(): void {
     }
     data.keepAttr = false
   })
+  // DOMPurify는 탭내빙 방지로 target/rel을 기본 제거 → 앵커에 새 탭 열기 강제
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.nodeName === 'A' && node.getAttribute('href')) {
+      node.setAttribute('target', '_blank')
+      node.setAttribute('rel', 'noopener noreferrer nofollow')
+    }
+  })
 }
 
 /** 상세 화면용: 스크립트·위험 마크업 제거 후 HTML 반환 */
