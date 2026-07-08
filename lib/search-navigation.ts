@@ -37,6 +37,18 @@ export function getViewUrl(result: SearchResult): string {
     case 'welcomeboard':
       return `/welcome-board?templateId=${id}`
 
+    // HW: 제품 상세 페이지(HardwareListPage와 동일 경로)
+    case 'hardware':
+      return `/${slug}/${id}`
+
+    // 디자인 의뢰: 목록 페이지(특정 의뢰 딥링크는 미지원)
+    case 'designrequest':
+      return `/${slug}`
+
+    // ICON+: 아이콘 카테고리의 ICON+ 탭
+    case 'iconplus':
+      return `/${slug}?tab=plus`
+
     default:
       return '/'
   }
