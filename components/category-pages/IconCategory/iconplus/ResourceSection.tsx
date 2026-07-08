@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { MoreVertical, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -82,8 +83,10 @@ export function ResourceSection({
       <div className="mt-4 flex min-h-8 items-center justify-between gap-2">
         {selectedCount > 0 ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">{selectedCount}개 선택됨</span>
-            <Button variant="ghost" size="sm" onClick={onDeselectAll} disabled={deleting}>
+            <Badge className="border-transparent bg-penta-sky/20 text-penta-blue hover:bg-penta-sky/20 dark:text-penta-sky">
+              {selectedCount}개 선택됨
+            </Badge>
+            <Button variant="secondary" size="sm" onClick={onDeselectAll} disabled={deleting}>
               선택 해제
             </Button>
             {isAdmin && (

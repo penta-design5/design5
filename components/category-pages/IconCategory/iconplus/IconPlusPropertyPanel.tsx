@@ -18,6 +18,9 @@ function PreviewSlot({
   resource?: IconPlusResource | null
   emphasized?: boolean
 }) {
+  // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트(MERGE_TEXT)는 채움 그대로 표시
+  const isLine = resource ? resource.type !== 'MERGE_TEXT' : false
+
   return (
     <div
       className={cn(
@@ -27,7 +30,10 @@ function PreviewSlot({
     >
       {resource ? (
         <span
-          className="flex h-full w-full items-center justify-center text-foreground [&_svg]:h-full [&_svg]:w-full"
+          className={cn(
+            'flex h-full w-full items-center justify-center text-foreground [&_svg]:h-full [&_svg]:w-full',
+            isLine && 'svg-line-preview'
+          )}
           // svgContent는 업로드 시 서버에서 sanitize됨
           dangerouslySetInnerHTML={{ __html: resource.svgContent }}
         />

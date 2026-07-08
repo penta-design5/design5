@@ -240,7 +240,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
                 isAdmin={isAdmin}
                 deleting={deletingType === 'MERGE_TEXT'}
                 cardVariant="text"
-                gridClassName="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"
+                gridClassName="flex flex-wrap gap-2"
                 onToggleSelect={handleToggleMergeText}
                 onSelectAll={() => {
                   setMergeTextSelected(new Set(mergeTextResources.map((r) => r.id)))
