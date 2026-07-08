@@ -91,7 +91,10 @@ function ensureDesignRequestPurifyHooks(): void {
 export function sanitizeDesignRequestHtml(dirty: string): string {
   ensureDesignRequestPurifyHooks()
   return DOMPurify.sanitize(dirty, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'span'],
-    ALLOWED_ATTR: ['style', 'data-indent'],
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'span', 'a'],
+    ALLOWED_ATTR: ['style', 'data-indent', 'href', 'target', 'rel'],
+    // href는 안전한 스킴만 (DOMPurify 기본 URI 검증 + 명시적 화이트리스트)
+    ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i,
+    ADD_ATTR: ['target', 'rel'],
   })
 }

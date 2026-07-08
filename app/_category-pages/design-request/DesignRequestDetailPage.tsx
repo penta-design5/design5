@@ -176,7 +176,7 @@ export function DesignRequestDetailPage({
           <dd className="mt-1 text-sm leading-relaxed">
             {isProbablyRichHtml(item.content) ? (
               <div
-                className="design-request-content [&_p]:my-1 [&_strong]:font-semibold"
+                className="design-request-content [overflow-wrap:anywhere] [&_p]:my-1 [&_strong]:font-semibold [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2"
                 // eslint-disable-next-line react/no-danger -- sanitizeDesignRequestHtml으로 정제됨
                 dangerouslySetInnerHTML={{
                   __html: sanitizeDesignRequestHtml(item.content),

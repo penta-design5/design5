@@ -91,7 +91,17 @@ export function DesignRequestRichTextEditor({
         strike: false,
         italic: false,
         underline: false,
-        link: false,
+        // URL 자동 링크(입력/붙여넣기). 편집 중 클릭 이동은 방지, 새 탭 열기
+        link: {
+          autolink: true,
+          linkOnPaste: true,
+          openOnClick: false,
+          defaultProtocol: 'https',
+          HTMLAttributes: {
+            target: '_blank',
+            rel: 'noopener noreferrer nofollow',
+          },
+        },
       }),
       TextStyle,
       Color,
@@ -109,7 +119,10 @@ export function DesignRequestRichTextEditor({
           'min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm',
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
           '[&_.ProseMirror]:min-h-[120px] [&_.ProseMirror]:outline-none',
+          // 긴 URL 등 공백 없는 문자열이 너비를 넘겨 잘리지 않도록 줄바꿈
+          '[&_.ProseMirror]:[overflow-wrap:anywhere]',
           '[&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold',
+          '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2',
           ariaInvalid && 'border-destructive ring-destructive'
         ),
       },
