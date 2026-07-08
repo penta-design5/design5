@@ -21,7 +21,7 @@
 | P4 | 업로드 다이얼로그 & anchor 입력 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 178 통과 + `?tab=plus` 컴파일·200. 실 업로드/anchor 저장은 사내망(로그인+DB) 대기 |
 | P5 | 병합 미리보기 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과 + `?tab=plus` 컴파일·200. 실 병합 렌더는 사내망 대기 |
 | P6 | 속성 조정 & 다운로드 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과(신규 8종) + `?tab=plus` 컴파일·200. 실 다운로드/다크모드 육안은 사내망 대기 |
-| P7 | 반응형/접근성/QA | 🟡 진행중 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 190 통과 + `/[slug]?tab=plus` 컴파일·200. 모바일 속성 시트(우측 슬라이딩)·플로팅 버튼 구현. 실기기 육안/접근성 최종 확인은 사내망 대기 |
+| P7 | 반응형/접근성/QA | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus`·`/chart-generator` 컴파일·200. 모바일 속성 시트(하단 슬라이딩)·플로팅 버튼 + close 버튼 겹침 해결(전역) + ICON 탭 버튼 줄바꿈. **사내망 모바일 QA 확인 완료(2026-07-08)** ✅ |
 
 ---
 
@@ -177,8 +177,8 @@
 - 다음 작업:
   - Phase 7 착수 (반응형/접근성/QA)
 
-### Phase 7 — 반응형/접근성/QA  🟡
-- [x] 태블릿/모바일 대응(모바일 속성 시트 — 우측에서 슬라이딩)
+### Phase 7 — 반응형/접근성/QA  ✅
+- [x] 태블릿/모바일 대응(모바일 속성 시트 — 하단에서 슬라이딩)
 - [x] 조합 선택 시 하단 플로팅 버튼 "메인 + 아이콘/텍스트 : 결과 조정하기"
 - [x] `aria-*`/키보드 접근성(플로팅 버튼 aria-label, Sheet=Radix Dialog 포커스 트랩/ESC/오버레이 닫기, `sr-only` 제목)
 - [x] 회귀 테스트(tsc/lint 0 + 단위테스트 190 통과, ICON 탭 포함)
@@ -198,21 +198,20 @@
   - **버튼 노출 조건**: 메인 + 병합용 리소스를 **모두** 선택했을 때만 노출(`canOpenMobileProperties`). anchor 미존재 등 병합 불가 상태는 패널 내부 안내문으로 처리(데스크톱 패널과 동일 동작).
   - **기본 레이아웃**: 워크스페이스 좌측 컬럼은 이미 `pr-0 md:pr-[410px]` + `grid-cols-1 lg:grid-cols-[...]`로 반응형이 되어 있어 추가 변경 없음. 다크 모드는 미지원 확정이므로 범위 제외.
 - 다음 작업:
-  - 사내망(로그인 + 실 데이터)에서 실기기/태블릿 육안 검증(플로팅 버튼 노출, 하단 슬라이딩, 시트 내 속성 조정/다운로드 동작, 키보드/ESC). 전역 애니메이션 활성화에 따른 타 페이지 시트/다이얼로그 동작도 함께 육안 확인 권장.
+  - (없음) — P7 완료. 전역 애니메이션 활성화에 따른 타 페이지 시트/다이얼로그 동작은 운영 배포 시 참고.
 
 ---
+
+## 구현 완료 (2026-07-08)
+- **ICON+ 전 단계(P0~P7) 코드 구현 완료.** 모든 계획서(§) 항목이 반영되었으며, tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus` 컴파일·200으로 검증됨. 브랜치 `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` push 완료.
+- 남은 것은 **코드 작업이 아니라 운영(사내망) 육안 확인 항목**뿐 — 아래 잔여 목록 참고.
 
 ## 미해결 / 결정 대기
 - (없음) — 다크 모드는 **미지원 확정**(2026-07-08, 관련 UI 아이콘도 이미 숨김). 선결요건 b의 카드 다크 대응 잔여 항목은 방침에 따라 종료.
 
-## 다음 세션 착수점 (2026-07-08 세션 종료 시점)
-- **Phase 7 — 반응형/접근성/QA: 코드 구현 완료(🟡, 사내망 육안 대기).**
-  - 모바일 속성 패널 접근 경로 구현: 메인+리소스 모두 선택 시 하단 플로팅 버튼("결과 조정하기") → 우측 슬라이딩 `Sheet`. ICON 탭 모바일 패턴(`useIsMobileViewport`+`Sheet`+패널 `variant`)과 통일.
-  - 남은 작업: 사내망 실기기/태블릿 육안(플로팅 버튼·우측 슬라이딩·시트 내 조정/다운로드·키보드/ESC) 확인 후 P7 최종 확정.
-  - 다크 모드는 미지원 확정이므로 P7 범위에서 제외.
-- **완료된 이연 항목**: 기존 MAIN 카드 anchor 재편집 → **구현 완료**(카드 우상단 hover 편집 버튼 + `IconPlusAnchorDialog` + PATCH `/api/icon-plus/[id]`). 아래 변경 이력 참고.
-- **개발망 확인 완료(2026-07-08)**: P5 병합 미리보기, P6 다운로드(SVG/PNG/JPG)·색상/두께/크기·JPG 품질·미리보기 가변 크기, 포맷 버튼 스타일 통일, anchor 편집 버튼 아이콘(target), 업로드 파일명 줄바꿈. (개발자 개발망 테스트로 확인)
-- **사내망 검증 대기 항목(잔여)**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 위험 SVG 차단, MAIN anchor 재편집(hover 편집→PATCH→미리보기 갱신) 최종 운영 확인. (P1은 검증 완료)
+## 사내망 운영 확인 잔여 (구현 완료, 코드 작업 아님)
+- **개발망 확인 완료(2026-07-08)**: P5 병합 미리보기, P6 다운로드(SVG/PNG/JPG)·색상/두께/크기·JPG 품질·미리보기 가변 크기, 포맷 버튼 스타일, anchor 편집 아이콘, 업로드 파일명 줄바꿈, **P7 모바일 QA(하단 슬라이딩 시트·플로팅 버튼·close 버튼·버튼 줄바꿈)**.
+- **잔여 운영 확인**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 위험 SVG 차단, MAIN anchor 재편집(hover 편집→PATCH→미리보기 갱신) 운영 환경 최종 확인. (P1 검증 완료)
 - 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push.
 
 ## 변경 이력
@@ -239,3 +238,4 @@
 | 2026-07-08 | P7 | 모바일 반응형: `useIsMobileViewport` + 슬라이딩 `Sheet`로 속성 패널 접근. 메인+리소스 모두 선택 시 하단 플로팅 버튼("메인 + 아이콘/텍스트 : 결과 조정하기") → 시트 오픈, 선택 해제 시 자동 닫힘. `IconPlusPropertyPanel`에 `variant='sheet'` 추가. ICON 탭 모바일 패턴 채택(두 탭 일관), icon-merger UX 이식. tsc/lint 0 + 190 통과 + `?tab=plus` 200 → **P7 🟡** (실기기 육안은 사내망 대기) |
 | 2026-07-08 | P7 | 사용자 피드백 반영: ①ICON+ 모바일 시트를 우측→**하단(`side="bottom"`)** 으로 변경(ICON 탭·타 페이지와 방향 일관). ②**슬라이딩 미동작 근본 원인 해결**: `tailwind.config.ts`에 `tailwindcss-animate` 플러그인 미등록 → 모든 `Sheet`/`Dialog` 애니메이션 클래스가 no-op이던 문제. 플러그인 등록으로 전 페이지 하단 시트 부드러운 슬라이딩 활성(gallery/character/chart-generator/ci-bi/ppt/design-request/pdf-extractor/GenericListPage/ICON 탭 등 공용 `Sheet` 사용처 전부). 생성 CSS에 `@keyframes enter/exit` 방출 확인. tsc/lint 0 + 190 통과 |
 | 2026-07-08 | P7 | 사내망 1차 QA 피드백 4건: ①ICON+ 플로팅 버튼 좌측 아이콘 제거. ②**시트 close 버튼 겹침 해결(전역)**: 공용 `sheet.tsx` close를 둥근 아이콘 버튼(rounded-full+border+bg)으로 재스타일 + 모바일 시트 속성 패널 상단 패딩 `pt-6`→`pt-14`(초기화 버튼 위로 close 배치, 겹침 제거). 적용: Icon/IconPlus/Character/CiBi/Ppt/Generic PropertyPanel + ChartSettingsPanel. ③ICON 탭 액션 버튼 행 `flex-wrap`(폭 초과 시 줄바꿈, 검색창 `min-w-[200px]`). ④ICON 탭 "속성 패널 열기" 버튼 제거(아이콘 선택 시 시트 자동 오픈으로 불필요). tsc 0 + 190 통과 + `/icon?tab=plus`·`/chart-generator` 200 |
+| 2026-07-08 | P7 | **사내망 모바일 QA 확인 완료** → P7 ✅. ICON+ 전 단계(P0~P7) 구현 완료 확정. 잔여는 코드 작업이 아닌 운영 육안 확인 항목(P2 관리자 API/P3 실 데이터 카드/P4 위험 SVG 차단/anchor 재편집)뿐. 문서 상태 갱신 |
