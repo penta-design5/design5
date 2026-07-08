@@ -173,6 +173,28 @@
   }
 }
 
+/* 전역 스크롤바 Thumb 스타일 (수평/수직 공통)
+   - 두께: 기본보다 얇게 (6px)
+   - Thumb 색상: Penta Design System primary 01 / 50 (#EBF2FF) */
+* {
+  scrollbar-width: thin; /* Firefox: 얇게 */
+  scrollbar-color: #ebf2ff transparent; /* Firefox: thumb / track */
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #ebf2ff;
+  border-radius: 9999px;
+}
+
 /* Skeleton Shimmer 애니메이션 */
 @keyframes shimmer {
   0% {
