@@ -7,6 +7,7 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { ResourceSection } from '@/components/category-pages/IconCategory/iconplus/ResourceSection'
 import { IconPlusPropertyPanel } from '@/components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel'
 import { IconPlusUploadDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusUploadDialog'
+import { IconPlusAnchorDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusAnchorDialog'
 import type { IconPlusResource, IconPlusType } from '@/components/category-pages/IconCategory/iconplus/types'
 
 interface Category {
@@ -48,6 +49,8 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
 
   // 업로드 다이얼로그 대상 타입 (null이면 닫힘)
   const [uploadType, setUploadType] = useState<IconPlusType | null>(null)
+  // anchor 편집 대상 MAIN 리소스 id (null이면 닫힘)
+  const [anchorEditId, setAnchorEditId] = useState<string | null>(null)
 
   const fetchType = useCallback(async (type: IconPlusType): Promise<IconPlusResource[]> => {
     try {
@@ -171,6 +174,13 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
     void refresh(uploadType)
   }, [uploadType, refresh])
 
+  const handleAnchorEditSuccess = useCallback(() => {
+    toast.success('anchor 좌표가 저장되었습니다.')
+    void refresh('MAIN')
+  }, [refresh])
+
+  const anchorEditResource = mainResources.find((r) => r.id === anchorEditId) ?? null
+
   const selectedMain = mainResources.find((r) => mainSelected.has(r.id)) ?? null
   const selectedResource =
     mergeIconResources.find((r) => mergeIconSelected.has(r.id)) ??
@@ -203,6 +213,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
               onDeselectAll={() => setMainSelected(new Set())}
               onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
               onAdd={() => setUploadType('MAIN')}
+              onEditAnchor={isAdmin ? (id) => setAnchorEditId(id) : undefined}
             />
 
             {/* 병합용 아이콘 + 병합용 텍스트 */}
@@ -269,6 +280,15 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
           type={uploadType}
           onClose={() => setUploadType(null)}
           onSuccess={handleUploadSuccess}
+        />
+      )}
+
+      {/* anchor 편집 다이얼로그 (관리자 전용, 기존 MAIN 재편집) */}
+      {isAdmin && (
+        <IconPlusAnchorDialog
+          resource={anchorEditResource}
+          onClose={() => setAnchorEditId(null)}
+          onSuccess={handleAnchorEditSuccess}
         />
       )}
     </div>

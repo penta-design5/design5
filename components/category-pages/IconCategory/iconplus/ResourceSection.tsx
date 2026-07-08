@@ -33,6 +33,8 @@ interface ResourceSectionProps {
   onDeselectAll: () => void
   onDelete: () => void
   onAdd: () => void
+  /** 지정 시 각 카드에 anchor 편집 버튼 노출(관리자 MAIN 섹션 전용) */
+  onEditAnchor?: (id: string) => void
 }
 
 /**
@@ -56,6 +58,7 @@ export function ResourceSection({
   onDeselectAll,
   onDelete,
   onAdd,
+  onEditAnchor,
 }: ResourceSectionProps) {
   const selectedCount = selectedIds.size
 
@@ -141,6 +144,7 @@ export function ResourceSection({
                 isSelected={selectedIds.has(resource.id)}
                 onClick={onToggleSelect}
                 variant={cardVariant}
+                onEditAnchor={onEditAnchor}
               />
             ))}
           </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -15,6 +16,8 @@ interface IconPlusCardProps {
   onClick: (id: string) => void
   /** 카드 형태: icon(정사각) | text(가로형 라벨) | main(정사각, 큰 미리보기) */
   variant?: 'icon' | 'text' | 'main'
+  /** 지정 시 카드 우상단에 anchor 편집 버튼 노출(관리자 MAIN 카드). 선택 버튼과 형제로 두어 버튼 중첩 회피 */
+  onEditAnchor?: (id: string) => void
 }
 
 /**
@@ -32,7 +35,13 @@ function getTextCardWidth(width: number, height: number) {
  * - MAIN·MERGE_ICON은 `svg-line-preview`로 획(라인) 표시, 병합용 텍스트는 채움(글자) 유지.
  * - 색상/두께/크기 적용은 Phase 6에서 확장(현재는 저장된 원본 그대로 표시).
  */
-export function IconPlusCard({ resource, isSelected, onClick, variant = 'icon' }: IconPlusCardProps) {
+export function IconPlusCard({
+  resource,
+  isSelected,
+  onClick,
+  variant = 'icon',
+  onEditAnchor,
+}: IconPlusCardProps) {
   const isText = variant === 'text'
   // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트는 채움 그대로
   const isLine = variant === 'main' || variant === 'icon'
@@ -42,7 +51,7 @@ export function IconPlusCard({ resource, isSelected, onClick, variant = 'icon' }
     ? { width: `${getTextCardWidth(resource.width, resource.height)}px` }
     : undefined
 
-  return (
+  const selectButton = (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -51,7 +60,7 @@ export function IconPlusCard({ resource, isSelected, onClick, variant = 'icon' }
             onClick={() => onClick(resource.id)}
             aria-pressed={isSelected}
             aria-label={resource.name}
-            style={style}
+            style={onEditAnchor ? undefined : style}
             className={cn(
               'group relative flex shrink-0 items-center justify-center rounded-lg border transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -84,5 +93,29 @@ export function IconPlusCard({ resource, isSelected, onClick, variant = 'icon' }
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  )
+
+  if (!onEditAnchor) return selectButton
+
+  // anchor 편집 버튼은 선택 버튼과 형제로 배치(버튼 중첩 회피). hover/포커스 시 노출.
+  return (
+    <div className="group relative w-full">
+      {selectButton}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onEditAnchor(resource.id)
+        }}
+        aria-label={`${resource.name} anchor 편집`}
+        className={cn(
+          'absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition',
+          'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'hover:border-penta-sky hover:text-penta-blue'
+        )}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
   )
 }

@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { UploadCloud, Loader2, File as FileIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { clamp, formatCoordinate, getContainedRect } from './anchor-utils'
 import type { IconPlusType } from './types'
 
 interface IconPlusUploadDialogProps {
@@ -419,16 +420,7 @@ export function IconPlusUploadDialog({
   )
 }
 
-/* ---- SVG 미리보기/anchor 좌표 계산 헬퍼 (icon-merger 이식, 순수 함수) ---- */
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
-}
-
-/** anchor 좌표를 0.5 단위로 반올림한 문자열로 포맷 */
-function formatCoordinate(value: number) {
-  return Number((Math.round(value * 2) / 2).toFixed(1)).toString()
-}
+/* ---- 업로드 전용 SVG 미리보기 헬퍼 (순수 함수). 공용 anchor 헬퍼는 ./anchor-utils ---- */
 
 function parseSvgLength(value: string | undefined) {
   if (!value) return null
@@ -449,33 +441,6 @@ function readClientSvgSize(svg: string): { width: number; height: number } | nul
   const height = parseSvgLength(svg.match(/\sheight=["']([^"']+)["']/i)?.[1])
   if (width && height) return { width, height }
   return null
-}
-
-/** object-contain으로 렌더된 미디어의 실제 화면 사각형(레터박스 보정) 계산 */
-function getContainedRect(
-  containerRect: DOMRect,
-  mediaSize: { width: number; height: number }
-) {
-  const containerRatio = containerRect.width / containerRect.height
-  const mediaRatio = mediaSize.width / mediaSize.height
-
-  if (mediaRatio > containerRatio) {
-    const height = containerRect.width / mediaRatio
-    return {
-      left: containerRect.left,
-      top: containerRect.top + (containerRect.height - height) / 2,
-      width: containerRect.width,
-      height,
-    }
-  }
-
-  const width = containerRect.height * mediaRatio
-  return {
-    left: containerRect.left + (containerRect.width - width) / 2,
-    top: containerRect.top,
-    width,
-    height: containerRect.height,
-  }
 }
 
 function isClientSvgFile(file: File) {

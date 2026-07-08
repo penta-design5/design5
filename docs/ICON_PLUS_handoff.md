@@ -190,15 +190,15 @@
 ---
 
 ## 미해결 / 결정 대기
-- **섹션 카드 다크 모드(선결요건 b 잔여)**: `ResourceSection`/`IconPlusCard`의 다크 배경에서 원본 검정 획·글자 가시성. P6 색상 컨트롤이 구동하지 않는 영역 → P7에서 카드 배경 라이트 고정 또는 테마 대응 여부 결정 필요.
+- (없음) — 다크 모드는 **미지원 확정**(2026-07-08, 관련 UI 아이콘도 이미 숨김). 선결요건 b의 카드 다크 대응 잔여 항목은 방침에 따라 종료.
 
 ## 다음 세션 착수점 (2026-07-08 세션 종료 시점)
 - **다음 작업: Phase 7 — 반응형/접근성/QA.**
   - 태블릿/모바일 대응(속성 패널을 Sheet/Drawer로), `aria-*`/키보드 접근성, ICON 탭 포함 회귀 테스트.
   - 현재 속성 패널은 데스크톱(`md:` 이상)에서만 노출(`hidden md:block`) → 모바일에서 속성/다운로드 접근 경로 필요.
-  - **P6 남은 항목(P7 후보)**: 섹션 카드(`ResourceSection`/`IconPlusCard`)의 다크 모드 배경/획 색 처리(선결요건 b 중 카드 영역). 색상 컨트롤이 구동하지 않는 영역이라 별도 테마 대응 필요.
-- **Phase 4 후속(이연) 항목**: 기존 MAIN 카드 anchor 재편집(§3.3 hover 편집 + PATCH `/api/icon-plus/[id]`). 카드가 `<button>`이라 오버레이/래퍼 구조 필요.
-- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 실 업로드·MAIN anchor 저장·위험 SVG 차단, **P5 실 병합 렌더(메인+리소스=결과), P6 실 다운로드(SVG/PNG/JPG)·색상/두께/크기 반영·다크 모드 가시성 육안 확인**. (P1은 검증 완료)
+  - 다크 모드는 미지원 확정이므로 P7 범위에서 다크 대응은 제외.
+- **완료된 이연 항목**: 기존 MAIN 카드 anchor 재편집 → **구현 완료**(카드 우상단 hover 편집 버튼 + `IconPlusAnchorDialog` + PATCH `/api/icon-plus/[id]`). 아래 변경 이력 참고.
+- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 실 업로드·MAIN anchor 저장·위험 SVG 차단, **P5 실 병합 렌더(메인+리소스=결과), P6 실 다운로드(SVG/PNG/JPG)·색상/두께/크기 반영, MAIN anchor 재편집(hover 편집→PATCH→미리보기 갱신) 육안 확인**. (P1은 검증 완료)
 - 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push.
 
 ## 변경 이력
@@ -219,4 +219,5 @@
 | 2026-07-08 | P3/P4 | 라인 렌더 방식 조정: 전체 강제(fill:none/stroke:currentColor) → **조건부**(`[stroke]:not([fill])`만 fill:none)로 변경해 fill이 지정된 부분은 채움 보존. 선 두께-vs-fill 요구는 Phase 6 선결 항목으로 문서화 |
 | 2026-07-08 | P3/P4 | 사내망 피드백: ①라인 요소(`[stroke]:not([fill])`) stroke 두께 정규화(`stroke-width:1.25px` + `non-scaling-stroke`)로 메인/리소스 굵기 일치(fill 부분 제외) ②대표 미리보기에 선택 아이콘 이름(`메인+리소스`) 표시. 다운로드 크기 표시는 병합 계산 필요 → Phase 5로 이관 |
 | 2026-07-08 | P5/P6 | 병합 미리보기(`mergeSvgsByAnchor` 실시간 렌더) + 속성 컨트롤(색상 10종/선 두께/크기/포맷/초기화) + SVG·PNG·JPG 다운로드 구현. 신규 `lib/svg/icon-plus-properties.ts`(속성 주입, 순수) / `icon-plus-download.ts`(Blob 렌더, 클라이언트) + 단위 8종. 선결요건 a(선 두께 라인 획 한정, fill 채움 보존)·b(미리보기 밝은 배경 고정+흰색 반전)·c(결과 stroke를 컨트롤값 구동, 카드 하드코딩 CSS는 회귀 방지 위해 유지) 처리. tsc/lint 0 + 186 통과 + `?tab=plus` 200 → **P5·P6 ✅** (실 다운로드/다크 육안은 사내망 대기) |
+| 2026-07-08 | 이연항목 | **기존 MAIN anchor 재편집 구현**(P4 이연 항목 해소). 카드 우상단 hover 편집 버튼(선택 `<button>`과 형제로 배치해 중첩 회피) → `IconPlusAnchorDialog`(저장된 svgContent를 sanitize 완료 값으로 렌더, 십자선 클릭·드래그 + 좌표 입력) → `PATCH /api/icon-plus/[id]` → `refresh('MAIN')`. anchor 헬퍼(clamp/formatCoordinate/getContainedRect)를 `anchor-utils.ts`로 추출해 업로드/편집 다이얼로그 공용화. 다크 모드 미지원 확정 반영(관련 항목 종료). tsc/lint 0 + 190 통과 + `?tab=plus` 200 |
 | 2026-07-08 | P6 | 사내망 테스트 피드백 3건 반영: ①**다운로드 SVG 색상 미적용/채움 잔존** → `<style>` 주입은 macOS 미리보기 등에서 내부 CSS(`:not()`/속성 선택자) 미적용이 원인. `applyIconPlusProperties`를 **presentation 속성 bake 방식**(ICON 탭과 동일, `changeAllSvgColors` 재사용, 라인 획에만 stroke-width)으로 재작성 → 뷰어 독립. 래스터 대비 XML 유효성 테스트 추가. ②**JPG 화질** → `toBlob` 품질 0.92→1.0(PNG 무손실이라 무관). ③**미리보기 크기 미반영** → 결과 슬롯을 꽉 채움 대신 크기 컨트롤 기반 표시 높이(`size*1.5`, 24~64px)로 렌더(icon-merger `PreviewTile` 방식). tsc/lint 0 + 190 통과 |
