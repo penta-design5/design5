@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil } from 'lucide-react'
+import { Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -114,7 +114,7 @@ export function IconPlusCard({
           'hover:border-penta-sky hover:text-penta-blue'
         )}
       >
-        <Pencil className="h-3.5 w-3.5" />
+        <Crosshair className="h-3.5 w-3.5" />
       </button>
     </div>
   )

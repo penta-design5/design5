@@ -292,7 +292,7 @@ export function IconPlusUploadDialog({
                   선택된 파일 ({files.length}개)
                 </p>
               </div>
-              <p className="mt-2 overflow-x-auto whitespace-nowrap text-sm text-foreground">
+              <p className="mt-2 whitespace-normal break-words text-sm text-foreground">
                 {files.map((file) => file.name).join(', ')}
               </p>
             </div>
