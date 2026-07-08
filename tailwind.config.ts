@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import tailwindcssAnimate from "tailwindcss-animate"
 
 const config = {
   darkMode: ["class"],
@@ -105,9 +106,10 @@ const config = {
     },
   },
   plugins: [
-    // tailwindcss-animate는 선택적 플러그인입니다
-    // 패키지가 설치되어 있으면 사용하고, 없어도 작동합니다
-    // 필요시: npm install tailwindcss-animate --save-dev
+    // shadcn 컴포넌트(sheet/dialog/dropdown/tooltip 등)가 사용하는
+    // animate-in/slide-in-from-*/fade-in/zoom-in 유틸리티를 활성화한다.
+    // 미등록 시 해당 클래스가 무효(no-op)라 시트가 슬라이딩 없이 즉시 표시됨.
+    tailwindcssAnimate,
   ],
 } satisfies Config
 

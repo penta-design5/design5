@@ -19,6 +19,12 @@ import type { IconPlusResource } from './types'
 interface IconPlusPropertyPanelProps {
   selectedMain: IconPlusResource | null
   selectedResource: IconPlusResource | null
+  /**
+   * 렌더 위치.
+   * - `sidebar`(기본): 데스크톱 우측 고정 패널(화면 전체 높이).
+   * - `sheet`: 모바일 우측 슬라이딩 시트 내부(부모 Sheet가 위치/애니메이션 담당).
+   */
+  variant?: 'sidebar' | 'sheet'
 }
 
 /** 문서 기준 색상 10종(§7). 흰색(#FFFFFF)은 별도 처리(다운로드 포맷/카드 배경). */
@@ -76,7 +82,9 @@ function toMergeIcon(resource: IconPlusResource) {
 export function IconPlusPropertyPanel({
   selectedMain,
   selectedResource,
+  variant = 'sidebar',
 }: IconPlusPropertyPanelProps) {
+  const isSheet = variant === 'sheet'
   const [color, setColor] = useState(DEFAULT_COLOR)
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH)
   const [size, setSize] = useState(DEFAULT_SIZE)
@@ -164,8 +172,16 @@ export function IconPlusPropertyPanel({
   }
 
   return (
-    // ICON 탭 속성 패널과 동일: 화면 전체 높이 고정 + 테두리 없음(배경색 차이로 구분)
-    <div className="fixed bottom-0 right-0 top-0 flex h-full w-[410px] flex-col gap-6 overflow-y-auto bg-background px-8 pb-8 pt-14">
+    // sidebar: ICON 탭 속성 패널과 동일(화면 전체 높이 고정 + 테두리 없음, 배경색 차이로 구분)
+    // sheet: 모바일 우측 슬라이딩 시트 내부 — 위치/높이는 부모 Sheet가 담당하므로 폭만 채운다
+    <div
+      className={cn(
+        'flex flex-col gap-6 overflow-y-auto bg-background',
+        isSheet
+          ? 'h-full w-full px-6 pb-8 pt-6'
+          : 'fixed bottom-0 right-0 top-0 h-full w-[410px] px-8 pb-8 pt-14'
+      )}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-foreground">아이콘 속성</h2>

@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
+import { SlidersHorizontal } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { ResourceSection } from '@/components/category-pages/IconCategory/iconplus/ResourceSection'
 import { IconPlusPropertyPanel } from '@/components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel'
@@ -36,6 +40,9 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
   const { data: session } = useSession()
   const isAdmin = session?.user?.role === 'ADMIN'
   const { confirm } = useConfirmDialog()
+  // md(768px) 미만: 속성 패널을 숨기고, 조합 선택 시 플로팅 버튼 → 우측 슬라이딩 시트로 접근
+  const isMobileViewport = useIsMobileViewport()
+  const [mobilePropertyOpen, setMobilePropertyOpen] = useState(false)
 
   const [mainResources, setMainResources] = useState<IconPlusResource[]>([])
   const [mergeIconResources, setMergeIconResources] = useState<IconPlusResource[]>([])
@@ -187,6 +194,18 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
     mergeTextResources.find((r) => mergeTextSelected.has(r.id)) ??
     null
 
+  // 메인 + 병합용 리소스를 모두 선택해야 결과를 조정할 수 있다(모바일 플로팅 버튼/시트 노출 조건)
+  const canOpenMobileProperties = Boolean(selectedMain && selectedResource)
+  const mobilePropertyButtonLabel =
+    selectedResource?.type === 'MERGE_TEXT'
+      ? '메인 + 텍스트 : 결과 조정하기'
+      : '메인 + 아이콘 : 결과 조정하기'
+
+  // 선택 조합이 깨지면(예: 선택 해제/삭제) 열려 있던 시트도 닫는다
+  useEffect(() => {
+    if (!canOpenMobileProperties) setMobilePropertyOpen(false)
+  }, [canOpenMobileProperties])
+
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
       {/* 좌측: 헤더 + 메인/병합용 섹션 (모바일에서는 속성 패널 없음 → pr-0) */}
@@ -272,6 +291,37 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
       <div className="hidden md:block">
         <IconPlusPropertyPanel selectedMain={selectedMain} selectedResource={selectedResource} />
       </div>
+
+      {/* 모바일: 메인 + 리소스 조합 선택 시 하단 플로팅 버튼 → 우측 슬라이딩 시트 */}
+      {canOpenMobileProperties && !mobilePropertyOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
+          <Button
+            type="button"
+            size="lg"
+            className="h-12 w-full shadow-lg"
+            aria-label="선택한 조합의 결과 속성 조정 패널 열기"
+            onClick={() => setMobilePropertyOpen(true)}
+          >
+            <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden="true" />
+            {mobilePropertyButtonLabel}
+          </Button>
+        </div>
+      )}
+
+      {/* 모바일 속성 시트 — 하단에서 슬라이딩(다른 탭/페이지와 일관). Sheet는 Portal이라 뷰포트 조건으로 명시 게이팅 */}
+      <Sheet
+        open={Boolean(isMobileViewport && mobilePropertyOpen && canOpenMobileProperties)}
+        onOpenChange={setMobilePropertyOpen}
+      >
+        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+          <SheetTitle className="sr-only">아이콘 속성</SheetTitle>
+          <IconPlusPropertyPanel
+            variant="sheet"
+            selectedMain={selectedMain}
+            selectedResource={selectedResource}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* 업로드 다이얼로그 (관리자 전용, 섹션별 타입) */}
       {isAdmin && uploadType && (

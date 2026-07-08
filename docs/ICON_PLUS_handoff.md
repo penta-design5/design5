@@ -21,7 +21,7 @@
 | P4 | 업로드 다이얼로그 & anchor 입력 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 178 통과 + `?tab=plus` 컴파일·200. 실 업로드/anchor 저장은 사내망(로그인+DB) 대기 |
 | P5 | 병합 미리보기 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과 + `?tab=plus` 컴파일·200. 실 병합 렌더는 사내망 대기 |
 | P6 | 속성 조정 & 다운로드 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과(신규 8종) + `?tab=plus` 컴파일·200. 실 다운로드/다크모드 육안은 사내망 대기 |
-| P7 | 반응형/접근성/QA | ⬜ 대기 | | |
+| P7 | 반응형/접근성/QA | 🟡 진행중 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 190 통과 + `/[slug]?tab=plus` 컴파일·200. 모바일 속성 시트(우측 슬라이딩)·플로팅 버튼 구현. 실기기 육안/접근성 최종 확인은 사내망 대기 |
 
 ---
 
@@ -177,15 +177,28 @@
 - 다음 작업:
   - Phase 7 착수 (반응형/접근성/QA)
 
-### Phase 7 — 반응형/접근성/QA  ⬜
-- [ ] 태블릿/모바일 대응(Sheet/Drawer)
-- [ ] `aria-*`/키보드 접근성
-- [ ] 회귀 테스트(ICON 탭 포함)
-- 완료 기준: 주요 뷰포트 정상, 접근성 확인, 회귀 없음
+### Phase 7 — 반응형/접근성/QA  🟡
+- [x] 태블릿/모바일 대응(모바일 속성 시트 — 우측에서 슬라이딩)
+- [x] 조합 선택 시 하단 플로팅 버튼 "메인 + 아이콘/텍스트 : 결과 조정하기"
+- [x] `aria-*`/키보드 접근성(플로팅 버튼 aria-label, Sheet=Radix Dialog 포커스 트랩/ESC/오버레이 닫기, `sr-only` 제목)
+- [x] 회귀 테스트(tsc/lint 0 + 단위테스트 190 통과, ICON 탭 포함)
+- 완료 기준: 주요 뷰포트 정상, 접근성 확인, 회귀 없음 → **코드 충족** (실기기 육안은 사내망 대기)
 - 수정 파일:
+  - `app/_category-pages/icon/IconPlusWorkspace.tsx` (모바일 뷰포트 감지(`useIsMobileViewport`) + 플로팅 버튼(md:hidden, 메인+리소스 모두 선택 시) + 하단 슬라이딩 `Sheet`(side="bottom", `h-[70vh]`) 안에 속성 패널 `variant="sheet"` 렌더. 선택 조합 해제 시 시트 자동 닫힘)
+  - `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx` (`variant?: 'sidebar' | 'sheet'` prop 추가 — sheet 모드는 `fixed` 대신 부모 Sheet가 위치/애니메이션 담당, 폭만 채움)
+  - `tailwind.config.ts` (**전역 수정**: `tailwindcss-animate` 플러그인 등록. 미등록이라 `animate-in`/`slide-in-from-*`/`fade-in`/`zoom-in` 클래스가 no-op → 모든 `Sheet`/`Dialog`가 슬라이딩 없이 즉시 표시되던 문제 해결)
 - 검증:
+  - `npx tsc --noEmit` → 0, `npx next lint`(수정 파일) → 0
+  - `npx vitest run` → 전체 190 통과(회귀 없음)
+  - `next dev`: `/icon?tab=plus` 컴파일 클린 + HTTP 200. 생성 CSS에 `@keyframes enter/exit`·`.animate-in`·`--tw-enter-translate-y` 방출 확인(플러그인 활성 검증, 이전엔 부재)
 - 계획 대비 변경/결정:
+  - **패턴 통일**: 이미 반응형이 끝난 ICON 탭(`IconTab`)의 모바일 패턴(`useIsMobileViewport` + `Sheet` + 패널 `variant`)을 그대로 채택해 두 탭 UX/구현 일관성 유지. icon-merger의 UX(조합 선택 → 하단 플로팅 버튼 → 슬라이딩 패널)를 Design5 컴포넌트로 이식.
+  - **슬라이딩 방향**: 최초 우측(`side="right"`)으로 구현했으나, 사용자 피드백으로 **하단(`side="bottom"`, `h-[70vh]`)** 으로 변경 — ICON 탭 및 다른 메뉴 페이지(gallery/character/chart-generator/ci-bi/ppt/design-request/pdf-extractor/GenericListPage 등)와 방향 일관.
+  - **슬라이딩 미동작 근본 원인 해결(전역)**: `tailwindcss-animate`가 `package.json` 의존성엔 있으나 `tailwind.config.ts` `plugins`에 **미등록** → shadcn 컴포넌트가 참조하는 애니메이션 유틸리티 클래스가 전부 무효였음. 플러그인 등록으로 **모든 페이지의 하단 시트가 부드럽게 슬라이딩**(및 Dialog/Dropdown/Tooltip 등 shadcn 기본 페이드·줌 애니메이션 동시 활성 — 사용자 승인). `require` 대신 `import tailwindcssAnimate from 'tailwindcss-animate'`로 등록(TS/lint 정합).
+  - **버튼 노출 조건**: 메인 + 병합용 리소스를 **모두** 선택했을 때만 노출(`canOpenMobileProperties`). anchor 미존재 등 병합 불가 상태는 패널 내부 안내문으로 처리(데스크톱 패널과 동일 동작).
+  - **기본 레이아웃**: 워크스페이스 좌측 컬럼은 이미 `pr-0 md:pr-[410px]` + `grid-cols-1 lg:grid-cols-[...]`로 반응형이 되어 있어 추가 변경 없음. 다크 모드는 미지원 확정이므로 범위 제외.
 - 다음 작업:
+  - 사내망(로그인 + 실 데이터)에서 실기기/태블릿 육안 검증(플로팅 버튼 노출, 하단 슬라이딩, 시트 내 속성 조정/다운로드 동작, 키보드/ESC). 전역 애니메이션 활성화에 따른 타 페이지 시트/다이얼로그 동작도 함께 육안 확인 권장.
 
 ---
 
@@ -193,10 +206,10 @@
 - (없음) — 다크 모드는 **미지원 확정**(2026-07-08, 관련 UI 아이콘도 이미 숨김). 선결요건 b의 카드 다크 대응 잔여 항목은 방침에 따라 종료.
 
 ## 다음 세션 착수점 (2026-07-08 세션 종료 시점)
-- **다음 작업: Phase 7 — 반응형/접근성/QA.**
-  - 태블릿/모바일 대응(속성 패널을 Sheet/Drawer로), `aria-*`/키보드 접근성, ICON 탭 포함 회귀 테스트.
-  - 현재 속성 패널은 데스크톱(`md:` 이상)에서만 노출(`hidden md:block`) → 모바일에서 속성/다운로드 접근 경로 필요.
-  - 다크 모드는 미지원 확정이므로 P7 범위에서 다크 대응은 제외.
+- **Phase 7 — 반응형/접근성/QA: 코드 구현 완료(🟡, 사내망 육안 대기).**
+  - 모바일 속성 패널 접근 경로 구현: 메인+리소스 모두 선택 시 하단 플로팅 버튼("결과 조정하기") → 우측 슬라이딩 `Sheet`. ICON 탭 모바일 패턴(`useIsMobileViewport`+`Sheet`+패널 `variant`)과 통일.
+  - 남은 작업: 사내망 실기기/태블릿 육안(플로팅 버튼·우측 슬라이딩·시트 내 조정/다운로드·키보드/ESC) 확인 후 P7 최종 확정.
+  - 다크 모드는 미지원 확정이므로 P7 범위에서 제외.
 - **완료된 이연 항목**: 기존 MAIN 카드 anchor 재편집 → **구현 완료**(카드 우상단 hover 편집 버튼 + `IconPlusAnchorDialog` + PATCH `/api/icon-plus/[id]`). 아래 변경 이력 참고.
 - **개발망 확인 완료(2026-07-08)**: P5 병합 미리보기, P6 다운로드(SVG/PNG/JPG)·색상/두께/크기·JPG 품질·미리보기 가변 크기, 포맷 버튼 스타일 통일, anchor 편집 버튼 아이콘(target), 업로드 파일명 줄바꿈. (개발자 개발망 테스트로 확인)
 - **사내망 검증 대기 항목(잔여)**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 위험 SVG 차단, MAIN anchor 재편집(hover 편집→PATCH→미리보기 갱신) 최종 운영 확인. (P1은 검증 완료)
@@ -223,3 +236,5 @@
 | 2026-07-08 | 이연항목 | **기존 MAIN anchor 재편집 구현**(P4 이연 항목 해소). 카드 우상단 hover 편집 버튼(선택 `<button>`과 형제로 배치해 중첩 회피) → `IconPlusAnchorDialog`(저장된 svgContent를 sanitize 완료 값으로 렌더, 십자선 클릭·드래그 + 좌표 입력) → `PATCH /api/icon-plus/[id]` → `refresh('MAIN')`. anchor 헬퍼(clamp/formatCoordinate/getContainedRect)를 `anchor-utils.ts`로 추출해 업로드/편집 다이얼로그 공용화. 다크 모드 미지원 확정 반영(관련 항목 종료). tsc/lint 0 + 190 통과 + `?tab=plus` 200 |
 | 2026-07-08 | P6 | 사내망 테스트 피드백 3건 반영: ①**다운로드 SVG 색상 미적용/채움 잔존** → `<style>` 주입은 macOS 미리보기 등에서 내부 CSS(`:not()`/속성 선택자) 미적용이 원인. `applyIconPlusProperties`를 **presentation 속성 bake 방식**(ICON 탭과 동일, `changeAllSvgColors` 재사용, 라인 획에만 stroke-width)으로 재작성 → 뷰어 독립. 래스터 대비 XML 유효성 테스트 추가. ②**JPG 화질** → `toBlob` 품질 0.92→1.0(PNG 무손실이라 무관). ③**미리보기 크기 미반영** → 결과 슬롯을 꽉 채움 대신 크기 컨트롤 기반 표시 높이(`size*1.5`, 24~64px)로 렌더(icon-merger `PreviewTile` 방식). tsc/lint 0 + 190 통과 |
 | 2026-07-08 | UI | 포맷 선택 버튼(SVG/PNG/JPG) 스타일을 ICON 탭 속성 패널(`IconPropertyPanel`)과 통일(hover/선택/테두리/크기 `h-8 flex-1`). anchor 편집 버튼 아이콘 `Pencil`→`Crosshair`(target). 업로드 다이얼로그 선택 파일명 길이 초과 시 잘림 → 줄바꿈(`whitespace-normal break-words`). **개발망 확인 완료** |
+| 2026-07-08 | P7 | 모바일 반응형: `useIsMobileViewport` + 슬라이딩 `Sheet`로 속성 패널 접근. 메인+리소스 모두 선택 시 하단 플로팅 버튼("메인 + 아이콘/텍스트 : 결과 조정하기") → 시트 오픈, 선택 해제 시 자동 닫힘. `IconPlusPropertyPanel`에 `variant='sheet'` 추가. ICON 탭 모바일 패턴 채택(두 탭 일관), icon-merger UX 이식. tsc/lint 0 + 190 통과 + `?tab=plus` 200 → **P7 🟡** (실기기 육안은 사내망 대기) |
+| 2026-07-08 | P7 | 사용자 피드백 반영: ①ICON+ 모바일 시트를 우측→**하단(`side="bottom"`)** 으로 변경(ICON 탭·타 페이지와 방향 일관). ②**슬라이딩 미동작 근본 원인 해결**: `tailwind.config.ts`에 `tailwindcss-animate` 플러그인 미등록 → 모든 `Sheet`/`Dialog` 애니메이션 클래스가 no-op이던 문제. 플러그인 등록으로 전 페이지 하단 시트 부드러운 슬라이딩 활성(gallery/character/chart-generator/ci-bi/ppt/design-request/pdf-extractor/GenericListPage/ICON 탭 등 공용 `Sheet` 사용처 전부). 생성 CSS에 `@keyframes enter/exit` 방출 확인. tsc/lint 0 + 190 통과 |
