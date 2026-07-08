@@ -69,7 +69,11 @@ export function IconPlusPropertyPanel({
       {/* 대표 미리보기 — 테두리 없이 좌측 콘텐츠 영역과 동일 배경(bg-neutral-50 dark:bg-neutral-900) */}
       <div className="rounded-lg bg-neutral-50 p-4 dark:bg-neutral-900">
         <p className="text-sm font-medium text-foreground">대표 미리보기</p>
-        {!hasCombination && (
+        {selectedMain || selectedResource ? (
+          <p className="mt-1 truncate text-sm font-medium text-foreground">
+            {selectedMain?.name ?? '메인 미선택'} + {selectedResource?.name ?? '리소스 미선택'}
+          </p>
+        ) : (
           <p className="mt-1 text-sm text-muted-foreground">선택된 대표 조합 없음</p>
         )}
 

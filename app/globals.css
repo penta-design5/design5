@@ -239,6 +239,11 @@
    `.icon-svg-container`(ICON 탭)와 동일한 조건부 방식. */
 .svg-line-preview svg *[stroke]:not([fill]) {
   fill: none !important;
+  /* 아이콘마다 native stroke-width·viewBox 스케일이 달라 굵기가 제각각 보이는 것을 방지:
+     non-scaling-stroke로 화면 픽셀 기준 일정 두께(1.25px) 정규화 (icon-merger 이식).
+     fill이 지정된 요소는 대상에서 제외되므로 채움 부분에는 stroke 두께가 적용되지 않는다. */
+  stroke-width: 1.25px !important;
+  vector-effect: non-scaling-stroke;
 }
 
 /* 점선(dash)으로 저장된 라인 아이콘도 실선으로 표시 */
