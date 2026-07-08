@@ -78,7 +78,8 @@ async function renderSvgToRasterBlob({
         reject(new Error('Canvas 변환에 실패했습니다.'))
       },
       format === 'png' ? 'image/png' : 'image/jpeg',
-      0.92
+      // JPG는 최고 품질(1.0)로 인코딩해 경계 압축 노이즈 최소화. PNG는 무손실이라 이 값 무시.
+      1
     )
   })
 }

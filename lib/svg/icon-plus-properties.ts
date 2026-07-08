@@ -2,18 +2,24 @@
  * ICON+ 병합 결과 속성 적용 유틸리티 (색상 / 선 두께 / 크기)
  *
  * `mergeSvgsByAnchor`가 만든 병합 결과(`[data-layer="main"]` / `[data-layer="merge"]` 그룹 구조)에
- * 색상·선 두께를 스코프된 `<style>` 블록으로 주입하고, 루트 width/height를 출력 크기로 재설정한다.
+ * 색상·선 두께를 **각 요소의 presentation 속성(fill/stroke/stroke-width)으로 직접 기록(bake)**하고,
+ * 루트 width/height를 출력 크기로 재설정한다.
  * 미리보기·다운로드가 동일 함수를 쓰도록 순수 문자열 처리(클라이언트/서버 공용)로 유지한다.
  *
- * icon-merger `applySvgProperties` 이식본. 단, 라인 처리는 Design5의 조건부 규칙
- * (`[stroke]:not([fill])`만 라인으로 간주, fill 부분은 채움 보존)과 정합되게 조정했다.
- * → 선결요건 (a): 선 두께는 라인 획 요소에만 적용하고 fill 요소에는 색상만 반영한다.
+ * 초기 구현은 `<style>` 주입 방식이었으나, 다운로드한 .svg를 macOS 미리보기 등 일부 뷰어에서 열면
+ * 내부 CSS(특히 `:not()`/속성 선택자)를 적용하지 않아 앱 화면과 결과가 달라졌다.
+ * → 뷰어 독립성을 위해 ICON 탭과 동일하게 속성 baking 방식으로 전환하고
+ *   Design5 `lib/svg/color.ts`의 `changeAllSvgColors`를 재사용한다.
+ *
+ * 선결요건 (a): 선 두께(stroke-width)는 라인 획(stroke가 있고 fill이 none인 요소)에만 적용하고
+ * fill 요소에는 색상만 반영한다.
  *
  * @see docs/ICON_PLUS_개발계획.md §7
- * @see app/globals.css `.svg-line-preview`(카드/입력 미리보기 규칙과 동일 사상)
+ * @see lib/svg/color.ts `changeAllSvgColors`
  */
 
 import type { MergedSvgResult } from './merge-svg'
+import { changeAllSvgColors } from './color'
 
 /** 병합용 리소스 종류. 아이콘은 라인 처리, 텍스트는 채움(글자) 처리한다. */
 export type ResourceKind = 'icon' | 'text'
@@ -36,7 +42,8 @@ export interface IconPlusPropertyOptions {
   minDisplayPx?: number
 }
 
-const PROPERTY_STYLE_MARKER = 'data-icon-plus-properties'
+/** 선/획 두께를 부여할 대상 요소 태그 */
+const DRAWING_ELEMENTS = 'path|rect|circle|ellipse|line|polyline|polygon|g'
 
 /**
  * 병합 결과 SVG에 색상/선 두께/크기를 적용한 새 결과를 반환한다.
@@ -50,93 +57,105 @@ export function applyIconPlusProperties(
   const outputHeight = clampPositive(options.outputHeight, merged.height || 1)
   const outputWidth = scaleWidthFromHeight(merged.width, merged.height, outputHeight)
 
-  // 기존 주입 스타일 제거(재적용 안전)
-  const withoutStyle = merged.svgContent.replace(
-    new RegExp(`<style ${PROPERTY_STYLE_MARKER}="true">[\\s\\S]*?</style>`, 'i'),
-    ''
-  )
+  const svg = merged.svgContent
+  const mainIdx = svg.search(/<g\b[^>]*\bdata-layer=["']main["']/i)
+  const mergeIdx = svg.search(/<g\b[^>]*\bdata-layer=["']merge["']/i)
+  const endIdx = svg.lastIndexOf('</svg>')
 
-  const openingTag = withoutStyle.match(/^<svg\b[^>]*>/i)?.[0]
-  if (!openingTag) {
-    return { ...merged, width: outputWidth, height: outputHeight }
+  // 예상 구조가 아니면(레이어 마커 없음) 색상만 전체 적용 후 크기 재설정
+  if (mainIdx < 0 || mergeIdx < 0 || endIdx < 0 || mainIdx > mergeIdx) {
+    const colorized = changeAllSvgColors(svg, options.color)
+    return {
+      viewBox: merged.viewBox,
+      width: outputWidth,
+      height: outputHeight,
+      svgContent: setSvgRootAttributes(colorized, {
+        width: formatNumber(outputWidth),
+        height: formatNumber(outputHeight),
+      }),
+    }
   }
 
-  const withSizedRoot = setSvgRootAttributes(withoutStyle, {
+  const strokeValue = resolveStrokeWidth(merged, {
+    strokeWidth: options.strokeWidth,
+    outputHeight,
+    minDisplayPx: options.minDisplayPx,
+  })
+
+  const head = svg.slice(0, mainIdx)
+  const mainSeg = svg.slice(mainIdx, mergeIdx)
+  const mergeSeg = svg.slice(mergeIdx, endIdx)
+  const tail = svg.slice(endIdx)
+
+  // 메인 레이어: 항상 라인 처리
+  const bakedMain = bakeLineLayer(mainSeg, options.color, mode, strokeValue)
+  // 병합 레이어: 아이콘=라인, 텍스트=채움(색상만)
+  const bakedMerge =
+    options.resourceKind === 'icon'
+      ? bakeLineLayer(mergeSeg, options.color, mode, strokeValue)
+      : changeAllSvgColors(mergeSeg, options.color)
+
+  const reassembled = `${head}${bakedMain}${bakedMerge}${tail}`
+  const svgContent = setSvgRootAttributes(reassembled, {
     width: formatNumber(outputWidth),
     height: formatNumber(outputHeight),
   })
 
-  const styleBlock = buildPropertyStyle(merged, { ...options, mode, outputHeight })
-  const svgContent = withSizedRoot.replace(/^<svg\b[^>]*>/i, (tag) => `${tag}${styleBlock}`)
-
-  return {
-    svgContent,
-    viewBox: merged.viewBox,
-    width: outputWidth,
-    height: outputHeight,
-  }
+  return { svgContent, viewBox: merged.viewBox, width: outputWidth, height: outputHeight }
 }
 
 /**
- * 주입할 `<style>` 블록을 만든다.
- * - 라인 요소(`[stroke]:not([fill])`): fill 제거 + stroke 색상/두께 적용.
- * - fill 요소(`[fill]:not([fill="none"])`): 색상만 적용(선 두께 미적용 — 선결요건 a).
- * - 텍스트 리소스: merge 레이어 전체를 채움 색상으로, stroke가 있으면 stroke 색상도 적용.
+ * 라인 레이어 처리: 색상 bake(`changeAllSvgColors`) 후, 라인 획(stroke+fill:none) 요소에만 stroke-width를 기록한다.
+ * fill 요소는 색상만 반영되고 stroke-width는 적용되지 않는다(선결요건 a).
  */
-function buildPropertyStyle(
-  merged: MergedSvgResult,
-  options: Required<Pick<IconPlusPropertyOptions, 'color' | 'strokeWidth' | 'resourceKind' | 'mode' | 'outputHeight'>> &
-    Pick<IconPlusPropertyOptions, 'minDisplayPx'>
+function bakeLineLayer(
+  segment: string,
+  color: string,
+  mode: PropertyMode,
+  strokeValue: { downloadViewBox: number; previewPx: number }
 ): string {
-  const { color, resourceKind } = options
+  // 1. 색상: fill/stroke 재색상 + stroke-only 요소에 fill="none" 부여 + 채움 없는 도형에 fill 부여
+  const colorized = changeAllSvgColors(segment, color)
 
-  // 라인 획을 적용할 레이어: 메인은 항상, 병합용은 아이콘일 때만.
-  const lineLayers = ['[data-layer="main"]']
-  if (resourceKind === 'icon') lineLayers.push('[data-layer="merge"]')
+  // 2. stroke-width: fill="none" + stroke 보유(=라인 획) 요소에만 적용
+  const elementPattern = new RegExp(`<(${DRAWING_ELEMENTS})\\b([^>]*?)(/?)>`, 'gi')
+  return colorized.replace(elementPattern, (match, tag: string, attrs: string, close: string) => {
+    const strokeAttr = attrs.match(/\sstroke=["']([^"']*)["']/i)
+    const hasStroke = Boolean(strokeAttr) && strokeAttr![1].toLowerCase() !== 'none'
+    const fillAttr = attrs.match(/\sfill=["']([^"']*)["']/i)
+    const isNoneFill = Boolean(fillAttr) && fillAttr![1].toLowerCase() === 'none'
 
-  const lineSelector = lineLayers.map((l) => `svg ${l} [stroke]:not([fill])`).join(', ')
-  const fillSelector = lineLayers.map((l) => `svg ${l} [fill]:not([fill="none"])`).join(', ')
+    if (!hasStroke || !isNoneFill) return match
 
-  const strokeDecl = buildStrokeDeclaration(merged, options)
-
-  const rules = [
-    // 라인 획: 채움 제거 + 색상/두께
-    `${lineSelector} { fill: none !important; stroke: ${color} !important; ${strokeDecl} }`,
-    // fill 부분: 색상만(선 두께 미적용)
-    `${fillSelector} { fill: ${color} !important; }`,
-  ]
-
-  if (resourceKind === 'text') {
-    // 병합용 텍스트: 글자(채움) 전체 색상 + stroke가 있으면 stroke 색상도
-    rules.push(`svg [data-layer="merge"] * { fill: ${color} !important; }`)
-    rules.push(`svg [data-layer="merge"] [stroke]:not([stroke="none"]) { stroke: ${color} !important; }`)
-  }
-
-  return `<style ${PROPERTY_STYLE_MARKER}="true">${rules.join('')}</style>`
+    const swValue = mode === 'preview' ? String(strokeValue.previewPx) : formatNumber(strokeValue.downloadViewBox)
+    let nextAttrs = attrs
+    if (/\sstroke-width=["'][^"']*["']/i.test(nextAttrs)) {
+      nextAttrs = nextAttrs.replace(/\sstroke-width=["'][^"']*["']/i, ` stroke-width="${swValue}"`)
+    } else {
+      nextAttrs = `${nextAttrs.replace(/\s*$/, '')} stroke-width="${swValue}"`
+    }
+    // preview: 아이콘마다 다른 native 스케일 상쇄 + 소형 타일에서 끊김 방지
+    if (mode === 'preview' && !/\svector-effect=/i.test(nextAttrs)) {
+      nextAttrs = `${nextAttrs} vector-effect="non-scaling-stroke"`
+    }
+    return `<${tag}${nextAttrs}${close}>`
+  })
 }
 
 /**
- * 라인 요소의 stroke-width 선언을 만든다.
- * - preview: `vector-effect: non-scaling-stroke` + 화면 픽셀 기준 두께(최소 플로어 보장) →
- *   소형 카드/저 DPR에서 얇게 끊겨 보이지 않게 하고, 컨트롤 값 변화가 미리보기에 반영된다.
+ * 선 두께 값을 계산한다.
  * - download: 출력 높이에서 컨트롤 두께(px)로 보이도록 viewBox 단위로 스케일한 절대 두께.
+ * - preview: 화면 픽셀 기준 두께(최소 표시 플로어 보장, non-scaling-stroke와 함께 사용).
  */
-function buildStrokeDeclaration(
+function resolveStrokeWidth(
   merged: MergedSvgResult,
-  options: Pick<IconPlusPropertyOptions, 'strokeWidth' | 'mode' | 'outputHeight' | 'minDisplayPx'>
-): string {
+  options: Pick<IconPlusPropertyOptions, 'strokeWidth' | 'outputHeight' | 'minDisplayPx'>
+): { downloadViewBox: number; previewPx: number } {
   const strokeWidth = Math.max(options.strokeWidth, 0)
-
-  if (options.mode === 'preview') {
-    const floor = options.minDisplayPx ?? 1
-    const displayPx = Math.max(strokeWidth, floor)
-    return `stroke-width: ${formatNumber(displayPx)}px !important; vector-effect: non-scaling-stroke;`
-  }
-
-  // download: viewBox 단위 = 컨트롤px × (결과 viewBox 높이 / 출력 높이)
   const outputHeight = clampPositive(options.outputHeight ?? merged.height, merged.height || 1)
-  const scaled = merged.height > 0 ? (strokeWidth * merged.height) / outputHeight : strokeWidth
-  return `stroke-width: ${formatNumber(scaled)} !important;`
+  const downloadViewBox = merged.height > 0 ? (strokeWidth * merged.height) / outputHeight : strokeWidth
+  const previewPx = Math.max(strokeWidth, options.minDisplayPx ?? 1)
+  return { downloadViewBox, previewPx }
 }
 
 /** 종횡비를 유지하며 출력 높이에서 폭을 계산한다. */
@@ -147,7 +166,7 @@ export function scaleWidthFromHeight(width: number, height: number, outputHeight
 
 /** SVG 루트 태그의 지정 속성을 설정(있으면 교체, 없으면 추가)한다. */
 function setSvgRootAttributes(svgContent: string, attributes: Record<string, string>): string {
-  return svgContent.replace(/^<svg\b[^>]*>/i, (tag) => {
+  return svgContent.replace(/<svg\b[^>]*>/i, (tag) => {
     let nextTag = tag
     for (const [name, value] of Object.entries(attributes)) {
       const pattern = new RegExp(`\\s${name}=["'][^"']*["']`, 'i')

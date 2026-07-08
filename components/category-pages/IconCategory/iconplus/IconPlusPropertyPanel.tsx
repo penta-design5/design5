@@ -101,8 +101,8 @@ export function IconPlusPropertyPanel({
     )
   }, [selectedMain, selectedResource])
 
-  // 미리보기 표시 크기(px). 크기 컨트롤을 반영하되 타일 범위(32~64)로 제한.
-  const previewDisplaySize = Math.min(Math.max(size * 1.5, 32), 64)
+  // 미리보기 표시 높이(px). 크기 컨트롤을 반영해 작게 시작 → 최대 64px까지 커진다(설명글과 일치).
+  const previewDisplaySize = Math.min(Math.max(size * 1.5, 24), 64)
 
   const previewSvg = useMemo(() => {
     if (!merged) return null
@@ -192,7 +192,11 @@ export function IconPlusPropertyPanel({
           <span className="text-muted-foreground">+</span>
           <PreviewSlot label="리소스" resource={selectedResource} />
           <span className="text-muted-foreground">=</span>
-          <ResultSlot svg={previewSvg?.svgContent ?? null} whiteSelected={whiteSelected} />
+          <ResultSlot
+            svg={previewSvg?.svgContent ?? null}
+            displayHeight={previewDisplaySize}
+            whiteSelected={whiteSelected}
+          />
         </div>
 
         {isMissingSelection ? (
@@ -365,19 +369,32 @@ function PreviewSlot({ label, resource }: { label: string; resource: IconPlusRes
   )
 }
 
-/** 결과 슬롯(병합 결과). 속성 적용된 SVG를 렌더. 흰색 선택 시에만 검정 배경. */
-function ResultSlot({ svg, whiteSelected }: { svg: string | null; whiteSelected: boolean }) {
+/**
+ * 결과 슬롯(병합 결과). 속성이 bake된 SVG를 크기 컨트롤에 맞춘 표시 높이(px)로 렌더한다.
+ * 입력 타일과 달리 꽉 채우지 않고 `displayHeight`로 렌더 → 크기 변경이 미리보기에 보인다(최대 64px).
+ * 흰색 선택 시에만 검정 배경(다크 가시성, 선결요건 b).
+ */
+function ResultSlot({
+  svg,
+  displayHeight,
+  whiteSelected,
+}: {
+  svg: string | null
+  displayHeight: number
+  whiteSelected: boolean
+}) {
   return (
     <div
       className={cn(
-        'flex aspect-square flex-1 items-center justify-center rounded-lg border border-primary p-2',
+        'flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-lg border border-primary p-2',
         whiteSelected ? 'bg-neutral-900' : 'bg-white'
       )}
     >
       {svg ? (
         <span
-          className="flex h-full w-full items-center justify-center [&_svg]:h-full [&_svg]:w-full"
-          // 병합 결과는 sanitize된 원본 + 우리가 주입한 style. dangerouslySetInnerHTML 렌더(계획 §13)
+          className="flex items-center justify-center [&_svg]:h-full [&_svg]:w-auto [&_svg]:max-w-full"
+          style={{ height: displayHeight }}
+          // 병합 결과는 sanitize된 원본 + 속성 bake 결과. dangerouslySetInnerHTML 렌더(계획 §13)
           dangerouslySetInnerHTML={{ __html: svg }}
         />
       ) : (

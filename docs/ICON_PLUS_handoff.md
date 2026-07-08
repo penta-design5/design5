@@ -160,7 +160,7 @@
 - [x] SVG/PNG/JPG 다운로드(병합 결과 기준, `lib/svg/*` 재사용)
 - 완료 기준: 속성 변경이 미리보기·다운로드에 반영, 3포맷 정상 저장 → **코드 충족** (실 다운로드 파일 육안은 사내망 대기)
 - 수정 파일:
-  - `lib/svg/icon-plus-properties.ts` (신규 — 순수: `applyIconPlusProperties`. 병합 결과에 색상/두께/크기를 스코프된 `<style>`로 주입. preview/download 모드 분리. 단위테스트 8종)
+  - `lib/svg/icon-plus-properties.ts` (신규 — 순수: `applyIconPlusProperties`. 병합 결과에 색상/두께/크기를 **각 요소 presentation 속성으로 bake**. `changeAllSvgColors` 재사용 + 라인 획에만 stroke-width. preview/download 모드 분리. 단위테스트 12종, XML 유효성 포함)
   - `lib/svg/icon-plus-download.ts` (신규 — 클라이언트: `createDownloadBlob`/`downloadBlob`/`createMergedFilename`. SVG Blob + PNG/JPG Canvas 래스터화(JPG 흰 배경))
   - `lib/svg/icon-plus-properties.test.ts` (신규 — 단위 8종)
   - `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx` (색상/두께/크기/포맷/초기화 컨트롤 + 다운로드 버튼/에러 + 결과 미리보기 구동)
@@ -219,3 +219,4 @@
 | 2026-07-08 | P3/P4 | 라인 렌더 방식 조정: 전체 강제(fill:none/stroke:currentColor) → **조건부**(`[stroke]:not([fill])`만 fill:none)로 변경해 fill이 지정된 부분은 채움 보존. 선 두께-vs-fill 요구는 Phase 6 선결 항목으로 문서화 |
 | 2026-07-08 | P3/P4 | 사내망 피드백: ①라인 요소(`[stroke]:not([fill])`) stroke 두께 정규화(`stroke-width:1.25px` + `non-scaling-stroke`)로 메인/리소스 굵기 일치(fill 부분 제외) ②대표 미리보기에 선택 아이콘 이름(`메인+리소스`) 표시. 다운로드 크기 표시는 병합 계산 필요 → Phase 5로 이관 |
 | 2026-07-08 | P5/P6 | 병합 미리보기(`mergeSvgsByAnchor` 실시간 렌더) + 속성 컨트롤(색상 10종/선 두께/크기/포맷/초기화) + SVG·PNG·JPG 다운로드 구현. 신규 `lib/svg/icon-plus-properties.ts`(속성 주입, 순수) / `icon-plus-download.ts`(Blob 렌더, 클라이언트) + 단위 8종. 선결요건 a(선 두께 라인 획 한정, fill 채움 보존)·b(미리보기 밝은 배경 고정+흰색 반전)·c(결과 stroke를 컨트롤값 구동, 카드 하드코딩 CSS는 회귀 방지 위해 유지) 처리. tsc/lint 0 + 186 통과 + `?tab=plus` 200 → **P5·P6 ✅** (실 다운로드/다크 육안은 사내망 대기) |
+| 2026-07-08 | P6 | 사내망 테스트 피드백 3건 반영: ①**다운로드 SVG 색상 미적용/채움 잔존** → `<style>` 주입은 macOS 미리보기 등에서 내부 CSS(`:not()`/속성 선택자) 미적용이 원인. `applyIconPlusProperties`를 **presentation 속성 bake 방식**(ICON 탭과 동일, `changeAllSvgColors` 재사용, 라인 획에만 stroke-width)으로 재작성 → 뷰어 독립. 래스터 대비 XML 유효성 테스트 추가. ②**JPG 화질** → `toBlob` 품질 0.92→1.0(PNG 무손실이라 무관). ③**미리보기 크기 미반영** → 결과 슬롯을 꽉 채움 대신 크기 컨트롤 기반 표시 높이(`size*1.5`, 24~64px)로 렌더(icon-merger `PreviewTile` 방식). tsc/lint 0 + 190 통과 |
