@@ -513,8 +513,8 @@ export function IconTab({ category, header }: IconTabProps) {
 
         {/* 검색 및 액션 버튼 */}
         <div className="flex-none px-8 pt-4 pb-4 bg-neutral-50 dark:bg-neutral-900">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[200px] relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
@@ -586,18 +586,6 @@ export function IconTab({ category, header }: IconTabProps) {
             )}
           </div>
 
-          {selectedPostIds.size > 0 && (
-            <div className="mt-3 md:hidden">
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setMobilePropertySheetOpen(true)}
-              >
-                속성 패널 열기
-              </Button>
-            </div>
-          )}
         </div>
 
         {/* 아이콘 그리드 */}

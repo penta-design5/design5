@@ -247,7 +247,7 @@ export function PropertyPanel({
           : 'fixed bottom-0 right-0 top-0 h-full w-[410px] overflow-y-auto bg-background'
       }
     >
-      <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-6' : 'space-y-6 px-8 pb-8 pt-14'}>
+      <div className={isSheet ? 'space-y-6 px-6 pb-8 pt-14' : 'space-y-6 px-8 pb-8 pt-14'}>
         {/* 제목 및 타입 */}
         <div className="space-y-5 pb-8 border-b">
           <h2 className="text-xl font-bold">{post.title}</h2>

@@ -97,7 +97,7 @@ export function IconPropertyPanel({
             <div
                 className={
                     isSheet
-                        ? 'space-y-6 px-6 pb-8 pt-6'
+                        ? 'space-y-6 px-6 pb-8 pt-14'
                         : 'space-y-6 px-8 pb-8 pt-14'
                 }
             >

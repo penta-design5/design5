@@ -178,7 +178,7 @@ export function IconPlusPropertyPanel({
       className={cn(
         'flex flex-col gap-6 overflow-y-auto bg-background',
         isSheet
-          ? 'h-full w-full px-6 pb-8 pt-6'
+          ? 'h-full w-full px-6 pb-8 pt-14'
           : 'fixed bottom-0 right-0 top-0 h-full w-[410px] px-8 pb-8 pt-14'
       )}
     >

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { SlidersHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
@@ -302,7 +301,6 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
             aria-label="선택한 조합의 결과 속성 조정 패널 열기"
             onClick={() => setMobilePropertyOpen(true)}
           >
-            <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden="true" />
             {mobilePropertyButtonLabel}
           </Button>
         </div>

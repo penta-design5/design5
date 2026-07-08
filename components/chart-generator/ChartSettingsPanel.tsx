@@ -285,7 +285,7 @@ export function ChartSettingsPanel({
       className={cn(
         'space-y-6 overflow-y-auto bg-background p-6',
         isSheet
-          ? 'h-full min-h-0 w-full'
+          ? 'h-full min-h-0 w-full pt-14'
           : 'h-full w-[410px] border-l'
       )}
     >
