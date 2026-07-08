@@ -286,7 +286,8 @@ export function IconPlusPropertyPanel({
       {/* 다운로드 포맷 */}
       <div className="space-y-3">
         <Label className="text-xs text-muted-foreground">FORMAT</Label>
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="다운로드 포맷">
+        {/* 포맷 버튼 스타일은 ICON 탭 속성 패널(IconPropertyPanel)과 일관되게 유지 */}
+        <div className="flex items-center gap-2" role="group" aria-label="다운로드 포맷">
           {FORMAT_OPTIONS.map((option) => {
             // 흰색 선택 시 JPG(불투명) 숨김
             if (option.value === 'jpg' && whiteSelected) return null
@@ -297,10 +298,11 @@ export function IconPlusPropertyPanel({
                 variant="outline"
                 size="sm"
                 aria-pressed={format === option.value}
-                className={cn(
-                  'h-9 flex-1 text-xs',
-                  format === option.value && 'border-primary bg-primary/10 text-primary'
-                )}
+                className={
+                  format === option.value
+                    ? 'text-xs dark:text-black bg-penta-sky/20 dark:bg-gray-50 hover:bg-penta-sky/20 border-none flex-1 h-8'
+                    : 'text-xs bg-white dark:bg-penta-sky/20 dark:hover:bg-penta-sky/30 flex-1 h-8 dark:text-white dark:hover:text-white border'
+                }
                 onClick={() => {
                   setFormat(option.value)
                   setDownloadError(null)
