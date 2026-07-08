@@ -152,7 +152,9 @@
 - [ ] 색상 10종(흰색 예외) / 선 두께 / 크기 / 포맷 / 초기화
 - [ ] SVG/PNG/JPG 다운로드(병합 결과 기준, `lib/svg/*` 재사용)
 - 완료 기준: 속성 변경이 미리보기·다운로드에 반영, 3포맷 정상 저장
-- **선결 요구(사내망 피드백 2026-07-08)**: 선 두께 조정 시 **fill이 있는 부분에는 stroke-width를 적용하지 않는다**(라인 획 부분에만 적용). 참고: `lib/svg/stroke.ts`의 `changeSvgStrokeWidth`는 이미 stroke 속성이 있는 요소에만 stroke-width를 추가(step 4, `stroke=` 없는 fill-only 요소는 건너뜀). 단 **fill+stroke 동시 보유** 요소까지 제외하려면 조건 보강 필요(현재는 stroke가 있으면 적용). ICON+ 라인 표시 규칙(`.svg-line-preview` = `[stroke]:not([fill])`)과 정합되게 처리할 것.
+- **선결 요구(사내망 피드백 2026-07-08)**:
+  - (a) 선 두께 조정 시 **fill이 있는 부분에는 stroke-width를 적용하지 않는다**(라인 획 부분에만 적용). 참고: `lib/svg/stroke.ts`의 `changeSvgStrokeWidth`는 이미 stroke 속성이 있는 요소에만 stroke-width를 추가(step 4, `stroke=` 없는 fill-only 요소는 건너뜀). 단 **fill+stroke 동시 보유** 요소까지 제외하려면 조건 보강 필요(현재는 stroke가 있으면 적용). ICON+ 라인 표시 규칙(`.svg-line-preview` = `[stroke]:not([fill])`)과 정합되게 처리할 것.
+  - (b) **다크 모드 가시성**: 현재 카드/미리보기는 저장된 원본 색(검정 획·글자)을 그대로 렌더 → 다크 배경에서 묻힐 수 있음. 색상 10종 컨트롤(§7) 적용 시 currentColor/테마 대응으로 라이트·다크 모두 가시성 확보(흰색 선택 시 카드 배경 검정 예외 포함).
 - 수정 파일:
 - 검증:
 - 계획 대비 변경/결정:
