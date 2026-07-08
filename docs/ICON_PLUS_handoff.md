@@ -19,8 +19,8 @@
 | P2 | 데이터/전처리/API | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 13종 통과 + 라우트 인증 게이팅(401) 확인. 관리자 업로드/DB 검증은 사내망 대기 |
 | P3 | ICON+ 레이아웃 & 목록 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + `?tab=plus` 컴파일·200 + 사내망 UI 피드백(폰트/미리보기 배경/간격) 반영 완료. 실 데이터 표시는 사내망 대기 |
 | P4 | 업로드 다이얼로그 & anchor 입력 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 178 통과 + `?tab=plus` 컴파일·200. 실 업로드/anchor 저장은 사내망(로그인+DB) 대기 |
-| P5 | 병합 미리보기 | ⬜ 대기 | | |
-| P6 | 속성 조정 & 다운로드 | ⬜ 대기 | | |
+| P5 | 병합 미리보기 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과 + `?tab=plus` 컴파일·200. 실 병합 렌더는 사내망 대기 |
+| P6 | 속성 조정 & 다운로드 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과(신규 8종) + `?tab=plus` 컴파일·200. 실 다운로드/다크모드 육안은 사내망 대기 |
 | P7 | 반응형/접근성/QA | ⬜ 대기 | | |
 
 ---
@@ -140,27 +140,42 @@
 - 다음 작업:
   - Phase 5 착수 (병합 미리보기 — 선택 조합 → `mergeSvgsByAnchor` 실시간 렌더)
 
-### Phase 5 — 병합 미리보기  ⬜
-- [ ] 선택 조합 → `mergeSvgsByAnchor` 실시간 미리보기(`메인 + 리소스 = 결과`)
-- [ ] **다운로드(결과) 크기 표시** `다운로드 크기 W x H` — 병합 결과 viewBox 크기 기준(사내망 피드백 2026-07-08, scr2). 선택 아이콘 이름 표시(`메인이름 + 리소스이름`)는 P3/P4 후속으로 **이미 반영**했으므로 P5에선 결과 렌더 + 크기만 추가하면 됨.
-- 완료 기준: 절단 영역 상단/좌측 정렬, 결과 viewBox 재계산, 미선택 시 다운로드 비활성
+### Phase 5 — 병합 미리보기  ✅
+- [x] 선택 조합 → `mergeSvgsByAnchor` 실시간 미리보기(`메인 + 리소스 = 결과`) — 속성 패널 "결과" 슬롯에 렌더
+- [x] **다운로드(결과) 크기 표시** `다운로드 크기 W x H` — 병합 결과(속성 적용 후) viewBox 크기 기준
+- [x] 미선택/anchor 없음 상태 안내 + (P6) 다운로드 비활성
+- 완료 기준: 절단 영역 상단/좌측 정렬(merge 함수가 이미 처리), 결과 viewBox 재계산, 미선택 시 다운로드 비활성 → **충족**
 - 수정 파일:
+  - `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx` (결과 슬롯 placeholder → `mergeSvgsByAnchor` 실시간 렌더 + 상태 분기(미선택/anchor 없음/크기 표시))
 - 검증:
+  - `?tab=plus` 컴파일 클린 + HTTP 200. 실 병합 렌더는 사내망(로그인 + MAIN anchor 포함 실 데이터)에서 최종 검증 예정
 - 계획 대비 변경/결정:
+  - P6와 동시 구현(P6 속성 컨트롤이 결과 렌더를 구동하므로 분리 불가). 결과 슬롯은 P6의 `applyIconPlusProperties`(preview 모드) 출력을 렌더.
+  - anchor 좌표 데이터: GET 응답이 전체 레코드를 반환하므로 `IconPlusResource`가 `anchorX/anchorY/width/height/viewBox`를 그대로 보유 → 별도 API 변경 불필요.
 - 다음 작업:
+  - Phase 7 착수 (반응형/접근성/QA)
 
-### Phase 6 — 속성 조정 & 다운로드  ⬜
-- [ ] 색상 10종(흰색 예외) / 선 두께 / 크기 / 포맷 / 초기화
-- [ ] SVG/PNG/JPG 다운로드(병합 결과 기준, `lib/svg/*` 재사용)
-- 완료 기준: 속성 변경이 미리보기·다운로드에 반영, 3포맷 정상 저장
-- **선결 요구(사내망 피드백 2026-07-08)**:
-  - (a) 선 두께 조정 시 **fill이 있는 부분에는 stroke-width를 적용하지 않는다**(라인 획 부분에만 적용). 참고: `lib/svg/stroke.ts`의 `changeSvgStrokeWidth`는 이미 stroke 속성이 있는 요소에만 stroke-width를 추가(step 4, `stroke=` 없는 fill-only 요소는 건너뜀). 단 **fill+stroke 동시 보유** 요소까지 제외하려면 조건 보강 필요(현재는 stroke가 있으면 적용). ICON+ 라인 표시 규칙(`.svg-line-preview` = `[stroke]:not([fill])`)과 정합되게 처리할 것.
-  - (b) **다크 모드 가시성**: 현재 카드/미리보기는 저장된 원본 색(검정 획·글자)을 그대로 렌더 → 다크 배경에서 묻힐 수 있음. 색상 10종 컨트롤(§7) 적용 시 currentColor/테마 대응으로 라이트·다크 모두 가시성 확보(흰색 선택 시 카드 배경 검정 예외 포함).
-  - (c) **선 두께 미리보기 연동**: 현재 카드/미리보기 라인 두께는 `.svg-line-preview`의 하드코딩 `stroke-width:1.25px`(임시 정규화값)이며 패널 기본값(1px)과 별개다. P6에서 선 두께 컨트롤을 붙일 때 **카드·미리보기·결과 stroke를 컨트롤 값(기본 1px)으로 구동**하고 이 하드코딩 CSS는 제거 → 초기값과 자동 일치. 단 순수 1px+`non-scaling-stroke`는 소형 카드/저 DPR에서 얇거나 끊겨 보일 수 있으므로 **저장값 1px + 화면 표시 최소 두께 플로어(ICON 탭 `changeSvgStrokeWidth` `minDisplayPx=2` 방식)** 적용 권장. (사내망 협의 2026-07-08: 초기값 1px 유지 확정)
+### Phase 6 — 속성 조정 & 다운로드  ✅
+- [x] 색상 10종(흰색 예외) / 선 두께(0.5~3) / 크기(16~256) / 포맷(SVG·PNG·JPG) / 초기화
+- [x] SVG/PNG/JPG 다운로드(병합 결과 기준, `lib/svg/*` 재사용)
+- 완료 기준: 속성 변경이 미리보기·다운로드에 반영, 3포맷 정상 저장 → **코드 충족** (실 다운로드 파일 육안은 사내망 대기)
 - 수정 파일:
+  - `lib/svg/icon-plus-properties.ts` (신규 — 순수: `applyIconPlusProperties`. 병합 결과에 색상/두께/크기를 스코프된 `<style>`로 주입. preview/download 모드 분리. 단위테스트 8종)
+  - `lib/svg/icon-plus-download.ts` (신규 — 클라이언트: `createDownloadBlob`/`downloadBlob`/`createMergedFilename`. SVG Blob + PNG/JPG Canvas 래스터화(JPG 흰 배경))
+  - `lib/svg/icon-plus-properties.test.ts` (신규 — 단위 8종)
+  - `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx` (색상/두께/크기/포맷/초기화 컨트롤 + 다운로드 버튼/에러 + 결과 미리보기 구동)
 - 검증:
-- 계획 대비 변경/결정:
+  - `npx tsc --noEmit` → 0, `npx next lint`(신규/수정 4파일) → 0
+  - `npx vitest run` → 전체 186 통과(신규 icon-plus-properties 8종 포함, 회귀 없음)
+  - `?tab=plus` 컴파일 클린 + HTTP 200. 실 다운로드(3포맷)/다크 모드 육안은 사내망(로그인+실 데이터)에서 최종 검증 예정
+- **선결 요구(사내망 피드백 2026-07-08) 처리 결과**:
+  - (a) ✅ **선 두께는 라인 획에만**: `applyIconPlusProperties`가 라인(`[data-layer] [stroke]:not([fill])`)에만 `stroke-width`를 주입하고, fill 요소(`[fill]:not([fill="none"])`)에는 색상만 적용. Design5 `.svg-line-preview` 조건부 규칙과 정합. (icon-merger처럼 전체를 fill:none 강제하지 않고 채움 보존)
+  - (b) ✅ **다크 모드 가시성**: 미리보기/결과 타일에 밝은 배경(`bg-white`)을 고정해 원본 검정 획·글자도 라이트/다크 모두 가시. 흰색 색상 선택 시에만 결과 타일 배경을 검정(`bg-neutral-900`)으로 반전. 색상 컨트롤 선택 시 결과는 선택 색으로 재렌더.
+    - **남은 항목**: 섹션 카드(`ResourceSection`/`IconPlusCard`)의 다크 모드 배경은 P6 컨트롤이 구동하지 않는 영역이라 이번 범위 밖. 필요 시 P7에서 카드 배경/획 색을 라이트 고정 또는 테마 대응으로 별도 처리.
+  - (c) ✅ **선 두께 미리보기 연동**: 결과 미리보기 stroke를 컨트롤 값(기본 1px)으로 구동(preview 모드). 소형 타일 대비 `non-scaling-stroke` + 최소 표시 두께 플로어(기본 1px)로 끊김 방지. 다운로드는 출력 높이 기준 절대 두께로 스케일.
+    - **결정**: 입력 미리보기(메인/리소스) 타일과 **섹션 카드**의 `.svg-line-preview` 하드코딩 `stroke-width:1.25px`는 **유지**(제거 시 카드 정규화 회귀). 컨트롤이 구동하는 대상은 "결과" 슬롯과 다운로드 결과물에 한정. (핸드오프 원안의 "하드코딩 CSS 제거"는 카드 회귀 위험으로 미채택)
 - 다음 작업:
+  - Phase 7 착수 (반응형/접근성/QA)
 
 ### Phase 7 — 반응형/접근성/QA  ⬜
 - [ ] 태블릿/모바일 대응(Sheet/Drawer)
@@ -175,17 +190,16 @@
 ---
 
 ## 미해결 / 결정 대기
-- (없음)
+- **섹션 카드 다크 모드(선결요건 b 잔여)**: `ResourceSection`/`IconPlusCard`의 다크 배경에서 원본 검정 획·글자 가시성. P6 색상 컨트롤이 구동하지 않는 영역 → P7에서 카드 배경 라이트 고정 또는 테마 대응 여부 결정 필요.
 
 ## 다음 세션 착수점 (2026-07-08 세션 종료 시점)
-- **다음 작업: Phase 5 — 병합 미리보기.**
-  - 선택된 (메인 + 병합용 리소스) 조합을 `lib/svg/merge-svg.ts`의 `mergeSvgsByAnchor()`로 실시간 병합해 우측 속성 패널 대표 미리보기 "결과" 슬롯에 렌더.
-  - 완료 기준: 절단 영역 상단/좌측 정렬, 결과 viewBox 재계산, 미선택/anchor 없음 시 상태 안내 + (P6) 다운로드 비활성.
-  - 연결 지점: `IconPlusPropertyPanel`(현재 "결과" 슬롯은 placeholder). `selectedMain`(anchorX/Y 보유)과 `selectedResource`를 받아 병합 결과 SVG 문자열 생성 → 렌더. 병합 함수는 P2에서 이식 완료(순수 함수, 단위테스트 4종 통과).
-  - 참고 UI: `icon-merger/src/components/icon-workspace.tsx`의 `PropertiesPanel`(병합 미리보기 렌더 로직).
-- **Phase 4 후속(이연) 항목**: 기존 MAIN 카드 anchor 재편집(§3.3 hover 편집 + PATCH `/api/icon-plus/[id]`). 카드가 `<button>`이라 오버레이/래퍼 구조 필요 → P5/P6 UI 작업 시 함께 처리 권장.
-- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 실 업로드(드롭존/anchor 클릭·드래그/다중)·MAIN anchor 저장·위험 SVG 차단 육안 확인. (P1은 검증 완료)
-- 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push. HEAD == origin (동기화 완료).
+- **다음 작업: Phase 7 — 반응형/접근성/QA.**
+  - 태블릿/모바일 대응(속성 패널을 Sheet/Drawer로), `aria-*`/키보드 접근성, ICON 탭 포함 회귀 테스트.
+  - 현재 속성 패널은 데스크톱(`md:` 이상)에서만 노출(`hidden md:block`) → 모바일에서 속성/다운로드 접근 경로 필요.
+  - **P6 남은 항목(P7 후보)**: 섹션 카드(`ResourceSection`/`IconPlusCard`)의 다크 모드 배경/획 색 처리(선결요건 b 중 카드 영역). 색상 컨트롤이 구동하지 않는 영역이라 별도 테마 대응 필요.
+- **Phase 4 후속(이연) 항목**: 기존 MAIN 카드 anchor 재편집(§3.3 hover 편집 + PATCH `/api/icon-plus/[id]`). 카드가 `<button>`이라 오버레이/래퍼 구조 필요.
+- **사내망 검증 대기 항목**: P2 관리자 업로드/삭제/anchor·비관리자 403(API), P3 실 데이터 카드 표시·선택·삭제, P4 실 업로드·MAIN anchor 저장·위험 SVG 차단, **P5 실 병합 렌더(메인+리소스=결과), P6 실 다운로드(SVG/PNG/JPG)·색상/두께/크기 반영·다크 모드 가시성 육안 확인**. (P1은 검증 완료)
+- 브랜치: 모든 작업 `refactor/phase2-api-layer` 로컬 → `origin/2026-06-17-tiper` push.
 
 ## 변경 이력
 | 날짜 | Phase | 요약 |
@@ -204,3 +218,4 @@
 | 2026-07-08 | P3/P4 | 사내망 카드 UI 피드백 반영(icon-merger 참고): ①MAIN·MERGE_ICON·미리보기 아이콘 라인 렌더(`svg-line-preview` 전역 CSS, 텍스트는 채움 유지) ②병합용 텍스트 카드 높이 고정+종횡비 가로 확장(`getTextCardWidth`, flex-wrap) ③선택 개수 뱃지화(penta-sky) ④선택 해제 버튼 `secondary`(배경) ⑤카드 우상단 체크 아이콘 제거 ⑥hover/선택 시 연한 포인트 배경+포인트 테두리(penta-sky/blue) ⑦카드 hover 툴팁으로 파일명 표시 |
 | 2026-07-08 | P3/P4 | 라인 렌더 방식 조정: 전체 강제(fill:none/stroke:currentColor) → **조건부**(`[stroke]:not([fill])`만 fill:none)로 변경해 fill이 지정된 부분은 채움 보존. 선 두께-vs-fill 요구는 Phase 6 선결 항목으로 문서화 |
 | 2026-07-08 | P3/P4 | 사내망 피드백: ①라인 요소(`[stroke]:not([fill])`) stroke 두께 정규화(`stroke-width:1.25px` + `non-scaling-stroke`)로 메인/리소스 굵기 일치(fill 부분 제외) ②대표 미리보기에 선택 아이콘 이름(`메인+리소스`) 표시. 다운로드 크기 표시는 병합 계산 필요 → Phase 5로 이관 |
+| 2026-07-08 | P5/P6 | 병합 미리보기(`mergeSvgsByAnchor` 실시간 렌더) + 속성 컨트롤(색상 10종/선 두께/크기/포맷/초기화) + SVG·PNG·JPG 다운로드 구현. 신규 `lib/svg/icon-plus-properties.ts`(속성 주입, 순수) / `icon-plus-download.ts`(Blob 렌더, 클라이언트) + 단위 8종. 선결요건 a(선 두께 라인 획 한정, fill 채움 보존)·b(미리보기 밝은 배경 고정+흰색 반전)·c(결과 stroke를 컨트롤값 구동, 카드 하드코딩 CSS는 회귀 방지 위해 유지) 처리. tsc/lint 0 + 186 통과 + `?tab=plus` 200 → **P5·P6 ✅** (실 다운로드/다크 육안은 사내망 대기) |

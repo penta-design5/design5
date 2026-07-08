@@ -1,6 +1,19 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
+import { RotateCcw, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
+import { mergeSvgsByAnchor, type MergedSvgResult } from '@/lib/svg/merge-svg'
+import { applyIconPlusProperties, type ResourceKind } from '@/lib/svg/icon-plus-properties'
+import {
+  createDownloadBlob,
+  createMergedFilename,
+  downloadBlob,
+  type DownloadFormat,
+} from '@/lib/svg/icon-plus-download'
 import type { IconPlusResource } from './types'
 
 interface IconPlusPropertyPanelProps {
@@ -8,65 +21,162 @@ interface IconPlusPropertyPanelProps {
   selectedResource: IconPlusResource | null
 }
 
-/** 대표 미리보기의 개별 슬롯 (메인 / 리소스 / 결과) */
-function PreviewSlot({
-  label,
-  resource,
-  emphasized = false,
-}: {
-  label: string
-  resource?: IconPlusResource | null
-  emphasized?: boolean
-}) {
-  // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트(MERGE_TEXT)는 채움 그대로 표시
-  const isLine = resource ? resource.type !== 'MERGE_TEXT' : false
+/** 문서 기준 색상 10종(§7). 흰색(#FFFFFF)은 별도 처리(다운로드 포맷/카드 배경). */
+const COLOR_OPTIONS = [
+  '#0060A9',
+  '#302BCF',
+  '#0C73EF',
+  '#2DA6FA',
+  '#5DD6D5',
+  '#DD524C',
+  '#FECC09',
+  '#999B9E',
+  '#000000',
+  '#FFFFFF',
+]
 
-  return (
-    <div
-      className={cn(
-        'flex aspect-square flex-1 items-center justify-center rounded-lg bg-background p-2',
-        emphasized ? 'border border-primary' : ''
-      )}
-    >
-      {resource ? (
-        <span
-          className={cn(
-            'flex h-full w-full items-center justify-center text-foreground [&_svg]:h-full [&_svg]:w-full',
-            isLine && 'svg-line-preview'
-          )}
-          // svgContent는 업로드 시 서버에서 sanitize됨
-          dangerouslySetInnerHTML={{ __html: resource.svgContent }}
-        />
-      ) : (
-        <span className="text-xs text-muted-foreground">{label}</span>
-      )}
-    </div>
-  )
+const DEFAULT_COLOR = '#000000'
+const DEFAULT_STROKE_WIDTH = 1
+const DEFAULT_SIZE = 24
+const DEFAULT_FORMAT: DownloadFormat = 'svg'
+
+const FORMAT_OPTIONS: { label: string; value: DownloadFormat }[] = [
+  { label: 'SVG', value: 'svg' },
+  { label: 'PNG', value: 'png' },
+  { label: 'JPG', value: 'jpg' },
+]
+
+function isWhite(color: string): boolean {
+  const c = color.toLowerCase()
+  return c === '#ffffff' || c === '#fff' || c === 'white'
+}
+
+function formatDimension(value: number): number {
+  return Math.round(value)
+}
+
+/** IconPlusResource → mergeSvgsByAnchor 입력 형태 */
+function toMergeIcon(resource: IconPlusResource) {
+  return {
+    svgContent: resource.svgContent,
+    width: resource.width,
+    height: resource.height,
+  }
 }
 
 /**
  * ICON+ 속성 패널.
  *
- * Phase 3: 대표 미리보기 영역(메인 + 리소스 = 결과)의 선택 상태만 반영한다.
- * - 실시간 병합 미리보기(결과 SVG 렌더)는 Phase 5,
- * - 색상/선 두께/크기/다운로드 포맷 컨트롤은 Phase 6에서 이 컴포넌트를 확장한다.
+ * Phase 5: 선택된 (메인 + 병합용 리소스) 조합을 `mergeSvgsByAnchor`로 실시간 병합해 "결과" 슬롯에 렌더.
+ * Phase 6: 색상 10종 / 선 두께 / 크기 / 포맷 / 초기화 컨트롤과 SVG·PNG·JPG 다운로드.
+ * - 선 두께는 라인 획([stroke]:not([fill]))에만 적용, fill 부분은 색상만 반영(선결요건 a).
+ * - 결과/입력 미리보기 타일은 밝은 배경을 고정해 다크 모드에서도 가시성 확보(선결요건 b, 흰색 선택 시 결과 타일만 검정).
  * @see docs/ICON_PLUS_개발계획.md §3.3, §7
  */
 export function IconPlusPropertyPanel({
   selectedMain,
   selectedResource,
 }: IconPlusPropertyPanelProps) {
-  const hasCombination = Boolean(selectedMain && selectedResource)
+  const [color, setColor] = useState(DEFAULT_COLOR)
+  const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH)
+  const [size, setSize] = useState(DEFAULT_SIZE)
+  const [format, setFormat] = useState<DownloadFormat>(DEFAULT_FORMAT)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  const whiteSelected = isWhite(color)
+  const resourceKind: ResourceKind = selectedResource?.type === 'MERGE_TEXT' ? 'text' : 'icon'
+
+  // 흰색 선택 시 JPG(불투명 흰 배경)는 의미가 없으므로 PNG로 전환
+  useEffect(() => {
+    if (whiteSelected && format === 'jpg') setFormat('png')
+  }, [whiteSelected, format])
+
+  // 원본 병합 결과(속성 미적용). 메인 anchor가 없으면 null.
+  const merged: MergedSvgResult | null = useMemo(() => {
+    if (!selectedMain || !selectedResource) return null
+    return mergeSvgsByAnchor(
+      { ...toMergeIcon(selectedMain), anchorX: selectedMain.anchorX, anchorY: selectedMain.anchorY },
+      toMergeIcon(selectedResource)
+    )
+  }, [selectedMain, selectedResource])
+
+  // 미리보기 표시 크기(px). 크기 컨트롤을 반영하되 타일 범위(32~64)로 제한.
+  const previewDisplaySize = Math.min(Math.max(size * 1.5, 32), 64)
+
+  const previewSvg = useMemo(() => {
+    if (!merged) return null
+    return applyIconPlusProperties(merged, {
+      color,
+      strokeWidth,
+      outputHeight: previewDisplaySize,
+      resourceKind,
+      mode: 'preview',
+    })
+  }, [merged, color, strokeWidth, previewDisplaySize, resourceKind])
+
+  const downloadSvg = useMemo(() => {
+    if (!merged) return null
+    return applyIconPlusProperties(merged, {
+      color,
+      strokeWidth,
+      outputHeight: size,
+      resourceKind,
+      mode: 'download',
+    })
+  }, [merged, color, strokeWidth, size, resourceKind])
+
+  const isMissingSelection = !selectedMain || !selectedResource
+  const isMissingAnchor = !isMissingSelection && !merged
+  const canDownload = Boolean(downloadSvg && selectedMain && selectedResource)
+
+  const handleReset = () => {
+    setColor(DEFAULT_COLOR)
+    setStrokeWidth(DEFAULT_STROKE_WIDTH)
+    setSize(DEFAULT_SIZE)
+    setFormat(DEFAULT_FORMAT)
+    setDownloadError(null)
+  }
+
+  const handleDownload = async () => {
+    if (!downloadSvg || !selectedMain || !selectedResource) return
+    setDownloading(true)
+    setDownloadError(null)
+    try {
+      const filename = createMergedFilename({
+        format,
+        mainName: selectedMain.name,
+        resourceName: selectedResource.name,
+        size,
+      })
+      const blob = await createDownloadBlob({
+        format,
+        svgContent: downloadSvg.svgContent,
+        width: downloadSvg.width,
+        height: downloadSvg.height,
+      })
+      downloadBlob(blob, filename)
+    } catch {
+      setDownloadError('다운로드 파일을 만드는 중 오류가 발생했습니다. 다시 시도해 주세요.')
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   return (
     // ICON 탭 속성 패널과 동일: 화면 전체 높이 고정 + 테두리 없음(배경색 차이로 구분)
     <div className="fixed bottom-0 right-0 top-0 flex h-full w-[410px] flex-col gap-6 overflow-y-auto bg-background px-8 pb-8 pt-14">
-      <div>
-        <h2 className="text-xl font-bold text-foreground">아이콘 속성</h2>
-        <p className="mt-1 text-sm text-muted-foreground">색상, 두께, 크기를 조정할 수 있습니다.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">아이콘 속성</h2>
+          <p className="mt-1 text-sm text-muted-foreground">색상, 선 두께, 크기를 조정할 수 있습니다.</p>
+        </div>
+        <Button variant="outline" size="icon" aria-label="기본값으로 초기화" onClick={handleReset}>
+          <RotateCcw className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* 대표 미리보기 — 테두리 없이 좌측 콘텐츠 영역과 동일 배경(bg-neutral-50 dark:bg-neutral-900) */}
+      {/* 대표 미리보기 (메인 + 리소스 = 결과) */}
       <div className="rounded-lg bg-neutral-50 p-4 dark:bg-neutral-900">
         <p className="text-sm font-medium text-foreground">대표 미리보기</p>
         {selectedMain || selectedResource ? (
@@ -82,20 +192,197 @@ export function IconPlusPropertyPanel({
           <span className="text-muted-foreground">+</span>
           <PreviewSlot label="리소스" resource={selectedResource} />
           <span className="text-muted-foreground">=</span>
-          <PreviewSlot label="결과" emphasized />
+          <ResultSlot svg={previewSvg?.svgContent ?? null} whiteSelected={whiteSelected} />
         </div>
 
-        <p className="mt-3 text-xs text-muted-foreground">
-          메인 아이콘 1개와 병합용 아이콘 또는 병합용 텍스트 1개를 선택하면 병합 결과가 표시됩니다.
+        {isMissingSelection ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            메인 아이콘 1개와 병합용 아이콘 또는 병합용 텍스트 1개를 선택하면 병합 결과가 표시됩니다.
+          </p>
+        ) : isMissingAnchor ? (
+          <p className="mt-3 text-xs text-destructive">
+            선택한 메인 아이콘에 anchor 좌표가 없어 병합 미리보기를 만들 수 없습니다.
+          </p>
+        ) : downloadSvg ? (
+          <p className="mt-3 text-xs text-muted-foreground">
+            다운로드 크기 {formatDimension(downloadSvg.width)} x {formatDimension(downloadSvg.height)}
+          </p>
+        ) : null}
+      </div>
+
+      {/* 색상 10종 */}
+      <div className="space-y-3">
+        <Label className="text-xs text-muted-foreground">색상</Label>
+        <div className="grid w-[70%] grid-cols-5 gap-2">
+          {COLOR_OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-label={`색상 선택: ${option}`}
+              aria-pressed={color === option}
+              className={cn(
+                'box-border h-8 w-8 shrink-0 appearance-none rounded border border-solid p-0 transition-[box-shadow,border-color]',
+                color === option
+                  ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background'
+                  : 'border-border hover:border-primary/50'
+              )}
+              style={{
+                backgroundColor: option,
+                borderColor: isWhite(option) ? '#e5e7eb' : option,
+              }}
+              onClick={() => setColor(option)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 선 두께 */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">선 두께</Label>
+          <span className="text-sm text-muted-foreground">{strokeWidth}px</span>
+        </div>
+        <Slider
+          value={[strokeWidth]}
+          onValueChange={(v) => setStrokeWidth(v[0])}
+          min={0.5}
+          max={3}
+          step={0.5}
+          variant="small"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>0.5px</span>
+          <span>3px</span>
+        </div>
+      </div>
+
+      {/* 크기 */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">크기</Label>
+          <span className="text-sm text-muted-foreground">{size}px</span>
+        </div>
+        <Slider
+          value={[size]}
+          onValueChange={(v) => setSize(v[0])}
+          min={16}
+          max={256}
+          step={4}
+          variant="small"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>16px</span>
+          <span>256px</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          * 다운로드 높이 기준이며, 미리보기 표시 크기는 최대 64px입니다.
         </p>
       </div>
 
-      {/* 속성/다운로드 컨트롤 자리 (Phase 5 미리보기 · Phase 6 색상/두께/크기/다운로드) */}
-      <div className="rounded-lg border border-dashed border-border p-4">
-        <p className="text-xs text-muted-foreground">
-          색상 · 선 두께 · 크기 · 다운로드 기능은 이후 단계에서 제공됩니다.
+      {/* 다운로드 포맷 */}
+      <div className="space-y-3">
+        <Label className="text-xs text-muted-foreground">FORMAT</Label>
+        <div className="grid grid-cols-3 gap-2" role="group" aria-label="다운로드 포맷">
+          {FORMAT_OPTIONS.map((option) => {
+            // 흰색 선택 시 JPG(불투명) 숨김
+            if (option.value === 'jpg' && whiteSelected) return null
+            return (
+              <Button
+                key={option.value}
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-pressed={format === option.value}
+                className={cn(
+                  'h-9 flex-1 text-xs',
+                  format === option.value && 'border-primary bg-primary/10 text-primary'
+                )}
+                onClick={() => {
+                  setFormat(option.value)
+                  setDownloadError(null)
+                }}
+              >
+                {option.label}
+              </Button>
+            )
+          })}
+        </div>
+        <p className="text-xs font-light text-muted-foreground">
+          <span className="mr-1 font-semibold">SVG</span>: 벡터
+          <span className="ml-3 mr-1 font-semibold">PNG</span>: 배경투명
+          {!whiteSelected && (
+            <>
+              <span className="ml-3 mr-1 font-semibold">JPG</span>: 배경불투명
+            </>
+          )}
         </p>
       </div>
+
+      {/* 다운로드 */}
+      <div className="mt-auto border-t border-border pt-6">
+        {downloadError && (
+          <p
+            role="alert"
+            className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          >
+            {downloadError}
+          </p>
+        )}
+        <Button className="w-full" disabled={!canDownload || downloading} onClick={handleDownload}>
+          {downloading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              다운로드 준비 중...
+            </>
+          ) : (
+            '다운로드'
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** 입력 미리보기 슬롯(메인/리소스). 밝은 배경 고정으로 다크 모드 가시성 확보. */
+function PreviewSlot({ label, resource }: { label: string; resource: IconPlusResource | null }) {
+  // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트(MERGE_TEXT)는 채움 그대로 표시
+  const isLine = resource ? resource.type !== 'MERGE_TEXT' : false
+  return (
+    <div className="flex aspect-square flex-1 items-center justify-center rounded-lg bg-white p-2">
+      {resource ? (
+        <span
+          className={cn(
+            'flex h-full w-full items-center justify-center text-neutral-900 [&_svg]:h-full [&_svg]:w-full',
+            isLine && 'svg-line-preview'
+          )}
+          // svgContent는 업로드 시 서버에서 sanitize됨
+          dangerouslySetInnerHTML={{ __html: resource.svgContent }}
+        />
+      ) : (
+        <span className="text-xs text-muted-foreground">{label}</span>
+      )}
+    </div>
+  )
+}
+
+/** 결과 슬롯(병합 결과). 속성 적용된 SVG를 렌더. 흰색 선택 시에만 검정 배경. */
+function ResultSlot({ svg, whiteSelected }: { svg: string | null; whiteSelected: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex aspect-square flex-1 items-center justify-center rounded-lg border border-primary p-2',
+        whiteSelected ? 'bg-neutral-900' : 'bg-white'
+      )}
+    >
+      {svg ? (
+        <span
+          className="flex h-full w-full items-center justify-center [&_svg]:h-full [&_svg]:w-full"
+          // 병합 결과는 sanitize된 원본 + 우리가 주입한 style. dangerouslySetInnerHTML 렌더(계획 §13)
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      ) : (
+        <span className="text-xs text-muted-foreground">결과</span>
+      )}
     </div>
   )
 }
