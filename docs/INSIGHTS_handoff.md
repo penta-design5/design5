@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-09 (P0~P3 완료 ✅, P4~ 대기)
+- 최종 업데이트: 2026-07-09 (P0~P3 완료 ✅, P4~ 대기) · 푸시: `origin/2026-06-17-tiper` (1cb1d47)
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -15,10 +15,10 @@
 
 | Phase | 내용 | 상태 | 브랜치/커밋 | 검증 |
 | --- | --- | --- | --- | --- |
-| P0 | 스키마·마이그레이션·시드 (`INSIGHTS` enum, `InsightPost`, 카테고리 2건) | ✅ 완료 | `refactor/phase2-api-layer` (미커밋) | validate/generate + `migrate deploy` 적용 + 시드 + 개발망 DB 조회 검증 ✅ |
-| P1 | 사이드바 섹션 + 라우팅 골격 | ✅ 완료 | `refactor/phase2-api-layer` (미커밋) | tsc 0 / lint 0(신규파일) / `next dev`에서 `/ai-guide`·`/latest-trends`(+상세) 4경로 200 ✅ |
-| P2 | 스토리지 업로드/뷰어 + REST API (백엔드) | ✅ 완료 | `refactor/phase2-api-layer` (미커밋) | tsc 0 / lint 0(신규 6파일) / 7개 라우트 무인증 **401** 확인. 실 업로드/DB/S3·구독메일은 개발망 대기 |
-| P3 | 공용 업로드/수정 Dialog + 공용 상세 iframe 뷰어 | ✅ 완료 | `refactor/phase2-api-layer` (미커밋) | tsc 0 / lint 0(신규 2파일) / 상세 2경로 200·컴파일 클린. 실 업로드→iframe 렌더·수정·삭제는 개발망 대기 |
+| P0 | 스키마·마이그레이션·시드 (`INSIGHTS` enum, `InsightPost`, 카테고리 2건) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | validate/generate + `migrate deploy` 적용 + 시드 + 개발망 DB 조회 검증 ✅ |
+| P1 | 사이드바 섹션 + 라우팅 골격 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규파일) / `next dev`에서 `/ai-guide`·`/latest-trends`(+상세) 4경로 200 ✅ |
+| P2 | 스토리지 업로드/뷰어 + REST API (백엔드) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 6파일) / 7개 라우트 무인증 **401** 확인. 실 업로드/DB/S3·구독메일은 개발망 대기 |
+| P3 | 공용 업로드/수정 Dialog + 공용 상세 iframe 뷰어 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 2파일) / 상세 2경로 200·컴파일 클린. 실 업로드→iframe 렌더·수정·삭제는 개발망 대기 |
 | P4 | 「AI 사용가이드」 카드 갤러리 | ⬜ 대기 | - | - |
 | P5 | 「최신 동향」 게시판 테이블 | ⬜ 대기 | - | - |
 | P6 | 헤더 통합검색 편입 + 구독 연결 확인 | ⬜ 대기 | - | - |
