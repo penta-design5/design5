@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-09 (P0~P3 완료 ✅, P4~ 대기) · 푸시: `origin/2026-06-17-tiper` (1cb1d47)
+- 최종 업데이트: 2026-07-09 (P0~P4 완료 ✅, P5~ 대기) · 푸시: `origin/2026-06-17-tiper` (1cb1d47)
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -19,7 +19,7 @@
 | P1 | 사이드바 섹션 + 라우팅 골격 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규파일) / `next dev`에서 `/ai-guide`·`/latest-trends`(+상세) 4경로 200 ✅ |
 | P2 | 스토리지 업로드/뷰어 + REST API (백엔드) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 6파일) / 7개 라우트 무인증 **401** 확인. 실 업로드/DB/S3·구독메일은 개발망 대기 |
 | P3 | 공용 업로드/수정 Dialog + 공용 상세 iframe 뷰어 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 2파일) / 상세 2경로 200·컴파일 클린. 실 업로드→iframe 렌더·수정·삭제는 개발망 대기 |
-| P4 | 「AI 사용가이드」 카드 갤러리 | ⬜ 대기 | - | - |
+| P4 | 「AI 사용가이드」 카드 갤러리 | ✅ 완료 | `refactor/phase2-api-layer` (미푸시) | tsc 0 / lint 0(신규 2파일) / `/ai-guide` 200·컴파일 클린. 실 데이터 카드·업로드·구독은 개발망 대기 |
 | P5 | 「최신 동향」 게시판 테이블 | ⬜ 대기 | - | - |
 | P6 | 헤더 통합검색 편입 + 구독 연결 확인 | ⬜ 대기 | - | - |
 | P7 | 반응형/권한/QA + 최종 검증 | ⬜ 대기 | - | - |
@@ -117,14 +117,22 @@
 - 개발망 검증 대기: 실제 `.html` 업로드 → 상세 iframe **스타일 격리 렌더** → 수정(문서 교체)·삭제(객체 정리)·구독 메일.
 - 다음: P4 (「AI 사용가이드」 카드 갤러리)
 
-### Phase 4 — 「AI 사용가이드」 카드 갤러리  ⬜
-- [ ] `InsightGuideListPage` — `HardwareListPage` 마소너리 차용(카드 폭 320·gap 24·`<Flipper>`), 헤더에 `SubscribeButton` + ADMIN 추가 버튼
-- [ ] `InsightGuideCard` — `HardwareCard` 치수 복제(폭 320, 이미지 박스 200px, 하단 풋터 제목+설명). **태그 뱃지·필터 토글 없음**
-- [ ] `[slug]/page.tsx`의 `insights-guide` case를 실제 컴포넌트로 연결
-- 예상 파일: `app/_category-pages/insights-guide/InsightGuideListPage.tsx`·`InsightGuideCard.tsx`(신규)
-- 완료 기준: 카드 그리드가 HW 카드 크기와 동일, 카드 클릭 시 상세 이동, 관리자 추가 버튼 동작
-- 검증: `tsc`/`lint` 0 / 컴파일·200 / 개발망에서 실 데이터 카드 표시·상세 이동·구독 버튼 노출 확인
-- 다음: P5
+### Phase 4 — 「AI 사용가이드」 카드 갤러리  ✅
+- [x] `InsightGuideListPage` — `HardwareListPage` 마소너리 차용(카드 폭 320·gap 24·`<Flipper>`), 헤더에 `SubscribeButton` + ADMIN "게시물 추가" 버튼
+- [x] `InsightGuideCard` — `HardwareCard` 치수 복제(폭 320, 이미지 박스 200px, 하단 풋터 제목+설명). **태그 뱃지·필터 토글 없음**
+- [x] `[slug]/page.tsx`의 `insights-guide` case는 P1에서 이미 연결됨(플레이스홀더 → 실제 목록으로 대체)
+- 신규/수정 파일:
+  - `components/insights/InsightGuideCard.tsx` (신규 — HW 카드 복제, 썸네일 없으면 `FileText` 플레이스홀더, hover 상세보기 라벨 + 관리자 수정/삭제 오버레이)
+  - `app/_category-pages/insights-guide/InsightGuideListPage.tsx` (플레이스홀더 → 마소너리 목록: `/api/insights/posts?categoryId=` fetch, 헤더+구독+추가버튼, 스켈레톤/빈상태, 업로드/수정 다이얼로그, 삭제 AlertDialog)
+- 검증:
+  - `npx tsc --noEmit` → exit 0, `next lint`(신규 2파일) → "No ESLint warnings or errors"
+  - `next dev`: `/ai-guide` 200, 컴파일 에러 없음
+- 계획 대비 변경/결정:
+  - 필터 토글 행 없음(태그 제거). 페이지 내 검색 없음(헤더 통합검색). 목록은 `limit=100` 단순 조회(무한스크롤은 데이터량 증가 시 후속 도입 여지).
+  - 카드 액션(수정/삭제 오버레이)은 **데스크톱 관리자만**(HW와 동일, `!isMobileViewport`). 카드 클릭 상세 이동은 모바일 포함 전 뷰포트 허용(HW는 모바일 클릭 차단이나, 가이드는 모바일 속성 패널이 없어 상세 이동이 자연스러움).
+  - 업로드/수정은 P3 공용 `InsightPostFormDialog`(`variant="guide"`) 재사용 → 설명·썸네일 필드 노출.
+- 개발망 검증 대기: 실 데이터 카드 표시(썸네일/제목/설명)·카드 클릭 상세 이동·관리자 추가/수정/삭제·구독 버튼 노출(전역 토글 ON + 로그인 시).
+- 다음: P5 (「최신 동향」 게시판 테이블)
 
 ### Phase 5 — 「최신 동향」 게시판 테이블  ⬜
 - [ ] `InsightTrendListPage` — `DesignRequestListPage` 구조 차용. 컬럼: 체크박스(ADMIN)·**No.**·**제목**(링크)·**게시일**. 페이지네이션(10/20/50)·ADMIN 일괄삭제·`SubscribeButton`. **태그 컬럼·페이지 검색 입력 없음**
