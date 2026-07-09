@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-09 (P0~P4 완료 ✅, P5~ 대기) · 푸시: `origin/2026-06-17-tiper` (1cb1d47)
+- 최종 업데이트: 2026-07-09 (P0~P5 완료 ✅, P6~ 대기) · 푸시: `origin/2026-06-17-tiper`
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -20,7 +20,7 @@
 | P2 | 스토리지 업로드/뷰어 + REST API (백엔드) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 6파일) / 7개 라우트 무인증 **401** 확인. 실 업로드/DB/S3·구독메일은 개발망 대기 |
 | P3 | 공용 업로드/수정 Dialog + 공용 상세 iframe 뷰어 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 2파일) / 상세 2경로 200·컴파일 클린. 실 업로드→iframe 렌더·수정·삭제는 개발망 대기 |
 | P4 | 「AI 사용가이드」 카드 갤러리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0 / `/ai-guide` 200. **사내망 확인: 추가/수정/삭제 정상 ✅**. 헤더 좌측 여백·타이틀 위치 레이아웃 픽스 반영 |
-| P5 | 「최신 동향」 게시판 테이블 | ⬜ 대기 | - | - |
+| P5 | 「최신 동향」 게시판 테이블 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0(신규 1파일) / `/latest-trends` 200. 실 글쓰기·일괄삭제·상세는 개발망 대기 |
 | P6 | 헤더 통합검색 편입 + 구독 연결 확인 | ⬜ 대기 | - | - |
 | P7 | 반응형/권한/QA + 최종 검증 | ⬜ 대기 | - | - |
 
@@ -135,14 +135,22 @@
 - 레이아웃 픽스(2026-07-09, 사내망 피드백): 두 INSIGHTS 페이지 헤더가 다른 페이지와 정렬되도록 수정 — 가이드 페이지의 **자체 `px-8` 이중 패딩 제거**(MainLayout이 이미 `px-8` 제공 → 사이드바 기준 좌측 여백 일치), 동향 플레이스홀더의 **`container mx-auto px-8 py-6` 제거**(타이틀이 아래로 밀리던 문제 해결). 모두 Penta Design(gallery, `w-full` + `page-header-*`) 패턴에 정렬. 파일: `InsightGuideListPage.tsx`, `InsightTrendListPage.tsx`.
 - 다음: P5 (「최신 동향」 게시판 테이블)
 
-### Phase 5 — 「최신 동향」 게시판 테이블  ⬜
-- [ ] `InsightTrendListPage` — `DesignRequestListPage` 구조 차용. 컬럼: 체크박스(ADMIN)·**No.**·**제목**(링크)·**게시일**. 페이지네이션(10/20/50)·ADMIN 일괄삭제·`SubscribeButton`. **태그 컬럼·페이지 검색 입력 없음**
-- [ ] 글쓰기/수정 = P3 공용 Dialog 재사용(HTML 첨부)
-- [ ] `[slug]/page.tsx`의 `insights-trend` case를 실제 컴포넌트로 연결
-- 예상 파일: `app/_category-pages/insights-trend/InsightTrendListPage.tsx`(신규)
-- 완료 기준: 테이블 필수 컬럼 표시, 제목 클릭 시 iframe 상세 이동, 관리자 일괄 삭제, 구독 버튼
-- 검증: `tsc`/`lint` 0 / 컴파일·200 / 개발망에서 목록·페이지네이션·일괄삭제·상세 이동 확인
-- 다음: P6
+### Phase 5 — 「최신 동향」 게시판 테이블  ✅
+- [x] `InsightTrendListPage` — `DesignRequestListPage` 구조 차용. 컬럼: 체크박스(ADMIN)·**No.**·**제목**(링크+긴 제목 툴팁)·**게시일**. 페이지네이션(10/20/50)·ADMIN 일괄삭제·`SubscribeButton`. **태그 컬럼·페이지 검색 입력 없음**
+- [x] 글쓰기 = P3 공용 Dialog(`variant="trend"`, HTML 첨부). 개별 수정/삭제는 상세 페이지에서(P3)
+- [x] `[slug]/page.tsx`의 `insights-trend` case는 P1에서 연결됨(플레이스홀더 → 실제 게시판으로 대체)
+- 수정 파일:
+  - `app/_category-pages/insights-trend/InsightTrendListPage.tsx` (플레이스홀더 → 게시판: `/api/insights/posts` 목록/페이지네이션, `page-header-stack` 헤더+구독+글쓰기, 전체건수/보기 select, 관리자 체크박스+일괄삭제, No.(역순)·제목 링크·게시일 컬럼)
+- 검증:
+  - `npx tsc --noEmit` → exit 0, `next lint`(신규 1파일) → "No ESLint warnings or errors"(미사용 `cn` import 제거 후)
+  - `next dev`: `/latest-trends` 200, 컴파일 에러 없음
+- 계획 대비 변경/결정:
+  - design-request의 상세 검색 Popover·상태 컬럼·마감일 등은 제외(요구 컬럼: No./제목/게시일). 검색은 헤더 통합검색(P6) 사용.
+  - 개별 게시물 **수정/삭제는 상세 페이지(P3)** 의 관리자 버튼으로 처리(design-request와 동일 흐름). 목록은 글쓰기 + 일괄삭제만.
+  - 제목 40자 초과 시 말줄임 + 툴팁(전체 제목). 컬럼 정렬: No. 우측정렬 역순(`total-(page-1)*size-index`).
+  - 미인증 시 `/login` 리다이렉트(게시판이므로 design-request 패턴 채택).
+- 개발망 검증 대기: 실 글쓰기(HTML 첨부)·목록/페이지네이션·관리자 일괄삭제·제목 클릭 상세 iframe 이동·구독.
+- 다음: P6 (헤더 통합검색 편입 + 구독 연결 확인)
 
 ### Phase 6 — 헤더 통합검색 편입 + 구독 연결 확인  ⬜
 - [ ] `app/api/search/route.ts`: `SearchResult.resourceType`에 `'insight'` 추가 + **Post 블록 패턴**으로 `prisma.insightPost.findMany`(title contains, createdAt 필터, `include: category`) 블록 추가 → 결과에 카테고리 slug/name·`pageType` 세팅
