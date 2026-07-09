@@ -129,7 +129,7 @@ export function InsightPostDetailPage({
   return (
     <div className="w-full">
       {/* 헤더 */}
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="page-header-title mb-6">{category.name}</h1>
           <h2 className="page-header-title text-2xl">{item.title}</h2>
