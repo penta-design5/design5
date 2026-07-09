@@ -158,8 +158,7 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
   const showCardActions = isAdmin && !isMobileViewport
 
   return (
-    <div className="w-full h-full flex flex-col overflow-y-auto">
-      <div className="px-8 pt-0 pb-8">
+    <div className="w-full">
         <div className="page-header-stack">
           <div>
             <h1 className="page-header-title">{category.name}</h1>
@@ -269,7 +268,6 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
             </div>
           </Flipper>
         )}
-      </div>
 
       <InsightPostFormDialog
         open={formOpen}

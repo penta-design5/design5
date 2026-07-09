@@ -17,9 +17,16 @@ interface InsightTrendListPageProps {
  */
 export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
   return (
-    <div className="container mx-auto px-8 py-6">
-      <h1 className="page-header-title">{category.name}</h1>
-      <p className="text-muted-foreground mt-4">
+    <div className="w-full">
+      <div className="page-header-stack">
+        <div>
+          <h1 className="page-header-title">{category.name}</h1>
+          <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
+            AI 관련 최신 동향을 공유하는 게시판입니다.
+          </p>
+        </div>
+      </div>
+      <p className="text-muted-foreground">
         게시판은 준비 중입니다. (P5에서 구현 예정)
       </p>
     </div>
