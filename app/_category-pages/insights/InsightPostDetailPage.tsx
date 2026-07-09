@@ -131,10 +131,10 @@ export function InsightPostDetailPage({
       {/* 헤더 */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{category.name}</p>
-          <h1 className="page-header-title text-2xl">{item.title}</h1>
+          <h1 className="page-header-title mb-6">{category.name}</h1>
+          <h2 className="page-header-title text-2xl">{item.title}</h2>
           {item.description ? (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-muted-foreground">
               {item.description}
             </p>
           ) : null}
