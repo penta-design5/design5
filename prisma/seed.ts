@@ -169,6 +169,23 @@ async function main() {
       order: 4,
       description: 'Cloudbric 제품 브로셔',
     },
+    // INSIGHTS 카테고리 (사이드바 LABs 다음). 계획: docs/INSIGHTS_구현계획.md
+    {
+      name: 'AI 사용가이드',
+      slug: 'ai-guide',
+      type: CategoryType.INSIGHTS,
+      pageType: 'insights-guide',
+      order: 1,
+      description: 'AI 활용에 도움이 되는 가이드 모음',
+    },
+    {
+      name: '최신 동향',
+      slug: 'latest-trends',
+      type: CategoryType.INSIGHTS,
+      pageType: 'insights-trend',
+      order: 2,
+      description: 'AI 관련 최신 동향 공유 게시판',
+    },
   ]
 
   for (const category of categories) {

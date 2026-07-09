@@ -1,0 +1,333 @@
+'use client'
+
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Loader2, Upload, X, FileCode2, ImageIcon } from 'lucide-react'
+import { toast } from 'sonner'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
+import {
+  INSIGHT_HTML_MAX_BYTES,
+  hasHtmlExtension,
+  type InsightPostDTO,
+} from '@/lib/insights-schemas'
+
+interface InsightPostFormDialogProps {
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+  /** guide: 설명·썸네일 필드 노출 / trend: 제목·HTML만 */
+  variant: 'guide' | 'trend'
+  /** 생성 시 필수 */
+  categoryId?: string
+  /** 수정 시 전달 */
+  post?: InsightPostDTO | null
+}
+
+export function InsightPostFormDialog({
+  open,
+  onClose,
+  onSuccess,
+  variant,
+  categoryId,
+  post,
+}: InsightPostFormDialogProps) {
+  const isEditing = !!post
+  const showGuideFields = variant === 'guide'
+
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [htmlFile, setHtmlFile] = useState<File | null>(null)
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const htmlInputRef = useRef<HTMLInputElement>(null)
+  const thumbInputRef = useRef<HTMLInputElement>(null)
+
+  // 열릴 때 초기값 설정 / 닫힐 때 리셋
+  useEffect(() => {
+    if (open) {
+      setTitle(post?.title || '')
+      setDescription(post?.description || '')
+      setHtmlFile(null)
+      setThumbnailFile(null)
+      setThumbnailPreview(post?.thumbnailUrl || null)
+    } else {
+      if (thumbnailPreview?.startsWith('blob:'))
+        URL.revokeObjectURL(thumbnailPreview)
+      setTitle('')
+      setDescription('')
+      setHtmlFile(null)
+      setThumbnailFile(null)
+      setThumbnailPreview(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, post])
+
+  const handleHtmlSelect = useCallback((file: File) => {
+    if (!hasHtmlExtension(file.name)) {
+      toast.error('HTML 문서(.html) 파일만 업로드할 수 있습니다.')
+      return
+    }
+    if (file.size > INSIGHT_HTML_MAX_BYTES) {
+      toast.error('HTML 문서는 5MB 이하만 업로드할 수 있습니다.')
+      return
+    }
+    setHtmlFile(file)
+  }, [])
+
+  const handleThumbSelect = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        toast.error('썸네일은 이미지 파일만 업로드할 수 있습니다.')
+        return
+      }
+      if (file.size > INSIGHT_HTML_MAX_BYTES) {
+        toast.error('썸네일 이미지는 5MB 이하만 업로드할 수 있습니다.')
+        return
+      }
+      if (thumbnailPreview?.startsWith('blob:'))
+        URL.revokeObjectURL(thumbnailPreview)
+      setThumbnailPreview(URL.createObjectURL(file))
+      setThumbnailFile(file)
+    },
+    [thumbnailPreview]
+  )
+
+  const removeThumbnail = useCallback(() => {
+    if (thumbnailPreview?.startsWith('blob:'))
+      URL.revokeObjectURL(thumbnailPreview)
+    setThumbnailPreview(null)
+    setThumbnailFile(null)
+  }, [thumbnailPreview])
+
+  const handleSubmit = useCallback(async () => {
+    if (!title.trim()) {
+      toast.error('제목을 입력해주세요.')
+      return
+    }
+    if (!isEditing && !htmlFile) {
+      toast.error('HTML 문서를 첨부해주세요.')
+      return
+    }
+    if (!isEditing && !categoryId) {
+      toast.error('카테고리 정보가 없습니다.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const fd = new FormData()
+      fd.append('title', title.trim())
+      if (showGuideFields) fd.append('description', description.trim())
+      if (htmlFile) fd.append('htmlFile', htmlFile)
+      if (showGuideFields && thumbnailFile)
+        fd.append('thumbnail', thumbnailFile)
+      if (!isEditing && categoryId) fd.append('categoryId', categoryId)
+
+      const url = isEditing
+        ? `/api/insights/posts/${post!.id}`
+        : '/api/insights/posts'
+      const res = await fetch(url, {
+        method: isEditing ? 'PATCH' : 'POST',
+        body: fd,
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || '저장에 실패했습니다.')
+      }
+      toast.success(isEditing ? '수정되었습니다.' : '등록되었습니다.')
+      onSuccess()
+      onClose()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }, [
+    title,
+    description,
+    htmlFile,
+    thumbnailFile,
+    showGuideFields,
+    isEditing,
+    categoryId,
+    post,
+    onSuccess,
+    onClose,
+  ])
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? '게시물 수정' : '게시물 등록'}</DialogTitle>
+          <DialogDescription>
+            제목과 HTML 문서를 첨부하세요. HTML은 이미지/CSS/JS가 모두 포함된
+            자기완결형 단일 파일이어야 합니다.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="insight-title">제목 *</Label>
+            <Input
+              id="insight-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목을 입력하세요"
+              disabled={saving}
+            />
+          </div>
+
+          {showGuideFields && (
+            <div className="space-y-2">
+              <Label htmlFor="insight-description">설명</Label>
+              <Textarea
+                id="insight-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="카드에 표시할 간단한 설명 (선택)"
+                rows={3}
+                disabled={saving}
+              />
+            </div>
+          )}
+
+          {/* HTML 문서 */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <FileCode2 className="h-4 w-4" />
+              HTML 문서 {isEditing ? '(교체 시에만 선택)' : '*'}
+            </Label>
+            <input
+              ref={htmlInputRef}
+              type="file"
+              accept=".html,.htm,text/html"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleHtmlSelect(f)
+                e.target.value = ''
+              }}
+            />
+            {htmlFile ? (
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm">
+                <span className="truncate">{htmlFile.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setHtmlFile(null)}
+                  disabled={saving}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-muted-foreground/50"
+                onClick={() => htmlInputRef.current?.click()}
+              >
+                <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  클릭하여 .html 파일 업로드 (최대 5MB)
+                </span>
+              </div>
+            )}
+            {isEditing && !htmlFile && (
+              <p className="text-xs text-muted-foreground">
+                현재 문서: {post?.htmlFileName}
+              </p>
+            )}
+          </div>
+
+          {/* 썸네일 (guide 전용) */}
+          {showGuideFields && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                썸네일 (선택)
+              </Label>
+              <input
+                ref={thumbInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handleThumbSelect(f)
+                  e.target.value = ''
+                }}
+              />
+              {thumbnailPreview ? (
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={
+                      thumbnailPreview.startsWith('blob:')
+                        ? thumbnailPreview
+                        : getB2ImageSrc(thumbnailPreview)
+                    }
+                    alt="썸네일"
+                    className="max-h-40 rounded-lg border object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute right-1 top-1 h-6 w-6 p-0"
+                    onClick={removeThumbnail}
+                    disabled={saving}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-muted-foreground/50"
+                  onClick={() => thumbInputRef.current?.click()}
+                >
+                  <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    클릭하여 썸네일 업로드
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            취소
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                저장 중...
+              </>
+            ) : isEditing ? (
+              '수정'
+            ) : (
+              '등록'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

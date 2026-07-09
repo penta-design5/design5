@@ -231,6 +231,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         return 'ADMIN'
       case CategoryType.ETC:
         return 'LABs'
+      case CategoryType.INSIGHTS:
+        return 'INSIGHTS'
       default:
         return ''
     }
@@ -242,6 +244,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     CategoryType.TEMPLATE,
     CategoryType.BROCHURE,
     CategoryType.ETC,
+    CategoryType.INSIGHTS,
     CategoryType.ADMIN,
   ]
 

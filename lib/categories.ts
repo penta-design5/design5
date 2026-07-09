@@ -68,6 +68,7 @@ const SUBSCRIBABLE_TYPES: CategoryType[] = [
   CategoryType.SOURCE,
   CategoryType.TEMPLATE,
   CategoryType.BROCHURE,
+  CategoryType.INSIGHTS,
 ]
 
 /** 구독에서 제외되는 메뉴 slug (사이드바에 숨겨진 메뉴) */

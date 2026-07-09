@@ -22,6 +22,7 @@ enum CategoryType {
   BROCHURE
   ADMIN
   ETC
+  INSIGHTS // 사이드바 INSIGHTS 섹션. enum 끝에 추가 → 마이그레이션은 순수 ADD VALUE(데이터 보존). 사이드바 순서는 Sidebar.tsx categoryOrder가 제어하므로 선언 위치와 무관.
 }
 
 enum PostStatus {
@@ -89,6 +90,8 @@ model User {
   designRequests        DesignRequest[]
   menuSubscriptions     MenuSubscription[]
   iconPlusResources     IconPlusResource[]
+  insightPosts          InsightPost[]          @relation("InsightPostAuthor")
+  updatedInsightPosts   InsightPost[]          @relation("InsightPostUpdater")
 
   @@map("users")
 }
@@ -110,6 +113,7 @@ model Category {
   children      Category[]         @relation("CategoryParent")
   posts         Post[]
   subscriptions MenuSubscription[]
+  insightPosts  InsightPost[]
 
   @@map("categories")
 }
@@ -357,6 +361,34 @@ model DesignRequest {
   @@index([dueDate])
   @@index([status])
   @@map("design_requests")
+}
+
+// INSIGHTS: 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 공용 모델.
+// 자기완결형 HTML 문서는 S3(posts 버킷 insights/ prefix)에 text/html로 저장하고, DB에는 메타데이터+URL만 보관.
+// 페이지 구분은 categoryId(pageType: insights-guide | insights-trend). 태그 미사용. 계획: docs/INSIGHTS_구현계획.md
+model InsightPost {
+  id           String  @id @default(cuid())
+  categoryId   String // insights-guide / insights-trend 구분 (구독·라우팅·목록·검색)
+  title        String
+  description  String? // AI 사용가이드 카드의 간단한 설명 (최신 동향은 미사용)
+  htmlUrl      String // S3 posts 버킷의 text/html 객체 URL
+  htmlFileName String // 원본 파일명
+  htmlFileSize Int // bytes
+  thumbnailUrl String? // 카드용 썸네일 (선택; 없으면 플레이스홀더)
+  viewCount    Int     @default(0)
+
+  authorId    String
+  author      User    @relation("InsightPostAuthor", fields: [authorId], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("InsightPostUpdater", fields: [updatedById], references: [id])
+
+  category Category @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, createdAt])
+  @@map("insight_posts")
 }
 
 // 전역 앱 설정 (단일 행)

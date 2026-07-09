@@ -17,6 +17,8 @@ import { DesktopPage } from '@/app/_category-pages/desktop/DesktopPage'
 import { HardwareListPage } from '@/app/_category-pages/hardware/HardwareListPage'
 import { CardPage } from '@/app/_category-pages/card/CardPage'
 import { DesignRequestListPage } from '@/app/_category-pages/design-request/DesignRequestListPage'
+import { InsightGuideListPage } from '@/app/_category-pages/insights-guide/InsightGuideListPage'
+import { InsightTrendListPage } from '@/app/_category-pages/insights-trend/InsightTrendListPage'
 
 // 카테고리 타입별 기본 pageType 반환
 function getDefaultPageType(categoryType: CategoryType): string {
@@ -119,6 +121,12 @@ export default async function CategoryPage({
 
     case 'design-request':
       return <DesignRequestListPage category={category} />
+
+    case 'insights-guide':
+      return <InsightGuideListPage category={category} />
+
+    case 'insights-trend':
+      return <InsightTrendListPage category={category} />
 
     case 'editor':
       // TODO: EditorListPage 구현 시 추가

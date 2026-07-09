@@ -8,6 +8,7 @@ import { GalleryDetailPage } from '@/app/_category-pages/gallery/GalleryDetailPa
 import { DesktopEditorPage } from '@/app/_category-pages/desktop/DesktopEditorPage'
 import { HardwareDetailPage } from '@/app/_category-pages/hardware/HardwareDetailPage'
 import { DesignRequestDetailPage } from '@/app/_category-pages/design-request/DesignRequestDetailPage'
+import { InsightPostDetailPage } from '@/app/_category-pages/insights/InsightPostDetailPage'
 
 // 카테고리 타입별 기본 pageType 반환
 function getDefaultPageType(categoryType: CategoryType): string {
@@ -67,6 +68,25 @@ export async function generateMetadata({
       const ogTitle = `${dr.title} | ${BRAND_KO}`
       return {
         title: dr.title,
+        description,
+        openGraph: { title: ogTitle, description },
+        twitter: { title: ogTitle, description },
+      }
+    }
+  }
+
+  if (pageType === 'insights-guide' || pageType === 'insights-trend') {
+    const insight = await prisma.insightPost.findUnique({
+      where: { id: params.id },
+      select: { title: true, description: true },
+    })
+    if (insight) {
+      const description =
+        insight.description?.trim() ||
+        `${insight.title} — ${category.name} · ${BRAND_KO}`
+      const ogTitle = `${insight.title} | ${BRAND_KO}`
+      return {
+        title: insight.title,
         description,
         openGraph: { title: ogTitle, description },
         twitter: { title: ogTitle, description },
@@ -152,6 +172,10 @@ export default async function PostDetailPage({
       return (
         <DesignRequestDetailPage category={category} requestId={params.id} />
       )
+
+    case 'insights-guide':
+    case 'insights-trend':
+      return <InsightPostDetailPage category={category} postId={params.id} />
 
     case 'editor':
       // TODO: EditorDetailPage 구현 시 추가
