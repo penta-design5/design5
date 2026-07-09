@@ -127,7 +127,7 @@ export function InsightPostDetailPage({
   }
 
   return (
-    <div className="flex w-full flex-col px-4 py-4 md:px-8">
+    <div className="w-full">
       {/* 헤더 */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
