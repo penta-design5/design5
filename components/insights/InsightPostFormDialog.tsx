@@ -13,9 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Loader2, Upload, X, FileCode2, ImageIcon } from 'lucide-react'
+import { Loader2, Upload, X, FileCode2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getB2ImageSrc } from '@/lib/b2-client-url'
 import {
   INSIGHT_HTML_MAX_BYTES,
   hasHtmlExtension,
@@ -26,7 +25,7 @@ interface InsightPostFormDialogProps {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  /** guide: 설명·썸네일 필드 노출 / trend: 제목·HTML만 */
+  /** guide: 설명 필드 노출 / trend: 제목·HTML만 */
   variant: 'guide' | 'trend'
   /** 생성 시 필수 */
   categoryId?: string
@@ -48,11 +47,8 @@ export function InsightPostFormDialog({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [htmlFile, setHtmlFile] = useState<File | null>(null)
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
-  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const htmlInputRef = useRef<HTMLInputElement>(null)
-  const thumbInputRef = useRef<HTMLInputElement>(null)
 
   // 열릴 때 초기값 설정 / 닫힐 때 리셋
   useEffect(() => {
@@ -60,18 +56,11 @@ export function InsightPostFormDialog({
       setTitle(post?.title || '')
       setDescription(post?.description || '')
       setHtmlFile(null)
-      setThumbnailFile(null)
-      setThumbnailPreview(post?.thumbnailUrl || null)
     } else {
-      if (thumbnailPreview?.startsWith('blob:'))
-        URL.revokeObjectURL(thumbnailPreview)
       setTitle('')
       setDescription('')
       setHtmlFile(null)
-      setThumbnailFile(null)
-      setThumbnailPreview(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, post])
 
   const handleHtmlSelect = useCallback((file: File) => {
@@ -85,31 +74,6 @@ export function InsightPostFormDialog({
     }
     setHtmlFile(file)
   }, [])
-
-  const handleThumbSelect = useCallback(
-    (file: File) => {
-      if (!file.type.startsWith('image/')) {
-        toast.error('썸네일은 이미지 파일만 업로드할 수 있습니다.')
-        return
-      }
-      if (file.size > INSIGHT_HTML_MAX_BYTES) {
-        toast.error('썸네일 이미지는 5MB 이하만 업로드할 수 있습니다.')
-        return
-      }
-      if (thumbnailPreview?.startsWith('blob:'))
-        URL.revokeObjectURL(thumbnailPreview)
-      setThumbnailPreview(URL.createObjectURL(file))
-      setThumbnailFile(file)
-    },
-    [thumbnailPreview]
-  )
-
-  const removeThumbnail = useCallback(() => {
-    if (thumbnailPreview?.startsWith('blob:'))
-      URL.revokeObjectURL(thumbnailPreview)
-    setThumbnailPreview(null)
-    setThumbnailFile(null)
-  }, [thumbnailPreview])
 
   const handleSubmit = useCallback(async () => {
     if (!title.trim()) {
@@ -131,8 +95,6 @@ export function InsightPostFormDialog({
       fd.append('title', title.trim())
       if (showGuideFields) fd.append('description', description.trim())
       if (htmlFile) fd.append('htmlFile', htmlFile)
-      if (showGuideFields && thumbnailFile)
-        fd.append('thumbnail', thumbnailFile)
       if (!isEditing && categoryId) fd.append('categoryId', categoryId)
 
       const url = isEditing
@@ -159,7 +121,6 @@ export function InsightPostFormDialog({
     title,
     description,
     htmlFile,
-    thumbnailFile,
     showGuideFields,
     isEditing,
     categoryId,
@@ -253,61 +214,6 @@ export function InsightPostFormDialog({
               </p>
             )}
           </div>
-
-          {/* 썸네일 (guide 전용) */}
-          {showGuideFields && (
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" />
-                썸네일 (선택)
-              </Label>
-              <input
-                ref={thumbInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) handleThumbSelect(f)
-                  e.target.value = ''
-                }}
-              />
-              {thumbnailPreview ? (
-                <div className="relative inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={
-                      thumbnailPreview.startsWith('blob:')
-                        ? thumbnailPreview
-                        : getB2ImageSrc(thumbnailPreview)
-                    }
-                    alt="썸네일"
-                    className="max-h-40 rounded-lg border object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute right-1 top-1 h-6 w-6 p-0"
-                    onClick={removeThumbnail}
-                    disabled={saving}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-muted-foreground/50"
-                  onClick={() => thumbInputRef.current?.click()}
-                >
-                  <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    클릭하여 썸네일 업로드
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         <DialogFooter>

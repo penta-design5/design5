@@ -208,7 +208,7 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
                   <PostCardSkeleton
                     key={j}
                     width={CARD_WIDTH}
-                    height={260}
+                    height={200}
                     showButtons={false}
                   />
                 ))}
@@ -258,7 +258,6 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
                             showCardActions ? handleDeleteClick : undefined
                           }
                           showActions={showCardActions}
-                          showHoverEditLabel={!isMobileViewport}
                         />
                       </div>
                     </Flipped>
