@@ -34,6 +34,7 @@ export type SearchResult = {
     | 'hardware'
     | 'designrequest'
     | 'iconplus'
+    | 'insight'
   categoryName: string
   categorySlug: string
   title: string
@@ -103,7 +104,17 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     // HW / 디자인 의뢰 / ICON+ 는 Post와 별개 모델 → 카테고리(pageType→slug/name) 매핑이 필요.
     // 결과의 categoryName/slug(이동 경로)와 카테고리 필터 매칭에 사용한다.
     const auxCategories = await prisma.category.findMany({
-      where: { pageType: { in: ['hardware', 'design-request', 'icon'] } },
+      where: {
+        pageType: {
+          in: [
+            'hardware',
+            'design-request',
+            'icon',
+            'insights-guide',
+            'insights-trend',
+          ],
+        },
+      },
       select: { slug: true, name: true, pageType: true },
     })
     const auxCategoryByPageType = new Map(
@@ -112,6 +123,17 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     const hardwareCategory = auxCategoryByPageType.get('hardware')
     const designRequestCategory = auxCategoryByPageType.get('design-request')
     const iconCategory = auxCategoryByPageType.get('icon')
+
+    // INSIGHTS(ai-guide/latest-trends)는 자체 categoryId 관계를 가지므로
+    // 결과의 name/slug/pageType는 각 행의 category 관계에서 직접 취한다(Post 방식).
+    // 아래 slug 집합은 카테고리 필터가 걸렸을 때 검색 실행 여부 판단에만 사용.
+    const insightsSlugs = new Set(
+      auxCategories
+        .filter((c) => c.pageType?.startsWith('insights-'))
+        .map((c) => c.slug)
+    )
+    const shouldSearchInsight = () =>
+      !categorySlug || insightsSlugs.has(categorySlug)
 
     // 카테고리 필터가 없으면 검색, 있으면 해당 카테고리 슬러그와 일치할 때만 검색
     const shouldSearchHardware = () =>
@@ -399,6 +421,47 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
           title: r.name,
           createdAt: r.createdAt.toISOString(),
           slug: iconCategory.slug,
+        })
+      }
+    }
+
+    // 9. InsightPost 검색 (AI 사용가이드 / 최신 동향, 로그인 사용자 전체 열람)
+    if (shouldSearchInsight()) {
+      const insightWhere: Prisma.InsightPostWhereInput = categorySlug
+        ? { category: { slug: categorySlug } }
+        : { category: { type: CategoryType.INSIGHTS } }
+
+      if (searchQuery) {
+        insightWhere.title = { contains: searchQuery, mode: 'insensitive' }
+      }
+      if (dateFromDate || dateToDate) {
+        insightWhere.createdAt = {}
+        if (dateFromDate) insightWhere.createdAt.gte = dateFromDate
+        if (dateToDate) insightWhere.createdAt.lte = dateToDate
+      }
+
+      const insightPosts = await prisma.insightPost.findMany({
+        where: insightWhere,
+        select: {
+          id: true,
+          title: true,
+          createdAt: true,
+          category: { select: { name: true, slug: true, pageType: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: MAX_RESULTS,
+      })
+
+      for (const ip of insightPosts) {
+        results.push({
+          id: ip.id,
+          resourceType: 'insight',
+          categoryName: ip.category.name,
+          categorySlug: ip.category.slug,
+          title: ip.title,
+          createdAt: ip.createdAt.toISOString(),
+          slug: ip.category.slug,
+          pageType: ip.category.pageType,
         })
       }
     }

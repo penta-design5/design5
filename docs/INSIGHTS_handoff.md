@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-09 (P0~P5 완료 ✅, P6~ 대기) · 푸시: `origin/2026-06-17-tiper`
+- 최종 업데이트: 2026-07-09 (P0~P6 완료 ✅, P7 대기) · 푸시: `origin/2026-06-17-tiper`
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -21,7 +21,7 @@
 | P3 | 공용 업로드/수정 Dialog + 공용 상세 iframe 뷰어 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (1cb1d47) | tsc 0 / lint 0(신규 2파일) / 상세 2경로 200·컴파일 클린. 실 업로드→iframe 렌더·수정·삭제는 개발망 대기 |
 | P4 | 「AI 사용가이드」 카드 갤러리 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0 / `/ai-guide` 200. **사내망 확인: 추가/수정/삭제 정상 ✅**. 헤더 좌측 여백·타이틀 위치 레이아웃 픽스 반영 |
 | P5 | 「최신 동향」 게시판 테이블 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0(신규 1파일) / `/latest-trends` 200. 실 글쓰기·일괄삭제·상세는 개발망 대기 |
-| P6 | 헤더 통합검색 편입 + 구독 연결 확인 | ⬜ 대기 | - | - |
+| P6 | 헤더 통합검색 편입 + 구독 연결 확인 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0 / `/api/search` 401 게이팅·컴파일 클린. 실 검색 결과·이동은 개발망 대기 |
 | P7 | 반응형/권한/QA + 최종 검증 | ⬜ 대기 | - | - |
 
 > 진행 규칙: 각 Phase 착수 시 상태를 🟡, 완료 시 ✅ 로 갱신하고 브랜치/커밋·검증 결과를 채운다. 로컬은 DB 비의존(컴파일·인증 게이팅)까지, 실제 업로드/DB/iframe 렌더는 개발망(로그인+DB+S3) 검증으로 분리 기록한다.
@@ -152,14 +152,21 @@
 - 개발망 검증 대기: 실 글쓰기(HTML 첨부)·목록/페이지네이션·관리자 일괄삭제·제목 클릭 상세 iframe 이동·구독.
 - 다음: P6 (헤더 통합검색 편입 + 구독 연결 확인)
 
-### Phase 6 — 헤더 통합검색 편입 + 구독 연결 확인  ⬜
-- [ ] `app/api/search/route.ts`: `SearchResult.resourceType`에 `'insight'` 추가 + **Post 블록 패턴**으로 `prisma.insightPost.findMany`(title contains, createdAt 필터, `include: category`) 블록 추가 → 결과에 카테고리 slug/name·`pageType` 세팅
-- [ ] `lib/search-navigation.ts`: `getViewUrl`에 `case 'insight' → /${slug}/${id}`
-- [ ] 구독 알림 end-to-end 확인(신규 등록 시 구독자 메일 발송, SMTP 설정 시)
-- 예상 파일: `app/api/search/route.ts`, `lib/search-navigation.ts`
-- 완료 기준: 헤더 검색에서 게시물 제목 검색 → 결과 노출 → "보기"로 `/{slug}/{id}` 상세 이동
-- 검증: `tsc`/`lint` 0 / 개발망에서 통합검색 결과·이동·카테고리 필터 드롭다운 노출 확인 / (SMTP 시) 구독 메일 수신
-- 다음: P7
+### Phase 6 — 헤더 통합검색 편입 + 구독 연결 확인  ✅
+- [x] `app/api/search/route.ts`: `SearchResult.resourceType`에 `'insight'` 추가 + `insightPost.findMany`(제목 contains + 카테고리/날짜 필터) 블록 → 결과 필드는 행의 `category` 관계에서 직접(name/slug/pageType)
+- [x] `lib/search-navigation.ts`: `getViewUrl`에 `case 'insight' → /${slug}/${id}`
+- [x] 구독 연결 확인(코드): `SUBSCRIBABLE_TYPES` += INSIGHTS(P2) + 두 페이지 `SubscribeButton`(P4/P5) + 생성/수정 `notifyMenuUpdate`(P2). 실 메일은 SMTP+구독자 필요 → 개발망 확인
+- 수정 파일:
+  - `app/api/search/route.ts` (resourceType += `'insight'`; aux 카테고리 조회에 `insights-guide`/`insights-trend` 추가 → `insightsSlugs` 게이트; `insightPost` 검색 블록 신규)
+  - `lib/search-navigation.ts` (`case 'insight'`)
+- 검증:
+  - `npx tsc --noEmit` → exit 0, `next lint`(수정 2파일) → "No ESLint warnings or errors"
+  - `next dev`: `/api/search?q=test` **무인증 401**(컴파일 클린, 신규 블록이 기존 검색 회귀 없음)
+- 계획 대비 변경/결정:
+  - InsightPost가 자체 `categoryId` 관계를 가지므로 aux-category 맵이 아닌 **Post 방식**(행의 `category` 관계에서 취득)으로 구현.
+  - aux 조회에 insights pageType 2종 추가는 **카테고리 필터 게이트(`shouldSearchInsight`)** 용(불필요 쿼리 회피). guide/trend 모두 상세가 `/${slug}/${id}` 라 `getViewUrl` 단일 경로.
+- 개발망 검증 대기: 로그인 후 헤더 검색 제목 입력 → 결과 노출 → "보기" 상세 iframe 이동 / 카테고리 필터 드롭다운 두 메뉴 노출 / (SMTP+구독자) 알림 메일.
+- 다음: P7 (반응형/권한/QA + 최종 검증)
 
 ### Phase 7 — 반응형/권한/QA + 최종 검증  ⬜
 - [ ] 모바일 사이드바(Sheet)·카드 그리드·게시판 테이블 반응형 확인

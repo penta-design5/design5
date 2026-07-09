@@ -49,6 +49,10 @@ export function getViewUrl(result: SearchResult): string {
     case 'iconplus':
       return `/${slug}?tab=plus`
 
+    // INSIGHTS(AI 사용가이드/최신 동향): 공용 iframe 상세 페이지
+    case 'insight':
+      return `/${slug}/${id}`
+
     default:
       return '/'
   }
