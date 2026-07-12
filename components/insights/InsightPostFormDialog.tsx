@@ -18,7 +18,6 @@ import { toast } from 'sonner'
 import {
   INSIGHT_HTML_MAX_BYTES,
   INSIGHT_CARD_COLOR_PRESETS,
-  INSIGHT_CARD_DEFAULT_COLOR,
   hasHtmlExtension,
   type InsightPostDTO,
 } from '@/lib/insights-schemas'
@@ -200,26 +199,24 @@ export function InsightPostFormDialog({
 
           {showGuideFields && (
             <div className="space-y-2">
-              <Label>카드 배경색</Label>
+              <Label>카드 하단 테두리 색</Label>
               <p className="text-xs text-muted-foreground">
-                좌상단은 흰색으로 고정되며, 우하단 색상을 선택합니다.
+                카드 배경은 흰색 그라데이션으로 고정되며, 하단 테두리(3px)
+                색상만 선택합니다. 미선택 시 강조 없이 기본 테두리로 표시됩니다.
               </p>
               <div className="flex flex-wrap items-center gap-2">
-                {/* 기본(중립색) */}
+                {/* 기본(강조 없음) — 실제 카드처럼 은은한 배경 미리보기 */}
                 <button
                   type="button"
-                  title="기본"
-                  aria-label="기본 색상"
+                  title="기본 (강조 없음)"
+                  aria-label="기본 (강조 없음)"
                   disabled={saving}
                   onClick={() => setCardColor('')}
-                  className={`relative h-9 w-9 rounded-md border transition-shadow ${
+                  className={`relative h-10 w-14 rounded-md border bg-gradient-to-br from-white to-[#F7F8FA] transition-shadow ${
                     cardColor === ''
                       ? 'ring-2 ring-primary ring-offset-2'
                       : 'hover:shadow'
                   }`}
-                  style={{
-                    backgroundImage: `linear-gradient(to bottom right, #FFFFFF, ${INSIGHT_CARD_DEFAULT_COLOR})`,
-                  }}
                 >
                   {cardColor === '' && (
                     <Check className="absolute inset-0 m-auto h-4 w-4 text-neutral-600" />
@@ -235,17 +232,18 @@ export function InsightPostFormDialog({
                       aria-label={preset.label}
                       disabled={saving}
                       onClick={() => setCardColor(preset.value)}
-                      className={`relative h-9 w-9 rounded-md border transition-shadow ${
+                      className={`relative h-10 w-14 rounded-md border bg-gradient-to-br from-white to-[#F7F8FA] transition-shadow ${
                         selected
                           ? 'ring-2 ring-primary ring-offset-2'
                           : 'hover:shadow'
                       }`}
                       style={{
-                        backgroundImage: `linear-gradient(to bottom right, #FFFFFF, ${preset.value})`,
+                        borderBottomWidth: '3px',
+                        borderBottomColor: preset.value,
                       }}
                     >
                       {selected && (
-                        <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+                        <Check className="absolute inset-0 m-auto h-4 w-4 text-neutral-600" />
                       )}
                     </button>
                   )
