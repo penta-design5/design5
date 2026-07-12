@@ -69,7 +69,8 @@ AI 사용가이드 게시물 등록/수정 시 **카드 그라데이션 우하�
 | `#22C55E` | `#15803D` | `#F59E0B` | `#B45309` | `#EF4444` | `#B91C1C` | `#3B82F6` | `#1D4ED8` |
 
 - **데이터 모델**: `InsightPost.cardColor String?`(nullable) 추가. NULL이면 기본 중립색(`#F7F8FA`)으로 렌더. **최신 동향은 미사용**(guide variant 한정).
-- **마이그레이션**: `prisma/migrations/20260713120000_add_insight_card_color/migration.sql` — 순수 additive(`ADD COLUMN "cardColor" TEXT`). **개발망/운영망에서 `prisma migrate deploy`(전진 전용) 적용 필요**(shadow DB 미사용, P0와 동일 원칙). 로컬은 `prisma generate`까지.
+- **마이그레이션**: `prisma/migrations/20260713120000_add_insight_card_color/migration.sql` — 순수 additive(`ADD COLUMN "cardColor" TEXT`). **개발망 `prisma migrate deploy` 적용 완료(2026-07-13)** ✅ — 게시물 5건 보존 확인(삭제 0). **운영망은 배포 시 `migrate deploy` 적용 필요**(shadow DB 미사용, P0와 동일 원칙).
+  - ⚠️ **인시던트/교훈(2026-07-13)**: 코드(신규 `cardColor` 참조)를 개발망에 먼저 배포했으나 `migrate deploy`를 돌리지 않아 컬럼 부재 → `insight_posts` 전체 쿼리 실패(목록 로드 실패·업로드 실패·"게시물 사라짐"처럼 보임). 데이터는 삭제된 게 아니라 읽기 불가였고, `migrate deploy` 적용으로 즉시 복구. **신규 컬럼 참조 코드는 반드시 마이그레이션을 먼저/함께 적용**할 것.
 - **수정 파일**:
   - `prisma/schema.prisma`(`cardColor` 컬럼) + 신규 마이그레이션
   - `lib/insights-schemas.ts`(`INSIGHT_CARD_COLOR_PRESETS`/`INSIGHT_CARD_COLOR_VALUES`/`INSIGHT_CARD_DEFAULT_COLOR` + create/update zod 필드 `cardColor` + DTO 필드)
