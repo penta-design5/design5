@@ -2,7 +2,10 @@
 
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { InsightPostDTO } from '@/lib/insights-schemas'
+import {
+  INSIGHT_CARD_DEFAULT_COLOR,
+  type InsightPostDTO,
+} from '@/lib/insights-schemas'
 
 // HW 카드와 동일 폭 (요구사항). 썸네일 없이 제목·설명을 크게 보여주는 텍스트 카드.
 const CARD_WIDTH = 320
@@ -24,8 +27,13 @@ export function InsightGuideCard({
 }: InsightGuideCardProps) {
   return (
     <div
-      className="group relative flex min-h-[200px] cursor-pointer flex-col rounded-lg border p-6 transition-shadow duration-200 hover:shadow-md bg-gradient-to-br from-white to-[#F7F8FA]"
-      style={{ width: CARD_WIDTH }}
+      className="group relative flex min-h-[200px] cursor-pointer flex-col rounded-lg border p-6 transition-shadow duration-200 hover:shadow-md"
+      style={{
+        width: CARD_WIDTH,
+        backgroundImage: `linear-gradient(to bottom right, #FFFFFF, ${
+          item.cardColor || INSIGHT_CARD_DEFAULT_COLOR
+        })`,
+      }}
       onClick={() => onClick(item.id)}
     >
       {showActions && (onEdit || onDelete) && (

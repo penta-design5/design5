@@ -48,6 +48,7 @@ export const PATCH = withRouteHandler(
     const fields = insightUpdateFieldsSchema.parse({
       title: formData.get('title') ?? undefined,
       description: formData.get('description') ?? undefined,
+      cardColor: formData.get('cardColor') ?? undefined,
     })
 
     const htmlFile = formData.get('htmlFile')
@@ -56,7 +57,9 @@ export const PATCH = withRouteHandler(
     const hasHtml = htmlFile instanceof File
     const hasThumbnail = thumbnailFile instanceof File
     const hasFieldChange =
-      fields.title !== undefined || fields.description !== undefined
+      fields.title !== undefined ||
+      fields.description !== undefined ||
+      fields.cardColor !== undefined
 
     if (!hasFieldChange && !hasHtml && !hasThumbnail) {
       throw new BadRequestError('수정할 내용이 없습니다.')
@@ -65,6 +68,7 @@ export const PATCH = withRouteHandler(
     const data: {
       title?: string
       description?: string | null
+      cardColor?: string | null
       htmlUrl?: string
       htmlFileName?: string
       htmlFileSize?: number
@@ -75,6 +79,9 @@ export const PATCH = withRouteHandler(
     if (fields.title !== undefined) data.title = fields.title
     if (fields.description !== undefined) {
       data.description = fields.description.trim() || null
+    }
+    if (fields.cardColor !== undefined) {
+      data.cardColor = fields.cardColor || null
     }
 
     // HTML 교체: 새 파일 업로드 → 기존 객체는 커밋 후 정리

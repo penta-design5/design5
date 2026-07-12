@@ -17,9 +17,12 @@ import { Loader2, Upload, X, FileCode2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   INSIGHT_HTML_MAX_BYTES,
+  INSIGHT_CARD_COLOR_PRESETS,
+  INSIGHT_CARD_DEFAULT_COLOR,
   hasHtmlExtension,
   type InsightPostDTO,
 } from '@/lib/insights-schemas'
+import { Check } from 'lucide-react'
 
 interface InsightPostFormDialogProps {
   open: boolean
@@ -46,6 +49,7 @@ export function InsightPostFormDialog({
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [cardColor, setCardColor] = useState('') // '' = 기본 중립색
   const [htmlFile, setHtmlFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [dragActive, setDragActive] = useState(false)
@@ -56,10 +60,12 @@ export function InsightPostFormDialog({
     if (open) {
       setTitle(post?.title || '')
       setDescription(post?.description || '')
+      setCardColor(post?.cardColor || '')
       setHtmlFile(null)
     } else {
       setTitle('')
       setDescription('')
+      setCardColor('')
       setHtmlFile(null)
     }
   }, [open, post])
@@ -115,7 +121,10 @@ export function InsightPostFormDialog({
     try {
       const fd = new FormData()
       fd.append('title', title.trim())
-      if (showGuideFields) fd.append('description', description.trim())
+      if (showGuideFields) {
+        fd.append('description', description.trim())
+        fd.append('cardColor', cardColor) // '' = 기본 중립색
+      }
       if (htmlFile) fd.append('htmlFile', htmlFile)
       if (!isEditing && categoryId) fd.append('categoryId', categoryId)
 
@@ -142,6 +151,7 @@ export function InsightPostFormDialog({
   }, [
     title,
     description,
+    cardColor,
     htmlFile,
     showGuideFields,
     isEditing,
@@ -185,6 +195,62 @@ export function InsightPostFormDialog({
                 rows={3}
                 disabled={saving}
               />
+            </div>
+          )}
+
+          {showGuideFields && (
+            <div className="space-y-2">
+              <Label>카드 배경색</Label>
+              <p className="text-xs text-muted-foreground">
+                좌상단은 흰색으로 고정되며, 우하단 색상을 선택합니다.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 기본(중립색) */}
+                <button
+                  type="button"
+                  title="기본"
+                  aria-label="기본 색상"
+                  disabled={saving}
+                  onClick={() => setCardColor('')}
+                  className={`relative h-9 w-9 rounded-md border transition-shadow ${
+                    cardColor === ''
+                      ? 'ring-2 ring-primary ring-offset-2'
+                      : 'hover:shadow'
+                  }`}
+                  style={{
+                    backgroundImage: `linear-gradient(to bottom right, #FFFFFF, ${INSIGHT_CARD_DEFAULT_COLOR})`,
+                  }}
+                >
+                  {cardColor === '' && (
+                    <Check className="absolute inset-0 m-auto h-4 w-4 text-neutral-600" />
+                  )}
+                </button>
+                {INSIGHT_CARD_COLOR_PRESETS.map((preset) => {
+                  const selected = cardColor === preset.value
+                  return (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      title={preset.label}
+                      aria-label={preset.label}
+                      disabled={saving}
+                      onClick={() => setCardColor(preset.value)}
+                      className={`relative h-9 w-9 rounded-md border transition-shadow ${
+                        selected
+                          ? 'ring-2 ring-primary ring-offset-2'
+                          : 'hover:shadow'
+                      }`}
+                      style={{
+                        backgroundImage: `linear-gradient(to bottom right, #FFFFFF, ${preset.value})`,
+                      }}
+                    >
+                      {selected && (
+                        <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )}
 

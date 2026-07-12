@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-13 (P0~P6 완료 ✅ + 사내망 확인, P7만 대기 · 업로드 드래그 앤 드롭 후속 수정) · 푸시: `origin/2026-06-17-tiper`
+- 최종 업데이트: 2026-07-13 (P0~P6 완료 ✅ + 사내망 확인, P7만 대기 · 후속: 업로드 드래그 앤 드롭 ✅, 카드 배경색 프리셋 — 마이그레이션 적용 대기) · 푸시: `origin/2026-06-17-tiper`
 - **다음 세션 시작점: P7 (반응형/권한/QA 최종 점검)** — 아래 "Phase별 상세 > Phase 7" 체크리스트부터 진행. P0~P6 코드+UI는 사내망 검증 완료.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -56,6 +56,27 @@ P4~P6 기능(가이드 카드·게시판·통합검색·구독)이 **사내망�
   - `dragActive` 상태로 드래그 중 시각 피드백(테두리 강조 + "여기에 .html 파일을 놓으세요") + 안내 문구를 "클릭하거나 .html 파일을 드래그하여 업로드"로 갱신. 저장 중(`saving`)에는 드롭 무시
   - 두 메뉴가 공용 다이얼로그를 쓰므로 한 곳 수정으로 양쪽 해결
 - **검증**: `tsc --noEmit` 0 / `next lint`(해당 파일) 0. 드롭→파일명 표시는 DB 없이 확인 가능, 실제 업로드→S3/iframe 렌더는 개발망(로그인) 확인 권장.
+- **사내망 확인 완료 (2026-07-13)** ✅ — 드래그 앤 드롭 정상.
+
+---
+
+## 후속 수정 (2026-07-13) — AI 사용가이드 카드 배경색 프리셋
+
+AI 사용가이드 게시물 등록/수정 시 **카드 그라데이션 우하단 색을 프리셋에서 선택**하는 기능 추가. 좌상단은 흰색 고정(요구사항), 우하단만 선택. 프리셋은 Penta Design System의 **Success/Warning/Error/Info 8색**(각 500·700):
+
+| Success | Success Dark | Warning | Warning Dark | Error | Error Dark | Info | Info Dark |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `#22C55E` | `#15803D` | `#F59E0B` | `#B45309` | `#EF4444` | `#B91C1C` | `#3B82F6` | `#1D4ED8` |
+
+- **데이터 모델**: `InsightPost.cardColor String?`(nullable) 추가. NULL이면 기본 중립색(`#F7F8FA`)으로 렌더. **최신 동향은 미사용**(guide variant 한정).
+- **마이그레이션**: `prisma/migrations/20260713120000_add_insight_card_color/migration.sql` — 순수 additive(`ADD COLUMN "cardColor" TEXT`). **개발망/운영망에서 `prisma migrate deploy`(전진 전용) 적용 필요**(shadow DB 미사용, P0와 동일 원칙). 로컬은 `prisma generate`까지.
+- **수정 파일**:
+  - `prisma/schema.prisma`(`cardColor` 컬럼) + 신규 마이그레이션
+  - `lib/insights-schemas.ts`(`INSIGHT_CARD_COLOR_PRESETS`/`INSIGHT_CARD_COLOR_VALUES`/`INSIGHT_CARD_DEFAULT_COLOR` + create/update zod 필드 `cardColor` + DTO 필드)
+  - `app/api/insights/posts/route.ts`(POST: cardColor 수신·저장), `.../[id]/route.ts`(PATCH: cardColor 수신·수정, 색상만 변경도 허용)
+  - `components/insights/InsightPostFormDialog.tsx`(guide 한정 스와치 피커: 기본+8프리셋, 그라데이션 미리보기, 선택 체크)
+  - `components/insights/InsightGuideCard.tsx`(하드코딩 `to-[#F7F8FA]` → 인라인 `linear-gradient(to bottom right, #FFFFFF, cardColor||기본)`)
+- **검증**: `prisma generate` OK / `tsc --noEmit` 0 / `next lint`(수정 5파일) 0. 실 저장·카드 렌더는 마이그레이션 적용 후 개발망(로그인) 확인 권장.
 
 ---
 

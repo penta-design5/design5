@@ -375,6 +375,7 @@ model InsightPost {
   htmlFileName String // 원본 파일명
   htmlFileSize Int // bytes
   thumbnailUrl String? // 카드용 썸네일 (선택; 없으면 플레이스홀더)
+  cardColor    String? // AI 사용가이드 카드 그라데이션 우하단 색(HEX). 없으면 기본 중립색. (최신 동향 미사용)
   viewCount    Int     @default(0)
 
   authorId    String

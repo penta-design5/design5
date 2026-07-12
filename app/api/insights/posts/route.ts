@@ -55,6 +55,7 @@ export const POST = withRouteHandler(async (request: NextRequest) => {
     categoryId: formData.get('categoryId'),
     title: formData.get('title'),
     description: formData.get('description') ?? undefined,
+    cardColor: formData.get('cardColor') ?? undefined,
   })
 
   // 카테고리 검증 (INSIGHTS 타입만 허용) + slug 확보(스토리지 키·구독 링크용)
@@ -86,6 +87,7 @@ export const POST = withRouteHandler(async (request: NextRequest) => {
       categoryId: category.id,
       title: fields.title,
       description: fields.description?.trim() || null,
+      cardColor: fields.cardColor || null,
       htmlUrl,
       htmlFileName,
       htmlFileSize,
