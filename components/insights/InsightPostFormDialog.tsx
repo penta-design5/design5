@@ -48,6 +48,7 @@ export function InsightPostFormDialog({
   const [description, setDescription] = useState('')
   const [htmlFile, setHtmlFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const htmlInputRef = useRef<HTMLInputElement>(null)
 
   // 열릴 때 초기값 설정 / 닫힐 때 리셋
@@ -74,6 +75,27 @@ export function InsightPostFormDialog({
     }
     setHtmlFile(file)
   }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!saving) setDragActive(true)
+  }, [saving])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+  }, [])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    if (saving) return
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleHtmlSelect(file)
+  }, [saving, handleHtmlSelect])
 
   const handleSubmit = useCallback(async () => {
     if (!title.trim()) {
@@ -199,12 +221,21 @@ export function InsightPostFormDialog({
               </div>
             ) : (
               <div
-                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 hover:border-muted-foreground/50"
+                className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors ${
+                  dragActive
+                    ? 'border-primary bg-primary/5'
+                    : 'hover:border-muted-foreground/50'
+                }`}
                 onClick={() => htmlInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
               >
                 <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  클릭하여 .html 파일 업로드 (최대 5MB)
+                  {dragActive
+                    ? '여기에 .html 파일을 놓으세요'
+                    : '클릭하거나 .html 파일을 드래그하여 업로드 (최대 5MB)'}
                 </span>
               </div>
             )}

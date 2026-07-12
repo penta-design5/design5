@@ -5,7 +5,7 @@
 
 - 대상: 사이드바 LABs 다음 **INSIGHTS** 섹션 신설 + 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 2개 페이지
 - 핵심 결정: HTML=단일 자기완결형 `.html`(S3 저장·iframe 뷰어) · 전용 모델 `InsightPost` 단일(**태그 없음**) · 두 페이지 구독 대상 · **페이지 내 검색 없음(헤더 통합검색 사용)**
-- 최종 업데이트: 2026-07-09 (P0~P6 완료 ✅ + 사내망 확인, P7만 대기) · 푸시: `origin/2026-06-17-tiper` (최신 `f2488af`)
+- 최종 업데이트: 2026-07-13 (P0~P6 완료 ✅ + 사내망 확인, P7만 대기 · 업로드 드래그 앤 드롭 후속 수정) · 푸시: `origin/2026-06-17-tiper`
 - **다음 세션 시작점: P7 (반응형/권한/QA 최종 점검)** — 아래 "Phase별 상세 > Phase 7" 체크리스트부터 진행. P0~P6 코드+UI는 사내망 검증 완료.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -42,6 +42,20 @@ P4~P6 기능(가이드 카드·게시판·통합검색·구독)이 **사내망�
 | `f2488af` | 상세 헤더 버튼(목록/수정/삭제) 하단 정렬(`items-start`→`items-end`) |
 
 > 참고: 썸네일은 더 이상 카드에 사용하지 않는다. `InsightPost.thumbnailUrl` 및 API의 thumbnail 수신은 하위호환으로 남겨뒀으나(항상 null) 어디에도 표시되지 않음. 다크모드는 프로젝트 미지원 확정이라 카드 그라데이션은 지정된 밝은 색만 사용.
+
+---
+
+## 후속 수정 (2026-07-13) — 업로드 다이얼로그 드래그 앤 드롭
+
+두 INSIGHTS 메뉴(AI 사용가이드·최신 동향)의 게시물 등록/수정 다이얼로그에서 HTML 문서를 **드래그 앤 드롭으로 첨부할 수 없던 문제** 수정.
+
+- **원인**: `InsightPostFormDialog`의 HTML 드롭존이 `onClick`만 처리하고 드래그 이벤트 핸들러가 없어, 파일을 드롭하면 브라우저 기본 동작으로 새 탭에 문서가 열렸다(`preventDefault` 부재). 기존 `IconUploadDialog`는 이미 `onDrop`/`onDragOver`로 차단하고 있었음.
+- **수정** (`components/insights/InsightPostFormDialog.tsx`):
+  - `handleDragOver`/`handleDragLeave`/`handleDrop` 추가 — 모두 `preventDefault()`+`stopPropagation()`으로 브라우저 새 탭 열기 차단
+  - 드롭된 파일은 기존 `handleHtmlSelect`로 전달(.html 확장자·5MB 검증 로직 재사용)
+  - `dragActive` 상태로 드래그 중 시각 피드백(테두리 강조 + "여기에 .html 파일을 놓으세요") + 안내 문구를 "클릭하거나 .html 파일을 드래그하여 업로드"로 갱신. 저장 중(`saving`)에는 드롭 무시
+  - 두 메뉴가 공용 다이얼로그를 쓰므로 한 곳 수정으로 양쪽 해결
+- **검증**: `tsc --noEmit` 0 / `next lint`(해당 파일) 0. 드롭→파일명 표시는 DB 없이 확인 가능, 실제 업로드→S3/iframe 렌더는 개발망(로그인) 확인 권장.
 
 ---
 
