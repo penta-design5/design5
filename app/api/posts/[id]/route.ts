@@ -5,21 +5,14 @@ import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { NotFoundError } from '@/lib/api/errors'
 import { isSubscribableCategory } from '@/lib/categories'
 import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
+import { mediaArraySchema } from '@/lib/media-schemas'
 import { z } from 'zod'
-
-const imageSchema = z.object({
-  url: z.string().url(),
-  thumbnailUrl: z.string().url().optional(),
-  blurDataURL: z.string().optional(),
-  name: z.string(),
-  order: z.number().int().nonnegative(),
-})
 
 const updatePostSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
   subtitle: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  images: z.array(imageSchema).min(1, '최소 1개의 이미지가 필요합니다.').optional(),
+  images: mediaArraySchema.optional(), // 이미지·동영상(mp4)·유튜브 항목 배열
   concept: z.string().optional().nullable(),
   tool: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
@@ -248,10 +241,10 @@ export const PUT = withRouteHandler(async (
         const { deleteFileByUrl } = await import('@/lib/b2')
         
         // 기존 이미지 파싱
-        let existingImages: Array<{ url: string; thumbnailUrl?: string; name: string; order: number }> = []
+        let existingImages: Array<{ type?: string; url: string; thumbnailUrl?: string; name: string; order: number }> = []
         if (existingPost.images) {
           if (Array.isArray(existingPost.images)) {
-            existingImages = existingPost.images as Array<{ url: string; thumbnailUrl?: string; name: string; order: number }>
+            existingImages = existingPost.images as Array<{ type?: string; url: string; thumbnailUrl?: string; name: string; order: number }>
           } else if (typeof existingPost.images === 'string') {
             try {
               existingImages = JSON.parse(existingPost.images)
@@ -271,6 +264,9 @@ export const PUT = withRouteHandler(async (
 
         // 기존 이미지 중 더 이상 사용되지 않는 파일 삭제
         for (const existingImage of existingImages) {
+          // 유튜브 항목은 스토리지 파일이 아니므로 삭제 대상 아님
+          if (existingImage.type === 'youtube') continue
+
           // 새 이미지 목록에 없는 경우 삭제
           if (!newImageUrls.has(existingImage.url)) {
             try {
@@ -430,10 +426,10 @@ export const DELETE = withRouteHandler(async (
       const { deleteFileByUrl } = await import('@/lib/b2')
       
       // images 배열 파싱
-      let images: Array<{ url: string; thumbnailUrl?: string; name: string; order: number }> = []
+      let images: Array<{ type?: string; url: string; thumbnailUrl?: string; name: string; order: number }> = []
       if (post.images) {
         if (Array.isArray(post.images)) {
-          images = post.images as Array<{ url: string; thumbnailUrl?: string; name: string; order: number }>
+          images = post.images as Array<{ type?: string; url: string; thumbnailUrl?: string; name: string; order: number }>
         } else if (typeof post.images === 'string') {
           try {
             images = JSON.parse(post.images)
@@ -445,6 +441,8 @@ export const DELETE = withRouteHandler(async (
 
       // 각 이미지 파일 삭제 (원본 및 썸네일)
       for (const image of images) {
+        // 유튜브 항목은 스토리지 파일이 아니므로 삭제 대상 아님
+        if (image.type === 'youtube') continue
         try {
           // 원본 이미지 삭제
           await deleteFileByUrl(image.url)

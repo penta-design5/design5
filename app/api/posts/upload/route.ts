@@ -19,10 +19,21 @@ export const POST = withRouteHandler(async (request: Request) => {
       throw new BadRequestError('카테고리 정보가 필요합니다.')
     }
 
-    // 파일 크기 검증 (각 파일 10MB)
+    // 파일 형식·크기 검증: 이미지(10MB) 또는 mp4 동영상(100MB)만 허용
+    const IMAGE_MAX_BYTES = 10 * 1024 * 1024 // 10MB
+    const VIDEO_MAX_BYTES = 100 * 1024 * 1024 // 100MB (사내망: 동영상 크기 완화)
     for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        throw new BadRequestError(`파일 크기는 10MB를 초과할 수 없습니다: ${file.name}`)
+      const isImage = file.type.startsWith('image/')
+      const isMp4 = file.type === 'video/mp4'
+      if (!isImage && !isMp4) {
+        throw new BadRequestError(
+          `지원하지 않는 파일 형식입니다: ${file.name} (이미지 또는 mp4 동영상만 업로드할 수 있습니다.)`
+        )
+      }
+      const maxBytes = isMp4 ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES
+      if (file.size > maxBytes) {
+        const limitMb = isMp4 ? 100 : 10
+        throw new BadRequestError(`파일 크기는 ${limitMb}MB를 초과할 수 없습니다: ${file.name}`)
       }
     }
 

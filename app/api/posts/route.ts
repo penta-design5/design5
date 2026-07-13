@@ -8,6 +8,7 @@ import { getInMemoryPostSorter } from '@/lib/post-sorting'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { NotFoundError } from '@/lib/api/errors'
 import { notifyMenuUpdate } from '@/lib/mail/menu-subscription-notification'
+import { mediaArraySchema } from '@/lib/media-schemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,20 +21,12 @@ const querySchema = z.object({
   year: z.string().optional(), // 연도 필터 (예: "2026", "~2022")
 })
 
-const imageSchema = z.object({
-  url: z.string().url(),
-  thumbnailUrl: z.string().url().optional(),
-  blurDataURL: z.string().optional(),
-  name: z.string(),
-  order: z.number().int().nonnegative(),
-})
-
 const createPostSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
   subtitle: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   categoryId: z.string().min(1, '카테고리를 선택해주세요.'),
-  images: z.array(imageSchema).min(1, '최소 1개의 이미지가 필요합니다.'),
+  images: mediaArraySchema, // 이미지·동영상(mp4)·유튜브 항목 배열 (최소 1개)
   thumbnailUrl: z.string().url().optional().nullable(), // 썸네일로 사용할 이미지 URL (미지정 시 첫 번째 이미지)
   concept: z.string().optional().nullable(),
   tool: z.string().optional().nullable(),
