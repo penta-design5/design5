@@ -5,8 +5,8 @@
 
 - 대상: **Penta Design**(갤러리 카테고리 `penta-design`) 게시물에 **동영상(mp4)** + **유튜브 링크** 첨부 지원. 상세 페이지에서 다이얼로그로 재생.
 - 핵심 결정: `Post.images`(JSON) 요소에 `type`(image/video/youtube) 추가(**마이그레이션 불필요**) · 동영상 공개 URL 직접 재생 · 동영상 100MB · 썸네일 1초 프레임 캡처(클라이언트) · 유튜브 썸네일 직접 참조(고→저해상도→자체 카드 폴백) · 대표 썸네일은 전 미디어 지정 가능
-- 최종 업데이트: 2026-07-14 (**P0~P3 완료 ✅** · P3는 로컬 검증까지, 커밋/푸시·실업로드는 대기)
-- **다음 세션 시작점: P4 착수** (상세 렌더링 + 재생 다이얼로그) — 아래 진행 현황 참조. P0~P3(공용 유틸·업로드 API·검증 스키마·업로드 폼)는 코드 반영 완료, 실제 업로드/재생은 개발망 검증 대기
+- 최종 업데이트: 2026-07-14 (**P0~P4 완료 ✅** · P3 개발망 업로드/썸네일 정상 확인, P4는 상세페이지 placeholder 버그 수정으로 착수)
+- **다음 세션 시작점: P5 착수** (카드 ▶ 배지) — 아래 진행 현황 참조. P4(상세 렌더링 타입 분기 + 재생 다이얼로그) 코드 반영·푸시 완료, 재생/시킹/폴백은 개발망 재검증 대기
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -20,7 +20,7 @@
 | P1 | 업로드 API 확장 (`app/api/posts/upload/route.ts`): video 100MB 분기 + mp4 MIME 화이트리스트 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0. 라우트 단독 호출자=갤러리 폼(확인). 실 업로드는 개발망 |
 | P2 | 검증 스키마 확장(POST/PUT `imageSchema`에 `type`·`videoId`) + 삭제 루프 유튜브 skip 분기 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 신규경고 0(기존 `any` 경고만) |
 | P3 | 업로드 폼(`PostUploadDialog.tsx`): accept 확장·크기분기·유튜브 입력 UI·미리보기/대표선택/순서이동 **통합 목록** | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (33a2383) | tsc 0 / lint 신규경고 0(기존 `any` 2건만) / youtube 21건 통과. 실 업로드/캡처는 개발망 |
-| P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ⬜ 대기 | - | - |
+| P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 신규경고 0(기존 `any` 1건만). 개발망서 상세 placeholder 재발 확인 후 재검증 |
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 ▶ 배지 오버레이 | ⬜ 대기 | - | - |
 | P6 | 통합 QA + 사내망 검증 (스펙 검증 8항목) | ⬜ 대기 | - | - |
 
@@ -61,11 +61,14 @@
 - [x] open 세션당 1회 초기화 가드(`initializedRef`)로 편집 중 `post` 참조 변경에 의한 목록 덮어쓰기 방지
 - 검증: tsc 0 / lint 신규경고 0(기존 `any` 2건: Post.images·catch만 유지) / `youtube.test.ts` 21건 통과. 실제 업로드·프레임 캡처·100MB·재생은 개발망(로그인+DB+S3/MinIO)에서 확인 필요
 
-### P4 — 상세 렌더링 + 재생 다이얼로그
-- [ ] `ImageGallery.tsx` 타입 분기(image 기존 / video·youtube 썸네일+▶)
-- [ ] `MediaPlayerDialog.tsx` 신규: video=`<video controls autoPlay>`, youtube=`<iframe embed?autoplay=1>`, 16:9
-- [ ] 유튜브 썸네일 onError 폴백(maxres→hq→자체 카드)
-- 검증: 개발망에서 재생/시킹/폴백
+### P4 — 상세 렌더링 + 재생 다이얼로그 ✅
+> 계기: 개발망 검증 중 상세페이지에서 동영상/유튜브가 **placeholder만** 표시됨. 원인=`ImageGallery`가 항목을 전부 `image.url`로 이미지 렌더 → 동영상(mp4)·유튜브(watch URL)는 이미지 로드 실패. 타입 분기로 해결.
+- [x] `ImageGallery.tsx` 타입 분기: `mediaType = image.type ?? 'image'`. image=기존 렌더 유지, video·youtube=16:9 썸네일 + 중앙 ▶ 오버레이 버튼 → 클릭 시 재생 다이얼로그
+- [x] 크기 프로빙 useEffect를 image 타입에만 실행(동영상/유튜브 `url`을 `new Image()`로 로드하던 헛요청 제거)
+- [x] `MediaPlayerDialog.tsx` 신규: `max-w-4xl`·16:9. video=`<video src controls autoPlay playsInline>`(공개 URL 직접, 브라우저 Range), youtube=`<iframe embed?autoplay=1 allow="autoplay;fullscreen…">`. a11y용 `DialogTitle sr-only`
+- [x] `MediaThumbnail` 서브컴포넌트: video=캡처 프레임(`thumbnailUrl`, 없으면 회색), youtube=maxresdefault→hqdefault→자체 유튜브풍 카드(빨간 아이콘+제목) onError 폴백. `videoId` 없으면 `extractYouTubeId(url)`로 보완
+- [x] `postId` 변경 시 재생 다이얼로그 닫기. 편집 중 좌측 미리보기(P3 `previewImages`)도 동일 경로로 렌더됨
+- 검증: tsc 0 / lint 신규경고 0(기존 `images as any` 1건 유지). **개발망에서 재검증 필요**: 상세 placeholder 해소·동영상 재생/시킹·유튜브 임베드 재생·사내망 썸네일 폴백(자체 카드)
 
 ### P5 — 카드 배지
 - [ ] 동영상/유튜브 대표 게시물 카드에 ▶ 배지

@@ -3,14 +3,23 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { Play, Youtube } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CursorFollowHint } from '@/components/category-pages/GalleryCategory/CursorFollowHint'
+import {
+  MediaPlayerDialog,
+  type PlayableMedia,
+} from '@/components/category-pages/GalleryCategory/MediaPlayerDialog'
 import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
+import { extractYouTubeId, youTubeThumbnailUrl } from '@/lib/youtube'
+import type { MediaType } from '@/lib/media-schemas'
 
 interface PostImage {
+  type?: MediaType
   url: string
   thumbnailUrl?: string
   blurDataURL?: string
+  videoId?: string
   name: string
   order: number
 }
@@ -29,6 +38,7 @@ const NO_ZOOM_HINT =
 
 export function ImageGallery({ images, postId, onImageZoomChange }: ImageGalleryProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  const [playerMedia, setPlayerMedia] = useState<PlayableMedia | null>(null)
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
   const [imageDimensions, setImageDimensions] = useState<Map<number, { width: number; height: number }>>(
     new Map()
@@ -61,6 +71,8 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
     }
 
     sortedImages.forEach((image, index) => {
+      // 동영상/유튜브는 크기 프로빙 불필요(고정 16:9). image.url을 이미지로 로드하면 실패함
+      if ((image.type ?? 'image') !== 'image') return
       const img = new window.Image()
       img.onload = () => {
         setImageDimensions((prev) => {
@@ -83,6 +95,7 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
 
   useEffect(() => {
     setExpandedIndex(null)
+    setPlayerMedia(null)
   }, [postId])
 
   useEffect(() => {
@@ -106,6 +119,40 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
   return (
     <div className="flex w-full flex-col items-center space-y-4 pt-20 pr-6 pb-6 pl-6 md:pt-6">
       {sortedImages.map((image, index) => {
+        const mediaType: MediaType = image.type ?? 'image'
+
+        // 동영상/유튜브: 썸네일 + ▶ 오버레이. 클릭 시 재생 다이얼로그
+        if (mediaType === 'video' || mediaType === 'youtube') {
+          return (
+            <div key={index} className="relative flex w-full justify-center overflow-visible">
+              <button
+                type="button"
+                aria-label={`${mediaType === 'youtube' ? '유튜브' : '동영상'} 재생: ${image.name || ''}`}
+                className="group relative block overflow-hidden rounded-lg bg-muted"
+                style={{ width: COLLAPSED_WIDTH, maxWidth: '100%' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPlayerMedia({
+                    type: mediaType,
+                    url: image.url,
+                    videoId: image.videoId ?? extractYouTubeId(image.url) ?? undefined,
+                    name: image.name,
+                  })
+                }}
+              >
+                <div className="relative w-full" style={{ aspectRatio: '16 / 9' }}>
+                  <MediaThumbnail image={image} type={mediaType} />
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/55 transition-transform duration-200 group-hover:scale-110">
+                      <Play className="h-7 w-7 fill-white text-white" />
+                    </span>
+                  </span>
+                </div>
+              </button>
+            </div>
+          )
+        }
+
         const isExpanded = expandedIndex === index
         const isLoaded = loadedImages.has(index)
         const blurDataURL = image.blurDataURL
@@ -248,6 +295,64 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
           </div>
         )
       })}
+
+      <MediaPlayerDialog media={playerMedia} onClose={() => setPlayerMedia(null)} />
     </div>
+  )
+}
+
+/**
+ * 동영상/유튜브 썸네일.
+ * - video: 캡처 프레임(thumbnailUrl). 없으면 회색 배경.
+ * - youtube: maxresdefault → hqdefault → 자체 유튜브풍 카드 순으로 폴백(사내망 썸네일 차단 대응).
+ */
+function MediaThumbnail({ image, type }: { image: PostImage; type: MediaType }) {
+  // youtube: 0=maxres, 1=hq, 2=자체 카드
+  const [ytStage, setYtStage] = useState(0)
+
+  if (type === 'youtube') {
+    const videoId = image.videoId ?? extractYouTubeId(image.url) ?? undefined
+
+    if (ytStage >= 2 || !videoId) {
+      return (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-neutral-900 text-white">
+          <Youtube className="h-12 w-12 text-red-600" />
+          <span className="line-clamp-2 px-4 text-center text-sm text-white/80">
+            {image.name || 'YouTube 동영상'}
+          </span>
+        </div>
+      )
+    }
+
+    const src =
+      ytStage === 0
+        ? image.thumbnailUrl ?? youTubeThumbnailUrl(videoId, 'maxresdefault')
+        : youTubeThumbnailUrl(videoId, 'hqdefault')
+
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={image.name || 'YouTube 동영상'}
+        className="absolute inset-0 h-full w-full object-cover"
+        onError={() => setYtStage((s) => s + 1)}
+      />
+    )
+  }
+
+  // video
+  if (!image.thumbnailUrl) {
+    return <div className="absolute inset-0 bg-neutral-800" />
+  }
+  const src = getB2ImageSrc(image.thumbnailUrl)
+  return (
+    <Image
+      src={src}
+      alt={image.name || '동영상'}
+      fill
+      unoptimized={isB2WorkerUrl(src)}
+      className="object-cover"
+      sizes="600px"
+    />
   )
 }
