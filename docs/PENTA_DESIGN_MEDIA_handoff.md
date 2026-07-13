@@ -5,8 +5,8 @@
 
 - 대상: **Penta Design**(갤러리 카테고리 `penta-design`) 게시물에 **동영상(mp4)** + **유튜브 링크** 첨부 지원. 상세 페이지에서 다이얼로그로 재생.
 - 핵심 결정: `Post.images`(JSON) 요소에 `type`(image/video/youtube) 추가(**마이그레이션 불필요**) · 동영상 공개 URL 직접 재생 · 동영상 100MB · 썸네일 1초 프레임 캡처(클라이언트) · 유튜브 썸네일 직접 참조(고→저해상도→자체 카드 폴백) · 대표 썸네일은 전 미디어 지정 가능
-- 최종 업데이트: 2026-07-13 (**P0~P2 완료 ✅ · 커밋/푸시 완료** · `origin/2026-06-17-tiper`)
-- **다음 세션 시작점: P3 착수** (업로드 폼 통합) — 아래 진행 현황 참조. P0~P2(공용 유틸·업로드 API·검증 스키마)는 코드 반영·푸시 완료, 실제 업로드/재생은 개발망 검증 대기
+- 최종 업데이트: 2026-07-14 (**P0~P3 완료 ✅** · P3는 로컬 검증까지, 커밋/푸시·실업로드는 대기)
+- **다음 세션 시작점: P4 착수** (상세 렌더링 + 재생 다이얼로그) — 아래 진행 현황 참조. P0~P3(공용 유틸·업로드 API·검증 스키마·업로드 폼)는 코드 반영 완료, 실제 업로드/재생은 개발망 검증 대기
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -19,7 +19,7 @@
 | P0 | 공용 유틸: `lib/youtube.ts`(URL 파싱) + `lib/video-thumbnail.ts`(1초 프레임 캡처) + `lib/media-schemas.ts`(공통 스키마) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0(신규 3파일) / `youtube.test.ts` 21건 통과 |
 | P1 | 업로드 API 확장 (`app/api/posts/upload/route.ts`): video 100MB 분기 + mp4 MIME 화이트리스트 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0. 라우트 단독 호출자=갤러리 폼(확인). 실 업로드는 개발망 |
 | P2 | 검증 스키마 확장(POST/PUT `imageSchema`에 `type`·`videoId`) + 삭제 루프 유튜브 skip 분기 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 신규경고 0(기존 `any` 경고만) |
-| P3 | 업로드 폼(`PostUploadDialog.tsx`): accept 확장·크기분기·유튜브 입력 UI·미리보기/대표선택/순서이동 **통합 목록** | ⬜ 대기 | - | - |
+| P3 | 업로드 폼(`PostUploadDialog.tsx`): accept 확장·크기분기·유튜브 입력 UI·미리보기/대표선택/순서이동 **통합 목록** | ✅ 완료 | `refactor/phase2-api-layer` (미커밋) | tsc 0 / lint 신규경고 0(기존 `any` 2건만) / youtube 21건 통과. 실 업로드/캡처는 개발망 |
 | P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ⬜ 대기 | - | - |
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 ▶ 배지 오버레이 | ⬜ 대기 | - | - |
 | P6 | 통합 QA + 사내망 검증 (스펙 검증 8항목) | ⬜ 대기 | - | - |
@@ -49,13 +49,17 @@
 - [x] 동영상 항목은 스토리지 파일이므로 기존 `deleteFileByUrl` 경로로 정상 삭제(원본 mp4 + 캡처 썸네일)
 - 검증: tsc 0 / lint 신규 경고 0 (기존 `error: any`·`img: any` 경고 10건은 무관, 유지)
 
-### P3 — 업로드 폼 UI 통합
-- [ ] `accept="image/*,video/mp4"`
-- [ ] 크기 검증 분기(이미지 4.5MB / mp4 100MB)
-- [ ] 유튜브 링크 입력 UI(URL+추가, 여러 개 누적, 개별 삭제/순서)
-- [ ] 미리보기·대표선택·순서이동을 "종류 무관 미디어 항목" 통합 목록으로 일반화 (동영상=캡처 프레임 미리보기, 항목별 타입 배지)
-- [ ] onSubmit: 동영상=프레임 캡처→mp4+썸네일 각각 업로드, 유튜브=업로드 없이 메타 구성, 대표 `thumbnailUrl ?? url`
-- 검증: tsc/lint (실 업로드는 개발망)
+### P3 — 업로드 폼 UI 통합 ✅
+- [x] `accept="image/*,video/mp4"` — 파일 선택 시 image/*·video/mp4 외 형식은 토스트로 거부(선택 단계)
+- [x] 크기 검증 분기(이미지 4.5MB / mp4 100MB) — 제출 시 `source==='file'` 항목만 타입별 한도 검사
+- [x] 유튜브 링크 입력 UI: URL 입력 + "유튜브 추가"(Enter 지원). `parseYouTubeUrl` 검증·중복 videoId 차단, 통합 목록에 누적/개별 삭제/순서 이동
+- [x] **통합 미디어 목록으로 일반화**: 기존 `existingImages`+`selectedFiles` 2종 상태를 단일 `mediaItems: DraftMedia[]`로 통합(`source`=existing/file/youtube, `type`=image/video/youtube). 순서이동(`moveItem`)·삭제(`handleRemoveItem`)·대표선택(`selectedThumbnailIndex`)을 항목 무관 공통 처리. 항목별 타입 배지(이미지/동영상/YouTube) + 동영상·유튜브 ▶ 오버레이. 대표는 카드 클릭으로 지정(전 항목 대상)
+- [x] 동영상 미리보기: 파일 선택 즉시 `captureVideoFrame`로 1초 프레임을 캡처해 objectURL 미리보기 + Blob 보관(제출 시 재사용). 캡처 완료 전엔 필름 아이콘 플레이스홀더
+- [x] onSubmit: 동영상=(a)mp4 원본 업로드→`url` (b)캡처 프레임 이미지 업로드→`thumbnailUrl`/`blurDataURL` / 이미지=기존 단건 업로드 / 유튜브=업로드 없이 `{type,url:watchUrl,videoId,thumbnailUrl}` 구성. `order` 재부여, 대표 `thumbnailUrl = cover.thumbnailUrl ?? cover.url`
+- [x] blob objectURL 생명주기: 삭제·닫기·언마운트·제출성공 시 해제, 캡처 완료 전 제거된 항목 누수 방지
+- [x] 좌측 갤러리 미리보기 콜백(`PreviewImageItem`)에 `type`·`thumbnailUrl`·`videoId` 추가(P4 `ImageGallery` 타입 분기 대비). 파일 항목은 objectURL을 url/thumbnailUrl로 전달
+- [x] open 세션당 1회 초기화 가드(`initializedRef`)로 편집 중 `post` 참조 변경에 의한 목록 덮어쓰기 방지
+- 검증: tsc 0 / lint 신규경고 0(기존 `any` 2건: Post.images·catch만 유지) / `youtube.test.ts` 21건 통과. 실제 업로드·프레임 캡처·100MB·재생은 개발망(로그인+DB+S3/MinIO)에서 확인 필요
 
 ### P4 — 상세 렌더링 + 재생 다이얼로그
 - [ ] `ImageGallery.tsx` 타입 분기(image 기존 / video·youtube 썸네일+▶)

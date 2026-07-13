@@ -24,11 +24,23 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, X, File, ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
+import {
+  Loader2,
+  X,
+  ChevronUp,
+  ChevronDown,
+  Play,
+  Youtube,
+  ImageIcon,
+  Film,
+  Plus,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import Image from 'next/image'
-import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
+import { getB2ImageSrc } from '@/lib/b2-client-url'
 import { cn } from '@/lib/utils'
+import { parseYouTubeUrl } from '@/lib/youtube'
+import { captureVideoFrame } from '@/lib/video-thumbnail'
+import type { MediaType } from '@/lib/media-schemas'
 
 const postSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
@@ -43,10 +55,13 @@ const postSchema = z.object({
 
 type PostFormValues = z.infer<typeof postSchema>
 
+/** 저장/전송되는 미디어 항목 (Post.images 요소) */
 interface PostImage {
+  type?: MediaType
   url: string
   thumbnailUrl?: string
   blurDataURL?: string
+  videoId?: string
   name: string
   order: number
 }
@@ -63,10 +78,39 @@ interface Post {
   producedAt?: Date | string | null
 }
 
+/** 좌측 갤러리 미리보기(편집 중)로 전달하는 항목. P4 ImageGallery가 type별로 렌더 */
 export interface PreviewImageItem {
+  type?: MediaType
   url: string
+  thumbnailUrl?: string
+  videoId?: string
   name: string
   order: number
+}
+
+/**
+ * 다이얼로그 내부의 통합 미디어 드래프트 항목.
+ * - existing: 이미 업로드된 기존 항목(수정 모드)
+ * - file: 새로 선택한 파일(image 또는 video/mp4)
+ * - youtube: 유튜브 링크
+ */
+interface DraftMedia {
+  key: string
+  source: 'existing' | 'file' | 'youtube'
+  type: MediaType
+  name: string
+  /** 목록/대표선택 미리보기에 쓰는 이미지 src (blob: 또는 원격 URL) */
+  previewUrl: string
+  // source === 'existing'
+  existing?: PostImage
+  // source === 'file'
+  file?: File
+  /** 동영상 파일에서 캡처한 썸네일 프레임(제출 시 재사용) */
+  thumbnailBlob?: Blob
+  // source === 'youtube'
+  youtubeUrl?: string
+  youtubeThumbnailUrl?: string
+  videoId?: string
 }
 
 interface PostUploadDialogProps {
@@ -81,6 +125,42 @@ interface PostUploadDialogProps {
   onPreviewOrderChange?: (images: PreviewImageItem[]) => void
 }
 
+const MAX_IMAGE_SIZE_BYTES = 4.5 * 1024 * 1024 // 이미지 4.5MB (Vercel 요청 제한 고려)
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024 // 동영상 100MB (사내망 완화)
+
+/** Post.images(JSON/배열/문자열)을 PostImage[]로 정규화 */
+function parsePostImages(raw: unknown): PostImage[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as PostImage[]
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+/** 기존(저장된) 미디어 항목 → 드래프트 */
+function toDraftFromExisting(image: PostImage, index: number): DraftMedia {
+  const type: MediaType = image.type ?? 'image'
+  const previewUrl =
+    type === 'youtube'
+      ? image.thumbnailUrl ?? ''
+      : getB2ImageSrc(image.thumbnailUrl ?? image.url)
+  return {
+    key: `existing-${index}-${image.url}`,
+    source: 'existing',
+    type,
+    name: image.name,
+    previewUrl,
+    existing: image,
+    videoId: image.videoId,
+  }
+}
+
 export function PostUploadDialog({
   open,
   onClose,
@@ -92,18 +172,21 @@ export function PostUploadDialog({
   onPreviewOrderChange,
 }: PostUploadDialogProps) {
   const isEditMode = !!postId && !!post
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [existingImages, setExistingImages] = useState<PostImage[]>([])
-  const [originalImages, setOriginalImages] = useState<PostImage[]>([]) // 원본 이미지 보관
-  /** 썸네일로 사용할 이미지 인덱스 (0 = 첫 번째). 이미지 1개일 때는 0 고정, 2개 이상일 때 선택 가능 */
+  /** 이미지·동영상·유튜브를 아우르는 통합 미디어 목록 */
+  const [mediaItems, setMediaItems] = useState<DraftMedia[]>([])
+  /** 대표(커버) 썸네일로 사용할 항목 인덱스 */
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState(0)
-  /** 선택한 파일의 미리보기 URL (썸네일 선택 UI용, URL.createObjectURL) */
-  const [filePreviewUrls, setFilePreviewUrls] = useState<string[]>([])
+  /** 유튜브 URL 입력값 */
+  const [youtubeInput, setYoutubeInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const isSubmittingRef = useRef(false) // 중복 제출 방지
+  const initializedRef = useRef(false) // open 세션당 1회 초기화 가드
+  const keyCounterRef = useRef(0)
   const onPreviewOrderChangeRef = useRef(onPreviewOrderChange)
   onPreviewOrderChangeRef.current = onPreviewOrderChange
+
+  const nextKey = () => `draft-${keyCounterRef.current++}`
 
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postSchema),
@@ -117,228 +200,255 @@ export function PostUploadDialog({
     },
   })
 
-  // 다이얼로그가 열릴 때 플래그 리셋
+  /** blob: URL만 해제 (원격 URL은 무시) */
+  const revokePreview = (url?: string) => {
+    if (url && url.startsWith('blob:')) URL.revokeObjectURL(url)
+  }
+
+  // 다이얼로그 open 세션당 1회 초기화 (post 참조가 바뀌어도 편집 중 목록을 덮어쓰지 않음)
   useEffect(() => {
-    if (open) {
+    if (open && !initializedRef.current) {
+      initializedRef.current = true
       isSubmittingRef.current = false
-    }
-  }, [open])
+      setYoutubeInput('')
 
-  // 수정 모드일 때 기존 데이터로 폼 초기화
-  useEffect(() => {
-    if (isEditMode && post) {
-      // images 배열 추출
-      let images: PostImage[] = []
-      if (post.images) {
-        if (Array.isArray(post.images)) {
-          images = post.images as PostImage[]
-        } else if (typeof post.images === 'string') {
-          try {
-            images = JSON.parse(post.images)
-          } catch {
-            images = []
-          }
+      if (isEditMode && post) {
+        const images = parsePostImages(post.images)
+        setMediaItems(images.map(toDraftFromExisting))
+
+        const thumbUrl = post.thumbnailUrl
+        if (thumbUrl && images.length > 0) {
+          const idx = images.findIndex(
+            (img) => img.url === thumbUrl || img.thumbnailUrl === thumbUrl
+          )
+          setSelectedThumbnailIndex(idx >= 0 ? idx : 0)
         } else {
-          images = Array.isArray(post.images) ? post.images : []
+          setSelectedThumbnailIndex(0)
         }
-      }
-      setExistingImages(images)
-      setOriginalImages(images) // 원본 이미지도 저장
 
-      // 수정 모드: 기존 게시물의 thumbnailUrl에 해당하는 이미지 인덱스를 썸네일 기본값으로
-      const thumbUrl = post.thumbnailUrl
-      if (thumbUrl && images.length > 0) {
-        const idx = images.findIndex((img) => img.url === thumbUrl || img.thumbnailUrl === thumbUrl)
-        setSelectedThumbnailIndex(idx >= 0 ? idx : 0)
+        const tagsString = post.tags
+          ? post.tags.map(({ tag }) => tag.name).join(', ')
+          : ''
+        const producedAtDate = post.producedAt ? new Date(post.producedAt) : undefined
+
+        form.reset({
+          title: post.title || '',
+          subtitle: post.subtitle || '',
+          concept: post.concept || '',
+          tool: post.tool || '',
+          tags: tagsString,
+          producedAt: producedAtDate,
+        })
       } else {
+        setMediaItems([])
         setSelectedThumbnailIndex(0)
+        form.reset({
+          title: '',
+          subtitle: '',
+          concept: '',
+          tool: '',
+          tags: '',
+          producedAt: undefined,
+        })
       }
+    }
+    if (!open) {
+      initializedRef.current = false
+    }
+  }, [open, isEditMode, post, form])
 
-      // 태그를 쉼표로 구분된 문자열로 변환
-      const tagsString = post.tags
-        ? post.tags.map(({ tag }) => tag.name).join(', ')
-        : ''
-
-      // producedAt을 Date 객체로 변환
-      const producedAtDate = post.producedAt
-        ? new Date(post.producedAt)
-        : undefined
-
-      form.reset({
-        title: post.title || '',
-        subtitle: post.subtitle || '',
-        concept: post.concept || '',
-        tool: post.tool || '',
-        tags: tagsString,
-        producedAt: producedAtDate,
-      })
-    } else {
-      form.reset({
-        title: '',
-        subtitle: '',
-        concept: '',
-        tool: '',
-        tags: '',
-        producedAt: undefined,
-      })
-      setExistingImages([])
-      setSelectedFiles([])
+  // 대표 인덱스가 목록 범위를 벗어나면 0으로 보정
+  useEffect(() => {
+    if (mediaItems.length > 0 && selectedThumbnailIndex >= mediaItems.length) {
       setSelectedThumbnailIndex(0)
     }
-  }, [isEditMode, post, form])
+  }, [mediaItems.length, selectedThumbnailIndex])
 
-  const totalImageCount = (isEditMode ? existingImages.length : 0) + selectedFiles.length
-  useEffect(() => {
-    if (totalImageCount > 0 && selectedThumbnailIndex >= totalImageCount) {
-      setSelectedThumbnailIndex(0)
-    }
-  }, [totalImageCount, selectedThumbnailIndex])
-
-  // 선택한 파일에 대한 미리보기 URL 생성/해제 (썸네일 선택 영역 표시용)
-  useEffect(() => {
-    if (selectedFiles.length === 0) {
-      setFilePreviewUrls([])
-      return
-    }
-    const urls = selectedFiles.map((file) => URL.createObjectURL(file))
-    setFilePreviewUrls(urls)
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url))
-    }
-  }, [selectedFiles])
-
-  // 편집 화면 좌측 갤러리 미리보기: 다이얼로그에서 순서 변경 시 현재 순서로 부모에 전달 (ref 사용으로 무한 루프 방지)
+  // 편집 화면 좌측 갤러리 미리보기: 현재 목록/순서를 부모로 전달 (ref로 무한 루프 방지)
   useEffect(() => {
     if (!open || !onPreviewOrderChangeRef.current) return
-    const list: PreviewImageItem[] = [
-      ...existingImages.map((img, i) => ({ url: img.url, name: img.name, order: i })),
-      ...selectedFiles.map((file, i) => ({
-        url: filePreviewUrls[i] ?? '',
-        name: file.name,
-        order: existingImages.length + i,
-      })),
-    ]
+    const list: PreviewImageItem[] = mediaItems.map((item, i) => ({
+      type: item.type,
+      url:
+        item.source === 'existing'
+          ? item.existing!.url
+          : item.source === 'youtube'
+          ? item.youtubeUrl!
+          : item.previewUrl,
+      thumbnailUrl:
+        item.source === 'existing'
+          ? item.existing!.thumbnailUrl
+          : item.source === 'youtube'
+          ? item.youtubeThumbnailUrl
+          : item.previewUrl,
+      videoId: item.videoId,
+      name: item.name,
+      order: i,
+    }))
     onPreviewOrderChangeRef.current(list)
-  }, [open, existingImages, selectedFiles, filePreviewUrls])
+  }, [open, mediaItems])
+
+  // 언마운트 시 남은 blob URL 정리
+  useEffect(() => {
+    return () => {
+      mediaItems.forEach((item) => revokePreview(item.previewUrl))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      // 기존 선택을 덮어쓰지 않고 뒤에 누적: 다른 폴더에서 여러 번 선택해도 모두 유지됨
-      const picked = Array.from(e.target.files)
-      setSelectedFiles((prev) => [...prev, ...picked])
+    const picked = e.target.files ? Array.from(e.target.files) : []
+    e.target.value = '' // 같은 파일 재선택 시에도 onChange가 발생하도록 초기화
+    if (picked.length === 0) return
+
+    const accepted: DraftMedia[] = []
+    for (const file of picked) {
+      const isImage = file.type.startsWith('image/')
+      const isMp4 = file.type === 'video/mp4'
+      if (!isImage && !isMp4) {
+        toast.error(
+          `지원하지 않는 파일 형식입니다: ${file.name} (이미지 또는 mp4 동영상만 첨부할 수 있습니다.)`
+        )
+        continue
+      }
+      accepted.push({
+        key: nextKey(),
+        source: 'file',
+        type: isMp4 ? 'video' : 'image',
+        name: file.name,
+        // 이미지는 즉시 objectURL, 동영상은 캡처 완료 전까지 빈 값(플레이스홀더 표시)
+        previewUrl: isImage ? URL.createObjectURL(file) : '',
+        file,
+      })
     }
-    // 같은 파일/폴더를 다시 선택해도 onChange가 발생하도록 input 값 초기화
-    e.target.value = ''
+
+    if (accepted.length === 0) return
+    setMediaItems((prev) => [...prev, ...accepted])
+
+    // 동영상 파일은 1초 프레임을 캡처해 미리보기/썸네일로 사용 (캡처 Blob은 제출 시 재사용)
+    accepted
+      .filter((item) => item.type === 'video')
+      .forEach((item) => {
+        captureVideoFrame(item.file!)
+          .then((blob) => {
+            const previewUrl = URL.createObjectURL(blob)
+            setMediaItems((prev) => {
+              if (!prev.some((p) => p.key === item.key)) {
+                // 캡처 완료 전에 제거된 경우 누수 방지
+                URL.revokeObjectURL(previewUrl)
+                return prev
+              }
+              return prev.map((p) =>
+                p.key === item.key ? { ...p, thumbnailBlob: blob, previewUrl } : p
+              )
+            })
+          })
+          .catch(() => {
+            // 캡처 실패: 미리보기는 플레이스홀더 유지, 제출 시 썸네일 없이 저장
+          })
+      })
   }
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+  const handleAddYoutube = () => {
+    const parsed = parseYouTubeUrl(youtubeInput)
+    if (!parsed) {
+      toast.error('유효한 유튜브 링크가 아닙니다. URL을 다시 확인해주세요.')
+      return
+    }
+    if (
+      mediaItems.some(
+        (item) => item.type === 'youtube' && item.videoId === parsed.videoId
+      )
+    ) {
+      toast.error('이미 추가된 유튜브 동영상입니다.')
+      return
+    }
+    setMediaItems((prev) => [
+      ...prev,
+      {
+        key: nextKey(),
+        source: 'youtube',
+        type: 'youtube',
+        name: `유튜브 동영상 ${parsed.videoId}`,
+        previewUrl: parsed.thumbnailUrl,
+        youtubeUrl: parsed.watchUrl,
+        youtubeThumbnailUrl: parsed.thumbnailUrl,
+        videoId: parsed.videoId,
+      },
+    ])
+    setYoutubeInput('')
   }
 
-  const handleRemoveExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const moveExistingImageUp = (index: number) => {
-    if (index <= 0) return
-    setExistingImages((prev) => {
-      const next = [...prev]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-      return next
+  const handleRemoveItem = (index: number) => {
+    setMediaItems((prev) => {
+      const target = prev[index]
+      if (target) revokePreview(target.previewUrl)
+      return prev.filter((_, i) => i !== index)
     })
     setSelectedThumbnailIndex((prev) => {
-      if (prev === index) return index - 1
-      if (prev === index - 1) return index
+      if (index === prev) return 0
+      if (index < prev) return prev - 1
       return prev
     })
   }
 
-  const moveExistingImageDown = (index: number) => {
-    if (index >= existingImages.length - 1) return
-    setExistingImages((prev) => {
+  const moveItem = (index: number, dir: -1 | 1) => {
+    const target = index + dir
+    if (target < 0 || target >= mediaItems.length) return
+    setMediaItems((prev) => {
       const next = [...prev]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+      ;[next[index], next[target]] = [next[target], next[index]]
       return next
     })
     setSelectedThumbnailIndex((prev) => {
-      if (prev === index) return index + 1
-      if (prev === index + 1) return index
-      return prev
-    })
-  }
-
-  const moveSelectedFileUp = (index: number) => {
-    if (index <= 0) return
-    setSelectedFiles((prev) => {
-      const next = [...prev]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-      return next
-    })
-    setFilePreviewUrls((prev) => {
-      if (prev.length <= index) return prev
-      const next = [...prev]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-      return next
-    })
-    const base = existingImages.length
-    setSelectedThumbnailIndex((prev) => {
-      if (prev === base + index) return base + index - 1
-      if (prev === base + index - 1) return base + index
-      return prev
-    })
-  }
-
-  const moveSelectedFileDown = (index: number) => {
-    if (index >= selectedFiles.length - 1) return
-    setSelectedFiles((prev) => {
-      const next = [...prev]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
-      return next
-    })
-    setFilePreviewUrls((prev) => {
-      if (prev.length <= index + 1) return prev
-      const next = [...prev]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
-      return next
-    })
-    const base = existingImages.length
-    setSelectedThumbnailIndex((prev) => {
-      if (prev === base + index) return base + index + 1
-      if (prev === base + index + 1) return base + index
+      if (prev === index) return target
+      if (prev === target) return index
       return prev
     })
   }
 
   const onSubmit = async (values: PostFormValues) => {
-    // 중복 제출 방지
     if (isSubmittingRef.current) {
       console.warn('이미 제출 중입니다.')
       return
     }
 
-    // 수정 모드가 아니고 새 파일이 없으면 에러
-    if (!isEditMode && selectedFiles.length === 0) {
-      toast.error('최소 1개의 이미지를 선택해주세요.')
+    if (mediaItems.length === 0) {
+      toast.error('최소 1개의 미디어(이미지/동영상/유튜브)가 필요합니다.')
       return
     }
 
-    // 수정 모드인데 기존 이미지도 없고 새 파일도 없으면 에러
-    if (isEditMode && existingImages.length === 0 && selectedFiles.length === 0) {
-      toast.error('최소 1개의 이미지가 필요합니다.')
+    // 새 파일 크기 검증: 이미지 4.5MB / 동영상 100MB
+    const oversized = mediaItems
+      .filter((item) => item.source === 'file')
+      .filter((item) =>
+        item.type === 'video'
+          ? item.file!.size > MAX_VIDEO_SIZE_BYTES
+          : item.file!.size > MAX_IMAGE_SIZE_BYTES
+      )
+    if (oversized.length > 0) {
+      const names = oversized.map((item) => item.name).join(', ')
+      toast.error(
+        `파일 크기 제한을 초과했습니다(이미지 4.5MB · 동영상 100MB): ${names}`
+      )
       return
     }
 
-    // 첨부 이미지 한 개당 4.5MB 초과 여부 검사 (업로드 전 중단 및 안내)
-    const MAX_IMAGE_SIZE_BYTES = 4.5 * 1024 * 1024
-    if (selectedFiles.length > 0) {
-      const overSized = selectedFiles.filter((f) => f.size > MAX_IMAGE_SIZE_BYTES)
-      if (overSized.length > 0) {
-        const names = overSized.map((f) => f.name).join(', ')
-        toast.error(
-          `이미지 파일은 한 개당 4.5MB를 초과할 수 없습니다. 초과된 파일: ${names}`
-        )
-        return
+    // 파일/Blob 1건 업로드 → 저장용 항목 반환
+    const uploadBinary = async (payload: File | Blob, filename: string): Promise<PostImage> => {
+      const formData = new FormData()
+      formData.append('files', payload, filename)
+      formData.append('categorySlug', categorySlug)
+      const res = await fetch('/api/posts/upload', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error((error as { error?: string }).error || '파일 업로드에 실패했습니다.')
       }
+      const data = await res.json()
+      if (!data.images || data.images.length === 0) {
+        throw new Error('업로드된 이미지가 없습니다.')
+      }
+      return data.images[0] as PostImage
     }
 
     try {
@@ -346,56 +456,63 @@ export function PostUploadDialog({
       setSubmitting(true)
       setUploading(true)
 
-      let finalImages: PostImage[] = []
+      const finalImages: PostImage[] = []
 
-      // 새 파일이 있으면 서버 경유 업로드 (Vercel 4.5MB 제한 회피: 파일별로 1건씩 요청)
-      if (selectedFiles.length > 0) {
-        const allUploadedImages: PostImage[] = []
-        const baseOrder = isEditMode ? existingImages.length : 0
+      for (const item of mediaItems) {
+        const order = finalImages.length
 
-        for (let i = 0; i < selectedFiles.length; i++) {
-          const file = selectedFiles[i]
-          const formData = new FormData()
-          formData.append('files', file)
-          formData.append('categorySlug', categorySlug)
+        if (item.source === 'existing') {
+          finalImages.push({ ...item.existing!, order })
+          continue
+        }
 
-          const uploadResponse = await fetch('/api/posts/upload', {
-            method: 'POST',
-            body: formData,
+        if (item.source === 'youtube') {
+          finalImages.push({
+            type: 'youtube',
+            url: item.youtubeUrl!,
+            thumbnailUrl: item.youtubeThumbnailUrl,
+            videoId: item.videoId,
+            name: item.name,
+            order,
           })
-
-          if (!uploadResponse.ok) {
-            const error = await uploadResponse.json().catch(() => ({}))
-            throw new Error((error as { error?: string }).error || '파일 업로드에 실패했습니다.')
-          }
-
-          const data = await uploadResponse.json()
-          if (!data.images || data.images.length === 0) {
-            throw new Error('업로드된 이미지가 없습니다.')
-          }
-
-          const one = data.images[0] as PostImage
-          allUploadedImages.push({ ...one, order: baseOrder + allUploadedImages.length })
+          continue
         }
 
-        if (isEditMode && existingImages.length > 0) {
-          finalImages = [...existingImages, ...allUploadedImages]
-        } else {
-          finalImages = allUploadedImages
+        // source === 'file'
+        if (item.type === 'image') {
+          const up = await uploadBinary(item.file!, item.file!.name)
+          finalImages.push({ ...up, type: 'image', order })
+          continue
         }
-      } else if (isEditMode) {
-        finalImages = existingImages
+
+        // 동영상: (a) mp4 원본 업로드 → url, (b) 캡처 프레임 이미지 업로드 → thumbnailUrl/blurDataURL
+        const videoUp = await uploadBinary(item.file!, item.file!.name)
+        let thumbnailUrl: string | undefined
+        let blurDataURL: string | undefined
+        const blob =
+          item.thumbnailBlob ?? (await captureVideoFrame(item.file!).catch(() => null))
+        if (blob) {
+          const frameName = `${item.file!.name.replace(/\.[^.]+$/, '')}-thumb.jpg`
+          const frameUp = await uploadBinary(blob, frameName)
+          thumbnailUrl = frameUp.thumbnailUrl ?? frameUp.url
+          blurDataURL = frameUp.blurDataURL
+        }
+        finalImages.push({
+          type: 'video',
+          url: videoUp.url,
+          thumbnailUrl,
+          blurDataURL,
+          name: item.file!.name,
+          order,
+        })
       }
-
-      // ImageGallery·저장 데이터 모두 images[].order 기준으로 순서를 쓰므로 목록 순서와 일치시킴
-      finalImages = finalImages.map((img, index) => ({ ...img, order: index }))
 
       setUploading(false)
 
-      const thumbnailUrl =
-        finalImages.length > 0 ? finalImages[selectedThumbnailIndex]?.url ?? finalImages[0].url : undefined
+      // 대표(커버) 썸네일: 선택 항목의 thumbnailUrl(없으면 url) — 동영상/유튜브가 대표여도 이미지 썸네일이 저장됨
+      const cover = finalImages[selectedThumbnailIndex] ?? finalImages[0]
+      const thumbnailUrl = cover ? cover.thumbnailUrl ?? cover.url : undefined
 
-      // 태그 문자열을 배열로 변환
       const tags = values.tags
         ? values.tags
             .split(',')
@@ -403,59 +520,43 @@ export function PostUploadDialog({
             .filter((tag) => tag.length > 0)
         : []
 
+      const body = {
+        title: values.title,
+        subtitle: values.subtitle || null,
+        images: finalImages,
+        thumbnailUrl: thumbnailUrl ?? null,
+        concept: values.concept || null,
+        tool: values.tool || null,
+        tags,
+        producedAt: values.producedAt ? values.producedAt.toISOString() : null,
+      }
+
       if (isEditMode) {
-        // 수정 모드: PUT 요청
         const response = await fetch(`/api/posts/${postId}`, {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: values.title,
-            subtitle: values.subtitle || null,
-            images: finalImages,
-            thumbnailUrl: thumbnailUrl ?? null,
-            concept: values.concept || null,
-            tool: values.tool || null,
-            tags,
-            producedAt: values.producedAt ? values.producedAt.toISOString() : null,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
         })
-
         if (!response.ok) {
           const error = await response.json()
           throw new Error(error.error || '게시물 수정에 실패했습니다.')
         }
       } else {
-        // 생성 모드: POST 요청
         const response = await fetch('/api/posts', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: values.title,
-            subtitle: values.subtitle || null,
-            categoryId,
-            images: finalImages,
-            thumbnailUrl: thumbnailUrl ?? null,
-            concept: values.concept || null,
-            tool: values.tool || null,
-            tags,
-            producedAt: values.producedAt ? values.producedAt.toISOString() : null,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, categoryId }),
         })
-
         if (!response.ok) {
           const error = await response.json()
           throw new Error(error.error || '게시물 생성에 실패했습니다.')
         }
       }
 
-      // 성공 시 폼 초기화
+      // 성공: 목록 정리 후 닫기
+      mediaItems.forEach((item) => revokePreview(item.previewUrl))
       form.reset()
-      setSelectedFiles([])
-      setExistingImages([])
+      setMediaItems([])
       onSuccess()
       onClose()
     } catch (error: any) {
@@ -464,15 +565,16 @@ export function PostUploadDialog({
     } finally {
       setSubmitting(false)
       setUploading(false)
-      isSubmittingRef.current = false // 제출 완료 후 플래그 리셋
+      isSubmittingRef.current = false
     }
   }
 
   const handleClose = () => {
+    mediaItems.forEach((item) => revokePreview(item.previewUrl))
     form.reset()
-    setSelectedFiles([])
-    setExistingImages(originalImages) // 원본 이미지로 복원
-    isSubmittingRef.current = false // 플래그 리셋
+    setMediaItems([])
+    setYoutubeInput('')
+    isSubmittingRef.current = false
     onClose()
   }
 
@@ -483,7 +585,8 @@ export function PostUploadDialog({
     }
   }
 
-  // modal=false면 오버레이가 포인터를 막지 않아 클릭이 아래(갤러리 배경)로 통과할 수 있음
+  const busy = uploading || submitting
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange} modal>
       <DialogContent
@@ -499,8 +602,8 @@ export function PostUploadDialog({
           <DialogTitle>{isEditMode ? '게시물 수정' : '게시물 추가'}</DialogTitle>
           <DialogDescription>
             {isEditMode
-              ? '게시물 정보를 수정합니다. 이미지를 변경하거나 정보를 업데이트할 수 있습니다.'
-              : '새로운 게시물을 등록합니다. 이미지를 업로드하고 정보를 입력해주세요.'}
+              ? '게시물 정보를 수정합니다. 이미지·동영상·유튜브 링크를 변경하거나 정보를 업데이트할 수 있습니다.'
+              : '새로운 게시물을 등록합니다. 이미지·동영상(mp4)·유튜브 링크를 첨부하고 정보를 입력해주세요.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -551,7 +654,6 @@ export function PostUploadDialog({
               )}
             />
 
-
             <div className="grid grid-cols-2 gap-4 items-start">
               <FormField
                 control={form.control}
@@ -582,9 +684,8 @@ export function PostUploadDialog({
                     <FormMessage />
                   </FormItem>
                 )}
-              />              
+              />
             </div>
-
 
             <FormField
               control={form.control}
@@ -597,7 +698,7 @@ export function PostUploadDialog({
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="제작일을 선택하세요"
-                      disabled={submitting || uploading}
+                      disabled={busy}
                     />
                   </FormControl>
                   <FormMessage />
@@ -605,220 +706,183 @@ export function PostUploadDialog({
               )}
             />
 
-            {/* 이미지 업로드 섹션 */}
-            <div className="space-y-2">
+            {/* 미디어 첨부 섹션 */}
+            <div className="space-y-3">
               <label className="text-sm font-medium">
-                이미지 {!isEditMode && '*'}
+                미디어 {!isEditMode && '*'}
               </label>
+
+              {/* 파일 선택 (이미지 + mp4) */}
               <Input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/*,video/mp4"
                 onChange={handleFileSelect}
-                disabled={uploading || submitting}
+                disabled={busy}
               />
+              <p className="text-xs text-muted-foreground">
+                이미지(≤4.5MB) 또는 동영상 mp4(≤100MB)를 선택하세요. 여러 번 선택하면 뒤에 누적됩니다.
+              </p>
 
-              {/* 기존 이미지 목록 (수정 모드) */}
-              {isEditMode && existingImages.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">기존 이미지 (순서 변경 가능):</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {existingImages.map((image, index) => (
-                      <div
-                        key={index}
-                        className="relative aspect-square border rounded-md overflow-hidden bg-muted group"
-                      >
-                        <Image
-                          src={getB2ImageSrc(image.url)}
-                          alt={image.name}
-                          fill
-                          unoptimized={isB2WorkerUrl(getB2ImageSrc(image.url))}
-                          className="object-cover"
-                          sizes="(max-width: 768px) 33vw, 150px"
-                        />
-                        <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => moveExistingImageUp(index)}
-                            disabled={index === 0 || uploading || submitting}
-                            title="위로 이동"
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => moveExistingImageDown(index)}
-                            disabled={index === existingImages.length - 1 || uploading || submitting}
-                            title="아래로 이동"
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleRemoveExistingImage(index)}
-                          disabled={uploading || submitting}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    이미지에 마우스를 올리면 순서 변경·삭제 버튼이 표시됩니다. 새 이미지를 선택하면 기존 이미지 뒤에 추가됩니다.
-                  </p>
-                </div>
-              )}
+              {/* 유튜브 링크 추가 */}
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  inputMode="url"
+                  placeholder="유튜브 링크 붙여넣기 (watch/youtu.be/shorts)"
+                  value={youtubeInput}
+                  onChange={(e) => setYoutubeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddYoutube()
+                    }
+                  }}
+                  disabled={busy}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddYoutube}
+                  disabled={busy || youtubeInput.trim().length === 0}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  유튜브 추가
+                </Button>
+              </div>
 
-              {/* 썸네일 선택 (이미지 2개 이상일 때만) */}
-              {totalImageCount >= 2 && (
+              {/* 통합 미디어 목록 (미리보기 · 타입배지 · 대표선택 · 순서이동 · 삭제) */}
+              {mediaItems.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
-                  <p className="text-sm font-medium">썸네일로 사용할 이미지 선택</p>
                   <p className="text-xs text-muted-foreground">
-                    목록·카드에 표시될 대표 이미지를 선택하세요.
+                    항목을 클릭하면 대표(커버) 썸네일로 지정됩니다. 마우스를 올리면 순서 변경·삭제 버튼이 표시됩니다.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {existingImages.map((image, index) => (
-                      <button
-                        key={`ex-${index}`}
-                        type="button"
-                        onClick={() => setSelectedThumbnailIndex(index)}
-                        className={cn(
-                          'relative w-14 h-14 rounded-md overflow-hidden border-2 transition-colors shrink-0',
-                          selectedThumbnailIndex === index
-                            ? 'border-primary ring-2 ring-primary ring-offset-2'
-                            : 'border-transparent hover:border-muted-foreground/30'
-                        )}
-                      >
-                        <Image
-                          src={getB2ImageSrc(image.url)}
-                          alt={image.name}
-                          fill
-                          unoptimized={isB2WorkerUrl(getB2ImageSrc(image.url))}
-                          className="object-cover"
-                          sizes="56px"
-                        />
-                        {selectedThumbnailIndex === index && (
-                          <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5">
-                            썸네일
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                    {selectedFiles.map((file, index) => {
-                      const previewUrl = filePreviewUrls[index]
+                  <div className="grid grid-cols-3 gap-2">
+                    {mediaItems.map((item, index) => {
+                      const isCover = selectedThumbnailIndex === index
                       return (
-                        <button
-                          key={`new-${index}`}
-                          type="button"
-                          onClick={() => setSelectedThumbnailIndex(existingImages.length + index)}
+                        <div
+                          key={item.key}
                           className={cn(
-                            'relative w-14 h-14 rounded-md border-2 overflow-hidden shrink-0 transition-colors',
-                            selectedThumbnailIndex === existingImages.length + index
+                            'relative aspect-square border-2 rounded-md overflow-hidden bg-muted group cursor-pointer transition-colors',
+                            isCover
                               ? 'border-primary ring-2 ring-primary ring-offset-2'
-                              : 'border-muted-foreground/30 hover:border-muted-foreground/50'
+                              : 'border-transparent hover:border-muted-foreground/30'
                           )}
+                          onClick={() => setSelectedThumbnailIndex(index)}
+                          title="클릭하여 대표 썸네일로 지정"
                         >
-                          {previewUrl ? (
+                          {item.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={previewUrl}
-                              alt={file.name}
+                              src={item.previewUrl}
+                              alt={item.name}
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="w-full h-full bg-muted flex items-center justify-center">
-                              <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                            <span className="w-full h-full flex items-center justify-center">
+                              {item.type === 'video' ? (
+                                <Film className="h-8 w-8 text-muted-foreground" />
+                              ) : (
+                                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                              )}
                             </span>
                           )}
-                          {selectedThumbnailIndex === existingImages.length + index && (
-                            <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5">
-                              썸네일
+
+                          {/* 동영상/유튜브 재생 오버레이 */}
+                          {(item.type === 'video' || item.type === 'youtube') && (
+                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55">
+                                <Play className="h-4 w-4 text-white fill-white" />
+                              </span>
                             </span>
                           )}
-                        </button>
+
+                          {/* 타입 배지 */}
+                          <span className="absolute left-1 top-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white pointer-events-none">
+                            {item.type === 'youtube' ? (
+                              <>
+                                <Youtube className="h-3 w-3" /> YouTube
+                              </>
+                            ) : item.type === 'video' ? (
+                              <>
+                                <Film className="h-3 w-3" /> 동영상
+                              </>
+                            ) : (
+                              <>
+                                <ImageIcon className="h-3 w-3" /> 이미지
+                              </>
+                            )}
+                          </span>
+
+                          {/* 순서 이동 */}
+                          <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItem(index, -1)
+                              }}
+                              disabled={index === 0 || busy}
+                              title="위로 이동"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItem(index, 1)
+                              }}
+                              disabled={index === mediaItems.length - 1 || busy}
+                              title="아래로 이동"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          {/* 삭제 */}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRemoveItem(index)
+                            }}
+                            disabled={busy}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+
+                          {/* 대표 라벨 */}
+                          {isCover && (
+                            <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5 pointer-events-none">
+                              대표
+                            </span>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
                 </div>
               )}
-
-              {/* 선택된 파일 목록 */}
-              {selectedFiles.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    {isEditMode ? '새로 추가할 이미지 (순서 변경 가능):' : '선택된 이미지 (순서 변경 가능):'}
-                  </p>
-                  {selectedFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between gap-2 p-2 border rounded-md bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <File className="h-4 w-4 shrink-0" />
-                        <span className="text-sm truncate">{file.name}</span>
-                      </div>
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => moveSelectedFileUp(index)}
-                          disabled={index === 0 || uploading || submitting}
-                          title="위로 이동"
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => moveSelectedFileDown(index)}
-                          disabled={index === selectedFiles.length - 1 || uploading || submitting}
-                          title="아래로 이동"
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveFile(index)}
-                          disabled={uploading || submitting}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-xs text-muted-foreground">
-                    저장 버튼을 클릭하면 파일이 자동으로 업로드됩니다.
-                  </p>
-                </div>
-              )}
             </div>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={submitting || uploading}
-              >
+              <Button type="button" variant="outline" onClick={handleClose} disabled={busy}>
                 취소
               </Button>
-              <Button type="submit" disabled={submitting || uploading}>
-                {submitting || uploading ? (
+              <Button type="submit" disabled={busy}>
+                {busy ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {uploading ? '업로드 중...' : '저장 중...'}
@@ -834,4 +898,3 @@ export function PostUploadDialog({
     </Dialog>
   )
 }
-
