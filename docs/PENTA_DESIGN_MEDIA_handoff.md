@@ -20,7 +20,7 @@
 | P1 | 업로드 API 확장 (`app/api/posts/upload/route.ts`): video 100MB 분기 + mp4 MIME 화이트리스트 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0. 라우트 단독 호출자=갤러리 폼(확인). 실 업로드는 개발망 |
 | P2 | 검증 스키마 확장(POST/PUT `imageSchema`에 `type`·`videoId`) + 삭제 루프 유튜브 skip 분기 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 신규경고 0(기존 `any` 경고만) |
 | P3 | 업로드 폼(`PostUploadDialog.tsx`): accept 확장·크기분기·유튜브 입력 UI·미리보기/대표선택/순서이동 **통합 목록** | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (33a2383) | tsc 0 / lint 신규경고 0(기존 `any` 2건만) / youtube 21건 통과. 실 업로드/캡처는 개발망 |
-| P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 신규경고 0(기존 `any` 1건만). 개발망서 상세 placeholder 재발 확인 후 재검증 |
+| P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (3945af3) | tsc 0 / lint 신규경고 0(기존 `any` 1건만). 개발망서 상세 placeholder 재발 확인 후 재검증 |
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 ▶ 배지 오버레이 | ⬜ 대기 | - | - |
 | P6 | 통합 QA + 사내망 검증 (스펙 검증 8항목) | ⬜ 대기 | - | - |
 
