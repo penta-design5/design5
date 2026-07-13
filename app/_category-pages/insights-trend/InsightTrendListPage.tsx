@@ -61,6 +61,16 @@ interface InsightTrendListPageProps {
 // 이 값은 "전체 제목 툴팁을 띄울 만큼 긴가"만 판단한다.
 const TITLE_TOOLTIP_MIN = 40
 
+// 게시일: 데스크톱은 전체("2026. 7. 9."), 모바일은 축약("26.7.9.")으로 표기해
+// 좁은 폭에서 제목 컬럼에 여유를 준다.
+function formatTrendDate(iso: string): { short: string; full: string } {
+  const d = new Date(iso)
+  return {
+    full: d.toLocaleDateString('ko-KR'),
+    short: `${String(d.getFullYear()).slice(2)}.${d.getMonth() + 1}.${d.getDate()}.`,
+  }
+}
+
 export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -229,7 +239,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
         </div>
 
         <div className="rounded-md border">
-          <Table className="table-fixed [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+          <Table className="table-fixed [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2 md:[&_th]:px-4 md:[&_td]:px-4">
             <TableHeader>
               <TableRow>
                 {isAdmin && (
@@ -245,7 +255,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                 )}
                 <TableHead className="w-14 text-right">No.</TableHead>
                 <TableHead>제목</TableHead>
-                <TableHead className="w-40">게시일</TableHead>
+                <TableHead className="w-[68px] md:w-40">게시일</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -268,8 +278,11 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                 items.map((row, index) => {
                   const no = total - (page - 1) * pageSize - index
                   const isLongTitle = row.title.length > TITLE_TOOLTIP_MIN
+                  const dateFmt = formatTrendDate(row.createdAt)
+                  // block w-full: 셀 전체를 클릭 영역으로 → 제목이 좁게 잘려도 탭하기 쉬움
+                  // truncate: 링크 자신이 가용 폭에 맞춰 말줄임
                   const linkClass =
-                    'font-medium hover:underline text-[var(--penta-indigo)] dark:text-penta-sky'
+                    'block w-full truncate font-medium hover:underline text-[var(--penta-indigo)] dark:text-penta-sky'
                   return (
                     <TableRow key={row.id}>
                       {isAdmin && (
@@ -284,7 +297,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {no}
                       </TableCell>
-                      <TableCell className="truncate">
+                      <TableCell>
                         {isLongTitle ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -311,8 +324,9 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                           </Link>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(row.createdAt).toLocaleDateString('ko-KR')}
+                      <TableCell className="text-sm text-muted-foreground">
+                        <span className="md:hidden">{dateFmt.short}</span>
+                        <span className="hidden md:inline">{dateFmt.full}</span>
                       </TableCell>
                     </TableRow>
                   )
