@@ -16,9 +16,9 @@
 
 | Phase | 내용 | 상태 | 브랜치/커밋 | 검증 |
 | --- | --- | --- | --- | --- |
-| P0 | 공용 유틸: `lib/youtube.ts`(URL 파싱) + `lib/video-thumbnail.ts`(1초 프레임 캡처) + `lib/media-schemas.ts`(공통 스키마) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (b7a3f50) | tsc 0 / lint 0(신규 3파일) / `youtube.test.ts` 21건 통과 |
-| P1 | 업로드 API 확장 (`app/api/posts/upload/route.ts`): video 100MB 분기 + mp4 MIME 화이트리스트 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (b7a3f50) | tsc 0 / lint 0. 라우트 단독 호출자=갤러리 폼(확인). 실 업로드는 개발망 |
-| P2 | 검증 스키마 확장(POST/PUT `imageSchema`에 `type`·`videoId`) + 삭제 루프 유튜브 skip 분기 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (b7a3f50) | tsc 0 / lint 신규경고 0(기존 `any` 경고만) |
+| P0 | 공용 유틸: `lib/youtube.ts`(URL 파싱) + `lib/video-thumbnail.ts`(1초 프레임 캡처) + `lib/media-schemas.ts`(공통 스키마) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0(신규 3파일) / `youtube.test.ts` 21건 통과 |
+| P1 | 업로드 API 확장 (`app/api/posts/upload/route.ts`): video 100MB 분기 + mp4 MIME 화이트리스트 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 0. 라우트 단독 호출자=갤러리 폼(확인). 실 업로드는 개발망 |
+| P2 | 검증 스키마 확장(POST/PUT `imageSchema`에 `type`·`videoId`) + 삭제 루프 유튜브 skip 분기 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (373bc22) | tsc 0 / lint 신규경고 0(기존 `any` 경고만) |
 | P3 | 업로드 폼(`PostUploadDialog.tsx`): accept 확장·크기분기·유튜브 입력 UI·미리보기/대표선택/순서이동 **통합 목록** | ⬜ 대기 | - | - |
 | P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ⬜ 대기 | - | - |
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 ▶ 배지 오버레이 | ⬜ 대기 | - | - |
@@ -35,7 +35,7 @@
 - [x] `lib/video-thumbnail.ts`(클라이언트): `captureVideoFrame(file, atSeconds=1)` → `min(1, duration/2)` 지점 캡처, 시킹 불가 시 현재 프레임 폴백. objectURL cleanup 포함
 - [x] `lib/media-schemas.ts`: `mediaItemSchema`(type·videoId 추가) + `mediaArraySchema`(min 1) + `MEDIA_TYPES`/`MediaItem`/`MediaType` export. ※ 관례 `lib/*-schemas.ts`에 맞춤(당초 `lib/schemas/media.ts`에서 변경)
 - 검증: `lib/__tests__/youtube.test.ts` 21건 통과(파싱·헬퍼, DB 비의존). tsc 0 / lint 0(신규 3파일)
-- 커밋/푸시 완료(b7a3f50). 실제 프레임 캡처(브라우저 API)는 P3/개발망에서 통합 확인
+- 커밋/푸시 완료(373bc22). 실제 프레임 캡처(브라우저 API)는 P3/개발망에서 통합 확인
 
 ### P1 — 업로드 API ✅
 - [x] 형식·크기 검증 통합: 이미지 10MB / `video/mp4` 100MB, 그 외 형식(mp4 아닌 동영상 포함) 거부
