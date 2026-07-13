@@ -57,17 +57,9 @@ interface InsightTrendListPageProps {
   category: Category
 }
 
-const TITLE_MAX = 40
-
-function trendTitleDisplay(title: string): {
-  display: string
-  showTooltip: boolean
-} {
-  if (title.length > TITLE_MAX) {
-    return { display: `${title.slice(0, TITLE_MAX)}…`, showTooltip: true }
-  }
-  return { display: title, showTooltip: false }
-}
+// 툴팁 노출 기준(길이). 시각적 말줄임은 CSS(table-fixed + truncate)가 담당하고,
+// 이 값은 "전체 제목 툴팁을 띄울 만큼 긴가"만 판단한다.
+const TITLE_TOOLTIP_MIN = 40
 
 export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
   const router = useRouter()
@@ -182,7 +174,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
     <TooltipProvider delayDuration={300}>
       <div className="w-full">
         <div className="page-header-stack">
-          <div>
+          <div className="w-full md:w-auto">
             <h1 className="page-header-title">{category.name}</h1>
             <p className="text-muted-foreground mt-2 mb-2 md:mb-0">
               AI 관련 최신 동향을 공유하는 게시판입니다.
@@ -237,7 +229,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
         </div>
 
         <div className="rounded-md border">
-          <Table className="[&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
+          <Table className="table-fixed [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap">
             <TableHeader>
               <TableRow>
                 {isAdmin && (
@@ -275,7 +267,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
               ) : (
                 items.map((row, index) => {
                   const no = total - (page - 1) * pageSize - index
-                  const titleTable = trendTitleDisplay(row.title)
+                  const isLongTitle = row.title.length > TITLE_TOOLTIP_MIN
                   const linkClass =
                     'font-medium hover:underline text-[var(--penta-indigo)] dark:text-penta-sky'
                   return (
@@ -292,15 +284,15 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {no}
                       </TableCell>
-                      <TableCell>
-                        {titleTable.showTooltip ? (
+                      <TableCell className="truncate">
+                        {isLongTitle ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Link
                                 href={`/${category.slug}/${row.id}`}
                                 className={linkClass}
                               >
-                                {titleTable.display}
+                                {row.title}
                               </Link>
                             </TooltipTrigger>
                             <TooltipContent
@@ -315,7 +307,7 @@ export function InsightTrendListPage({ category }: InsightTrendListPageProps) {
                             href={`/${category.slug}/${row.id}`}
                             className={linkClass}
                           >
-                            {titleTable.display}
+                            {row.title}
                           </Link>
                         )}
                       </TableCell>
