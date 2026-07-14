@@ -69,7 +69,7 @@ export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
         {/* 전용 닫기 버튼 (우측 상단, 고대비) */}
         <DialogClose
           aria-label="닫기"
-          className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-neutral-900 shadow-lg ring-1 ring-black/10 transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-neutral-900 opacity-40 shadow-lg ring-1 ring-black/10 transition-opacity hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
         >
           <X className="h-5 w-5" />
         </DialogClose>
