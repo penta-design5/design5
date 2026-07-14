@@ -3,10 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { Play } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getB2ImageSrc, isB2WorkerUrl } from '@/lib/b2-client-url'
+import type { MediaType } from '@/lib/media-schemas'
 
 interface PostImage {
+  type?: MediaType
   url: string
   thumbnailUrl?: string
   blurDataURL?: string
@@ -160,6 +163,11 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
   const displayImageUrl = imageInfo.thumbnailUrl || imageInfo.url || '/placeholder.png'
   const blurDataURL = imageInfo.blurDataURL
 
+  // 게시물에 동영상/유튜브가 포함되어 있으면 "영상 포함" 배지 표시(재생 버튼이 아니라 종류 표시)
+  const hasVideoMedia = getAllImages().some(
+    (img) => img.type === 'video' || img.type === 'youtube'
+  )
+
   // post prop이 변경되면 로드 상태 리셋
   useEffect(() => {
     setImageLoaded(false)
@@ -276,6 +284,13 @@ export function PostCard({ post, categorySlug, onClick }: PostCardProps) {
         />
         {/* 호버 시 어두운 오버레이 */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300" />
+        {/* 영상 포함 배지 (우측 상단) — 재생 버튼이 아니라 "동영상/유튜브 포함" 종류 표시 */}
+        {hasVideoMedia && (
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-white backdrop-blur-sm">
+            <Play className="h-3 w-3 fill-white" />
+            <span className="text-[10px] font-medium leading-none">영상</span>
+          </div>
+        )}
         {/* 호버 시 좌측 하단에 제목과 부제목 표시 */}
         <div className="absolute bottom-0 left-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <h3 className="font-medium text-sm text-white line-clamp-2 drop-shadow-lg">
