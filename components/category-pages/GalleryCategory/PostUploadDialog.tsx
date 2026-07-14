@@ -711,6 +711,9 @@ export function PostUploadDialog({
               <label className="text-sm font-medium">
                 미디어 {!isEditMode && '*'}
               </label>
+              <p className="text-xs text-muted-foreground">
+                이미지(4.5MB 이하)나 동영상(mp4, 100MB 이하)을 선택하거나 유튜브 링크를 추가하세요.
+              </p>
 
               {/* 파일 선택 (이미지 + mp4) */}
               <Input
@@ -720,16 +723,13 @@ export function PostUploadDialog({
                 onChange={handleFileSelect}
                 disabled={busy}
               />
-              <p className="text-xs text-muted-foreground">
-                이미지(≤4.5MB) 또는 동영상 mp4(≤100MB)를 선택하세요. 여러 번 선택하면 뒤에 누적됩니다.
-              </p>
 
               {/* 유튜브 링크 추가 */}
               <div className="flex gap-2">
                 <Input
                   type="url"
                   inputMode="url"
-                  placeholder="유튜브 링크 붙여넣기 (watch/youtu.be/shorts)"
+                  placeholder="유튜브 링크 붙여넣기 (watch/youtube/shorts)"
                   value={youtubeInput}
                   onChange={(e) => setYoutubeInput(e.target.value)}
                   onKeyDown={(e) => {
