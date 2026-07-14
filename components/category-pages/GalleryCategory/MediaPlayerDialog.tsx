@@ -24,10 +24,9 @@ interface MediaPlayerDialogProps {
  * - youtube: `<iframe>` embed(autoplay=1)
  * 16:9 비율, 넓은 컨텐츠(max-w-4xl).
  *
- * 상세페이지 배경 클릭은 목록으로 이동하도록 되어 있고, 포털 이벤트는 React 트리를 타고
- * 배경 핸들러로 버블링된다. 따라서 (1) 배경(overlay) 클릭 전파를 차단하고 (2) 바깥 클릭으로는
- * 닫히지 않게 한 뒤(onPointerDownOutside/onInteractOutside preventDefault), 우측 상단 닫기 버튼과
- * ESC로만 닫는다.
+ * 닫기 정책: 배경(overlay) 클릭은 기존대로 상세→목록 이동에 맡긴다(overlay를 가로채지 않음).
+ * 재생 팝업은 우측 상단 닫기 버튼 또는 ESC로만 닫는다. 콘텐츠(영상/컨트롤/닫기버튼) 클릭만
+ * 배경 핸들러로 버블링되지 않도록 전파를 차단한다.
  */
 export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
   const open = media !== null
@@ -37,19 +36,8 @@ export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
       <DialogContent
         // [&>button:last-child]:hidden — 공용 DialogContent의 기본 닫기 버튼(마지막 자식) 숨김(전용 버튼으로 대체)
         className="w-[95vw] max-w-4xl overflow-visible border-0 bg-transparent p-0 shadow-none [&>button:last-child]:hidden"
-        overlayProps={{
-          // 배경 클릭: 목록 이동(배경 핸들러) 차단 + 재생 팝업만 닫기. 바깥 pointerdown 자동 닫힘을
-          // 막았으므로(아래) overlay가 click까지 유지되어 목록으로의 통과 클릭이 발생하지 않음
-          onClick: (e) => {
-            e.stopPropagation()
-            onClose()
-          },
-          onPointerDown: (e) => e.stopPropagation(),
-        }}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogTitle className="sr-only">{media?.name || '미디어 재생'}</DialogTitle>
 
