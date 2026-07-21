@@ -308,9 +308,11 @@ export function changeAllSvgColors(
   )
 
   // 5. 모든 요소에 fill 속성이 없고 stroke 속성이 있으면 fill="none" 추가
+  //    self-closing 태그(`<path .../>`)의 `/`를 별도 캡처해 보존한다.
+  //    (`/` 뒤에 속성을 붙이면 `"/ fill="none">`처럼 깨진 XML이 되므로 주의)
   modifiedSvg = modifiedSvg.replace(
-    /<(rect|circle|ellipse|line|polyline|polygon|path|g)([^>]*?)>/gi,
-    (match, tagName, attrs) => {
+    /<(rect|circle|ellipse|line|polyline|polygon|path|g)([^>]*?)(\/?)>/gi,
+    (match, tagName, attrs, selfClose) => {
       const hasStroke = /stroke=/i.test(attrs)
       const hasFill = /fill=/i.test(attrs)
 
@@ -319,7 +321,7 @@ export function changeAllSvgColors(
         attrs = attrs.trim() + (attrs.trim() ? ' ' : '') + 'fill="none"'
       }
 
-      return `<${tagName}${attrs ? ' ' + attrs : ''}>`
+      return `<${tagName}${attrs ? ' ' + attrs : ''}${selfClose}>`
     }
   )
 

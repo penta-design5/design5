@@ -11,6 +11,7 @@ import {
 import { requireS3Json } from '@/lib/s3/require-storage'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { BadRequestError, NotFoundError } from '@/lib/api/errors'
+import { sanitizeAndNormalizeSvg } from '@/lib/svg/process-svg'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,8 +52,12 @@ export const POST = withRouteHandler(async (request: Request) => {
 
     for (const file of files) {
       const fileName = file.name.replace(/\.svg$/i, '')
-      const arrayBuffer = await file.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+      // sanitize·normalize: XML 검증 + 위험 태그/외부 URL 제거 + self-closing 태그 정규화
+      // (ICON+ 탭과 동일한 파이프라인. self-closing `<path/>`를 `</path>`로 바꿔
+      //  다운로드/렌더 시 색상·속성 가공 정규식이 XML을 깨뜨리지 않도록 보장한다.)
+      const rawSvg = await file.text()
+      const processed = sanitizeAndNormalizeSvg(rawSvg, file.name)
+      const buffer = Buffer.from(processed.svgContent, 'utf-8')
       const safeFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       const filePath = safeFileName
 
@@ -79,7 +84,7 @@ export const POST = withRouteHandler(async (request: Request) => {
           ],
           thumbnailUrl: fileUrl,
           fileUrl: fileUrl,
-          fileSize: file.size,
+          fileSize: buffer.byteLength,
           fileType: 'svg',
           mimeType: 'image/svg+xml',
           authorId: admin.id,

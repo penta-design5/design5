@@ -108,6 +108,21 @@ export async function processSvgFile({ file }: ProcessSvgInput): Promise<Process
   validateSvgFile(file)
 
   const rawSvg = await file.text()
+  return sanitizeAndNormalizeSvg(rawSvg, file.name)
+}
+
+/**
+ * 파일 레벨 검증(MIME/크기/확장자) 없이 SVG **문자열**을 검증(XML)·sanitize·normalize한다.
+ *
+ * ICON+ 탭은 SVG를 DB(`IconPlusResource.svgContent`)에 저장하지만,
+ * ICON 탭은 파일을 MinIO에 저장(Post/URL 모델)한다. 저장 모델이 달라도
+ * "self-closing 태그 제거·XML 보장·루트 정규화"는 동일하게 필요하므로 이 코어를 공유한다.
+ * (ICON 탭 업로드는 자체 크기/타입 검증을 별도로 수행하므로 여기서는 파일 검증을 제외한다.)
+ *
+ * @param rawSvg SVG 원본 문자열
+ * @param fileName 이름 정규화에 쓸 파일명
+ */
+export function sanitizeAndNormalizeSvg(rawSvg: string, fileName: string): ProcessedSvg {
   const validationResult = XMLValidator.validate(rawSvg)
 
   if (validationResult !== true) {
@@ -124,7 +139,7 @@ export async function processSvgFile({ file }: ProcessSvgInput): Promise<Process
   const metadata = extractSvgMetadata(sanitizedSvg)
 
   return {
-    name: normalizeFileName(file.name),
+    name: normalizeFileName(fileName),
     svgContent: normalizeSvgRoot(sanitizedSvg, metadata),
     ...metadata,
   }

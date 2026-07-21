@@ -72,14 +72,15 @@ export function IconCard({
       svg = stripSvgStrokeDash(svg)
       
       // 4. 모든 stroke 요소에 fill="none" 명시적 추가 (없는 경우만)
+      //    self-closing 태그(`<path .../>`)의 `/`를 별도 캡처해 보존한다.
       svg = svg.replace(
-        /<(rect|circle|ellipse|line|polyline|polygon|path|g)([^>]*?)>/gi,
-        (match, tagName, attrs) => {
+        /<(rect|circle|ellipse|line|polyline|polygon|path|g)([^>]*?)(\/?)>/gi,
+        (match, tagName, attrs, selfClose) => {
           // stroke가 있고 fill이 없으면 fill="none" 추가
           if (/stroke=/i.test(attrs) && !/fill=/i.test(attrs)) {
             attrs = attrs.trim() + (attrs.trim() ? ' ' : '') + 'fill="none"'
           }
-          return `<${tagName}${attrs ? ' ' + attrs : ''}>`
+          return `<${tagName}${attrs ? ' ' + attrs : ''}${selfClose}>`
         }
       )
       
