@@ -113,7 +113,7 @@ ICON+는 업로드 시 `processSvgFile`에서 `sanitize-html`로 **재직렬화*
 
 ## 9. ICON 탭 14개 그룹 필터 메뉴 + 섹션 헤더
 
-> 상태: **코드 구현 완료(로컬 typecheck/lint 통과). 개발망 검증 + 백필 실행 대기.**
+> 상태: **구현·개발망 검증 완료(2026-07-21).**
 > 작성일: 2026-07-21
 > 확정 결정: (1) 저장=방식 A(`subtitle`), (2) 업로드=그룹 드롭다운, (3) ALL 화면에 그룹 **섹션 헤더** 포함.
 
@@ -129,16 +129,32 @@ ICON+는 업로드 시 `processSvgFile`에서 `sanitize-html`로 **재직렬화*
   - 그룹 필터 + 검색어는 AND 결합.
 - **백필** [scripts/backfill-icon-groups.ts](../scripts/backfill-icon-groups.ts) + [scripts/icon-group-map.json](../scripts/icon-group-map.json)(name→group, 383개): 기존 아이콘 `Post.title` 매칭해 `subtitle` 채움. npm: `db:backfill-icon-groups[:dry]`.
 
-### 9-B. ⚠️ 배포·백필 실행 순서 (중요)
-1. 코드 배포(`git push` → 개발망 `pull`). **스키마 변경 없어 `migrate deploy` 불필요.**
-2. **백필 실행** (DB 접근 가능한 환경에서, 데이터라 배포로 안 옮겨짐):
+### 9-B. ⚠️ 배포·데이터 채우기 (권장: 그룹별 재업로드 → 백필 불필요)
+
+**핵심: 그룹은 이제 업로드 시 드롭다운으로 자동 저장(`subtitle`)된다. 그룹별로 재업로드하면 백필이 필요 없다.**
+
+1. 코드 배포(`git push` → 서버 `pull`) 후 **리빌드**. **스키마 변경 없어 `migrate deploy` 불필요.**
    ```bash
-   npm run db:backfill-icon-groups:dry   # 미리보기(매칭/누락 확인)
-   npm run db:backfill-icon-groups       # 실제 반영
+   cd /data/webapps/design5 && git pull
+   cd deploy/rocky
+   docker compose -f docker-compose.yml -f docker-compose.app.yml --env-file .env.app up -d --build app
    ```
-   - 개발망(design6) 먼저 → 검증 → 운영망(design5) 동일 실행.
-   - 백필 전에는 기존 아이콘 `subtitle`이 비어 있어 ALL의 "기타" 섹션에 몰려 보인다(정상 동작이며, 백필 후 14그룹으로 분산됨).
-3. 이후 업로드분은 드롭다운 그룹이 자동 저장되어 필터에 바로 반영.
+2. **그룹별 재업로드** (권장): 리빌드 후 업로드 다이얼로그에서 **그룹 드롭다운 선택 → 해당 그룹 폴더 SVG 업로드**를 14그룹 반복. 그룹이 바로 저장되어 필터·섹션에 반영.
+   - **개발망(design6)에서 이 방식으로 검증 완료.**
+   - 운영망(design5)도 동일 방식 권장. (운영망은 곧 외부 공개 예정 → [ICON_이름동기화_handoff.md §5](ICON_이름동기화_handoff.md) 백업·승인 체크리스트 준수)
+
+#### (보조) 백필 — "이미 그룹 없이 올라간 새-이름 아이콘"을 나중에 보정할 때만
+- 대상 아이콘이 **새 383개 이름**(`check-circle`, `car-front-connected` …)으로 이미 업로드돼 있고 `subtitle`만 빈 경우에 사용. (옛 이름 `abs`·`car-front1` 등은 매칭 안 됨 → 재업로드로 처리.)
+- ⚠️ **개발망 호스트엔 node/npm이 없고**(앱은 `output: 'standalone'` 이미지라 컨테이너에도 `tsx`/스크립트 없음), **로컬에서 DB 터널로** 실행한다:
+  ```bash
+  # 로컬에서 개발망 DB 터널 연결 (design6)
+  ssh -N -L 15432:127.0.0.1:5432 -L 19000:127.0.0.1:9000 -p 6022 design@192.168.1.43
+  # 로컬 .env의 DATABASE_URL이 127.0.0.1:15432(=개발망 DB)를 가리키는 상태에서
+  npm run db:backfill-icon-groups:dry   # 미리보기(매칭/누락 확인)
+  npm run db:backfill-icon-groups       # 실제 반영
+  ```
+  - 매핑 출처: [scripts/icon-group-map.json](../scripts/icon-group-map.json) (name→group 383개).
+  - 백필 전에는 기존 아이콘이 ALL의 "기타" 섹션에 몰려 보인다(정상, 반영 후 14그룹으로 분산).
 
 ### 9-C. (참고) 아래는 최초 설계 계획 원문
 
