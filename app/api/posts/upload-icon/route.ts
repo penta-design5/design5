@@ -12,6 +12,7 @@ import { requireS3Json } from '@/lib/s3/require-storage'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { BadRequestError, NotFoundError } from '@/lib/api/errors'
 import { sanitizeAndNormalizeSvg } from '@/lib/svg/process-svg'
+import { isIconGroup } from '@/lib/icon-groups'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,7 @@ export const POST = withRouteHandler(async (request: Request) => {
     const formData = await request.formData()
     const files = formData.getAll('files') as File[]
     const categorySlug = formData.get('categorySlug') as string
+    const group = formData.get('group') as string | null
 
     if (!files || files.length === 0) {
       throw new BadRequestError('파일이 필요합니다.')
@@ -31,6 +33,11 @@ export const POST = withRouteHandler(async (request: Request) => {
 
     if (!categorySlug) {
       throw new BadRequestError('카테고리 정보가 필요합니다.')
+    }
+
+    // 그룹은 선택값이나, 지정 시 14개 그룹 슬러그 중 하나여야 한다. (subtitle에 저장 → 그룹 필터/섹션)
+    if (group && !isIconGroup(group)) {
+      throw new BadRequestError(`유효하지 않은 그룹입니다. (${group})`)
     }
 
     const category = await getCategoryBySlug(categorySlug)
@@ -74,6 +81,7 @@ export const POST = withRouteHandler(async (request: Request) => {
       const post = await prisma.post.create({
         data: {
           title: fileName,
+          subtitle: group || null, // 그룹 슬러그(그룹 필터·섹션용). 미지정 시 null
           categoryId: category.id,
           images: [
             {

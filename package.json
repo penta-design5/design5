@@ -18,7 +18,9 @@
     "db:migrate-b2-urls": "tsx scripts/migrate-b2-urls-to-worker.ts",
     "db:migrate-b2-urls:dry": "tsx scripts/migrate-b2-urls-to-worker.ts --dry-run",
     "db:migrate-storage-urls": "tsx scripts/migrate-storage-urls-to-s3.ts",
-    "db:migrate-storage-urls:dry": "tsx scripts/migrate-storage-urls-to-s3.ts --dry-run"
+    "db:migrate-storage-urls:dry": "tsx scripts/migrate-storage-urls-to-s3.ts --dry-run",
+    "db:backfill-icon-groups": "tsx scripts/backfill-icon-groups.ts",
+    "db:backfill-icon-groups:dry": "tsx scripts/backfill-icon-groups.ts --dry-run"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
+import { ICON_GROUPS, ICON_GROUP_ALL, isIconGroup } from '@/lib/icon-groups'
 
 interface Category {
   id: string
@@ -44,6 +46,7 @@ interface Post {
   title: string
   fileUrl?: string | null
   thumbnailUrl?: string | null
+  subtitle?: string | null // 그룹 슬러그(그룹 필터·섹션용)
 }
 
 export function IconTab({ category, header }: IconTabProps) {
@@ -54,8 +57,7 @@ export function IconTab({ category, header }: IconTabProps) {
 
   const [posts, setPosts] = useState<Post[]>([])
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([])
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(1)
+  const [selectedGroup, setSelectedGroup] = useState<string>(ICON_GROUP_ALL)
   const [loading, setLoading] = useState(false)
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set())
@@ -71,62 +73,39 @@ export function IconTab({ category, header }: IconTabProps) {
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH)
   const [size, setSize] = useState(DEFAULT_SIZE)
 
-  const loadMoreRef = useRef<HTMLDivElement>(null)
   const fetchInProgressRef = useRef(false)
 
-  // 검색 필터링
+  // 그룹 + 검색 필터링 (전량 로드 후 클라이언트에서 처리)
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredPosts(posts)
-      return
+    let list = posts
+
+    // 1) 그룹 필터 (ALL이 아니면 해당 그룹만)
+    if (selectedGroup !== ICON_GROUP_ALL) {
+      list = list.filter((post) => post.subtitle === selectedGroup)
     }
 
+    // 2) 검색 필터
     const query = searchQuery.toLowerCase().trim()
+    if (query) {
+      // 파일명 추출 헬퍼 함수
+      const getFileName = (url: string | null | undefined): string => {
+        if (!url) return ''
+        const fileName = url.split('/').pop() || ''
+        const nameWithoutExt = fileName.replace(/\.(svg|png|jpg|jpeg)$/i, '')
+        return nameWithoutExt.toLowerCase()
+      }
 
-    // 파일명 추출 헬퍼 함수
-    const getFileName = (url: string | null | undefined): string => {
-      if (!url) return ''
-      // URL에서 파일명 추출 (확장자 포함)
-      const fileName = url.split('/').pop() || ''
-      // 확장자 제거한 파일명도 반환
-      const nameWithoutExt = fileName.replace(/\.(svg|png|jpg|jpeg)$/i, '')
-      return nameWithoutExt.toLowerCase()
+      list = list.filter((post) => {
+        const titleMatch = post.title.toLowerCase().includes(query)
+        const fileName = getFileName(post.fileUrl)
+        const fileMatch =
+          fileName.includes(query) || post.fileUrl?.toLowerCase().includes(query)
+        return titleMatch || fileMatch
+      })
     }
 
-    const filtered = posts.filter((post) => {
-      // 제목으로 검색
-      const titleMatch = post.title.toLowerCase().includes(query)
-
-      // 파일명으로 검색 (확장자 포함/제외 모두)
-      const fileName = getFileName(post.fileUrl)
-      const fileMatch = fileName.includes(query) ||
-                       post.fileUrl?.toLowerCase().includes(query)
-
-      return titleMatch || fileMatch
-    })
-
-    setFilteredPosts(filtered)
-  }, [posts, searchQuery])
-
-  // 무한 스크롤 구현
-  useEffect(() => {
-    if (!loadMoreRef.current) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          setPage((prev) => prev + 1)
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    observer.observe(loadMoreRef.current)
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [hasMore, loading])
+    setFilteredPosts(list)
+  }, [posts, searchQuery, selectedGroup])
 
   useEffect(() => {
     if (!isMobileViewport) {
@@ -140,10 +119,10 @@ export function IconTab({ category, header }: IconTabProps) {
     }
   }, [selectedPostIds])
 
-  // 게시물 목록 조회
-  const fetchPosts = useCallback(
-    async (pageNum: number, append: boolean = false, forceRefresh: boolean = false) => {
-      if (fetchInProgressRef.current || loading) {
+  // 게시물 전량 로드 (아이콘은 소규모라 페이지를 순차로 돌며 모두 로드 → 클라이언트에서 그룹/검색/섹션 처리)
+  const loadAllPosts = useCallback(
+    async (forceRefresh: boolean = false) => {
+      if (fetchInProgressRef.current) {
         return
       }
 
@@ -151,65 +130,60 @@ export function IconTab({ category, header }: IconTabProps) {
       try {
         setLoading(true)
 
-        const params = new URLSearchParams({
-          categorySlug: category.slug,
-          page: pageNum.toString(),
-          limit: '50', // 아이콘은 작으므로 더 많이 로드
-        })
-
-        if (forceRefresh) {
-          params.append('_t', Date.now().toString())
-        }
-
-        const response = await fetch(`/api/posts?${params.toString()}`, {
-          cache: forceRefresh ? 'no-store' : 'default',
-        })
-
-        if (!response.ok) {
-          setHasMore(false)
-          throw new Error('게시물 목록을 불러오는데 실패했습니다.')
-        }
-
-        const data = await response.json()
-
-        if (append) {
-          setPosts((prev) => {
-            const existingIds = new Set(prev.map(p => p.id))
-            const newPosts = data.posts.filter((p: Post) => !existingIds.has(p.id))
-            return [...prev, ...newPosts]
+        const all: Post[] = []
+        let pageNum = 1
+        // 안전 상한(페이지당 100개 × 100페이지 = 10,000개)
+        while (pageNum <= 100) {
+          const params = new URLSearchParams({
+            categorySlug: category.slug,
+            page: pageNum.toString(),
+            limit: '100', // /api/posts 최대치
           })
-        } else {
-          setPosts(data.posts)
+
+          if (forceRefresh) {
+            params.append('_t', Date.now().toString())
+          }
+
+          const response = await fetch(`/api/posts?${params.toString()}`, {
+            cache: forceRefresh ? 'no-store' : 'default',
+          })
+
+          if (!response.ok) {
+            throw new Error('게시물 목록을 불러오는데 실패했습니다.')
+          }
+
+          const data = await response.json()
+          all.push(...data.posts)
+
+          if (!data.pagination?.hasMore) break
+          pageNum++
         }
 
-        setHasMore(data.pagination.hasMore)
+        setPosts(all)
       } catch (error) {
         console.error('Error fetching posts:', error)
-        setHasMore(false)
       } finally {
         setLoading(false)
         fetchInProgressRef.current = false
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [category.slug]
   )
 
   // 초기 로드
   useEffect(() => {
-    fetchPosts(1, false)
+    loadAllPosts()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 새로고침 파라미터 감지
   useEffect(() => {
     const refreshParam = searchParams.get('refresh')
     if (refreshParam) {
-      setPage(1)
       setPosts([])
-      fetchPosts(1, false, true)
+      loadAllPosts(true)
       router.replace(`/${category.slug}`, { scroll: false })
     }
-  }, [searchParams, fetchPosts, category.slug, router])
+  }, [searchParams, loadAllPosts, category.slug, router])
 
   // postId 파라미터 감지하여 게시물 자동 선택
   useEffect(() => {
@@ -223,14 +197,6 @@ export function IconTab({ category, header }: IconTabProps) {
       }
     }
   }, [searchParams, posts, category.slug, router])
-
-  // 페이지 변경 시 추가 로드
-  useEffect(() => {
-    if (page > 1 && !loading && !fetchInProgressRef.current && hasMore) {
-      fetchPosts(page, true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, fetchPosts, hasMore])
 
   // 아이콘 선택/해제
   const handleIconClick = (postId: string) => {
@@ -494,15 +460,43 @@ export function IconTab({ category, header }: IconTabProps) {
 
   // 업로드 성공 핸들러
   const handleUploadSuccess = () => {
-    setPage(1)
-    setHasMore(true)
     setPosts([])
-    fetchPosts(1, false, true)
+    loadAllPosts(true)
     router.refresh()
   }
 
   // 표시 크기 계산 (16-56px 제한)
   const displaySize = Math.min(size, 56)
+
+  // 아이콘 카드 렌더러 (섹션/단일 그리드 공용)
+  const renderCard = (post: Post) => (
+    <IconCard
+      key={post.id}
+      post={post}
+      isSelected={selectedPostIds.has(post.id)}
+      onClick={handleIconClick}
+      size={displaySize}
+      color={color}
+      strokeWidth={strokeWidth}
+    />
+  )
+
+  // 그룹 섹션 구성: ALL이면 14그룹 순서(+미분류) 섹션, 특정 그룹이면 null(단일 그리드)
+  const uncategorized = filteredPosts.filter((post) => !isIconGroup(post.subtitle))
+  const sections =
+    selectedGroup === ICON_GROUP_ALL
+      ? [
+          ...ICON_GROUPS.map((group) => ({
+            group,
+            items: filteredPosts.filter((post) => post.subtitle === group),
+          })),
+          ...(uncategorized.length > 0
+            ? [{ group: '기타', items: uncategorized }]
+            : []),
+        ].filter((section) => section.items.length > 0)
+      : null
+
+  const groupTabs: string[] = [ICON_GROUP_ALL, ...ICON_GROUPS]
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900">
@@ -586,43 +580,60 @@ export function IconTab({ category, header }: IconTabProps) {
             )}
           </div>
 
+          {/* 그룹 필터 메뉴 (ALL + 14그룹, 한 줄 + 가로 스크롤 + 엣지 페이드) */}
+          <HorizontalScrollEdgeFades className="mt-3">
+            <div className="flex flex-nowrap items-center gap-4">
+              {groupTabs.map((group) => (
+                <button
+                  key={group}
+                  onClick={() => setSelectedGroup(group)}
+                  className={`shrink-0 px-0 md:px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    selectedGroup === group
+                      ? 'text-primary font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+          </HorizontalScrollEdgeFades>
         </div>
 
         {/* 아이콘 그리드 */}
         <div className="px-8 py-6">
-          {filteredPosts.length === 0 && !loading ? (
+          {loading && posts.length === 0 ? (
+            <div className="flex justify-center py-8">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>불러오는 중...</span>
+              </div>
+            </div>
+          ) : filteredPosts.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">
                 {searchQuery ? '검색 결과가 없습니다.' : '아이콘이 없습니다.'}
               </p>
             </div>
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
-              {filteredPosts.map((post) => (
-                <IconCard
-                  key={post.id}
-                  post={post}
-                  isSelected={selectedPostIds.has(post.id)}
-                  onClick={handleIconClick}
-                  size={displaySize}
-                  color={color}
-                  strokeWidth={strokeWidth}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* 무한 스크롤 트리거 */}
-          {hasMore && (
-            <div ref={loadMoreRef} className="flex justify-center py-8">
-              {loading ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>더 불러오는 중...</span>
+          ) : sections ? (
+            // ALL: 그룹별 섹션 헤더 + 그리드
+            sections.map((section) => (
+              <div key={section.group} className="mb-8">
+                <h3 className="text-sm font-semibold text-foreground mb-3">
+                  {section.group}{' '}
+                  <span className="text-muted-foreground font-normal">
+                    ({section.items.length})
+                  </span>
+                </h3>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
+                  {section.items.map(renderCard)}
                 </div>
-              ) : (
-                <div className="h-8" />
-              )}
+              </div>
+            ))
+          ) : (
+            // 특정 그룹: 단일 그리드
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
+              {filteredPosts.map(renderCard)}
             </div>
           )}
         </div>

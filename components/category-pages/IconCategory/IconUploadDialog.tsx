@@ -10,8 +10,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { File, X, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import { ICON_GROUPS } from '@/lib/icon-groups'
 
 interface IconUploadDialogProps {
   open: boolean
@@ -29,6 +37,7 @@ export function IconUploadDialog({
   categorySlug,
 }: IconUploadDialogProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<string>('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -63,6 +72,11 @@ export function IconUploadDialog({
       return
     }
 
+    if (!selectedGroup) {
+      toast.error('그룹을 선택해주세요.')
+      return
+    }
+
     try {
       setUploading(true)
 
@@ -71,6 +85,7 @@ export function IconUploadDialog({
         formData.append('files', file)
       })
       formData.append('categorySlug', categorySlug)
+      formData.append('group', selectedGroup)
 
       const response = await fetch('/api/posts/upload-icon', {
         method: 'POST',
@@ -87,10 +102,11 @@ export function IconUploadDialog({
       
       // 초기화
       setSelectedFiles([])
+      setSelectedGroup('')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
-      
+
       onSuccess()
       onClose()
     } catch (error: any) {
@@ -104,6 +120,7 @@ export function IconUploadDialog({
   const handleClose = () => {
     if (!uploading) {
       setSelectedFiles([])
+      setSelectedGroup('')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -122,6 +139,28 @@ export function IconUploadDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* 그룹 선택 (필수) */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              그룹 <span className="text-destructive">*</span>
+            </label>
+            <Select value={selectedGroup} onValueChange={setSelectedGroup} disabled={uploading}>
+              <SelectTrigger>
+                <SelectValue placeholder="아이콘 그룹을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {ICON_GROUPS.map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {group}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              선택한 그룹은 이번에 업로드하는 모든 파일에 적용됩니다.
+            </p>
+          </div>
+
           {/* 파일 드롭 존 */}
           <div
             className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
@@ -194,7 +233,7 @@ export function IconUploadDialog({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={selectedFiles.length === 0 || uploading}
+            disabled={selectedFiles.length === 0 || !selectedGroup || uploading}
           >
             {uploading ? (
               <>
