@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,7 +27,16 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Loader2 } from 'lucide-react'
 import { DesignRequestStatusBadge } from '@/components/design-request/DesignRequestStatusBadge'
 import { DesignRequestRichTextEditor } from '@/components/design-request/DesignRequestRichTextEditor'
+import {
+  DesignRequestAttachmentsField,
+  type ExistingAttachmentItem,
+} from '@/components/design-request/DesignRequestAttachmentsField'
 import { isDesignRequestContentEmpty } from '@/lib/design-request-content'
+import {
+  DESIGN_REQUEST_ATTACHMENT_MAX_COUNT,
+  validateAttachmentFile,
+} from '@/lib/design-request-attachments'
+import { uploadDesignRequestAttachments } from '@/lib/design-request-attachment-upload'
 
 function dateToYmdLocal(d: Date): string {
   const y = d.getFullYear()
@@ -55,6 +64,15 @@ const createSchema = baseSchema
 /** 수정 시 상태는 API/목록(관리자)에서만 변경 — 폼에서는 제목·내용 등만 */
 const editSchema = baseSchema
 
+export type DesignRequestAttachmentRow = {
+  id: string
+  fileName: string
+  fileUrl: string
+  fileSize: number
+  mimeType: string
+  createdAt: string
+}
+
 export type DesignRequestRow = {
   id: string
   title: string
@@ -64,6 +82,7 @@ export type DesignRequestRow = {
   status: DesignRequestStatus
   createdAt: string
   author: { id: string; name: string | null; email: string }
+  attachments?: DesignRequestAttachmentRow[]
 }
 
 interface DesignRequestFormDialogProps {
@@ -105,8 +124,15 @@ export function DesignRequestFormDialog({
     },
   })
 
+  // 첨부: 유지 중인 기존 첨부(수정 모드) + 새로 선택한 파일
+  const [keptExisting, setKeptExisting] = useState<ExistingAttachmentItem[]>([])
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+
   useLayoutEffect(() => {
     if (!open) return
+    setAttachmentError(null)
+    setPendingFiles([])
     if (isEdit && initial) {
       editForm.reset({
         title: initial.title,
@@ -114,6 +140,13 @@ export function DesignRequestFormDialog({
         content: initial.content,
         dueDate: apiDueToLocalDate(initial.dueDate),
       })
+      setKeptExisting(
+        (initial.attachments ?? []).map((a) => ({
+          id: a.id,
+          fileName: a.fileName,
+          fileSize: a.fileSize,
+        }))
+      )
     } else if (!isEdit) {
       createForm.reset({
         title: '',
@@ -121,12 +154,53 @@ export function DesignRequestFormDialog({
         content: '',
         dueDate: undefined,
       })
+      setKeptExisting([])
     }
   }, [open, isEdit, initial, createForm, editForm])
+
+  function handleAddFiles(files: File[]) {
+    setAttachmentError(null)
+    const room =
+      DESIGN_REQUEST_ATTACHMENT_MAX_COUNT - (keptExisting.length + pendingFiles.length)
+    if (room <= 0) {
+      setAttachmentError(
+        `첨부는 최대 ${DESIGN_REQUEST_ATTACHMENT_MAX_COUNT}개까지 가능합니다.`
+      )
+      return
+    }
+    const accepted: File[] = []
+    for (const f of files) {
+      const err = validateAttachmentFile({ name: f.name, size: f.size })
+      if (err) {
+        setAttachmentError(err)
+        continue
+      }
+      accepted.push(f)
+    }
+    let toAdd = accepted
+    if (accepted.length > room) {
+      setAttachmentError(
+        `첨부는 최대 ${DESIGN_REQUEST_ATTACHMENT_MAX_COUNT}개까지 가능합니다.`
+      )
+      toAdd = accepted.slice(0, room)
+    }
+    if (toAdd.length > 0) setPendingFiles((prev) => [...prev, ...toAdd])
+  }
+
+  function handleRemoveExisting(id: string) {
+    setAttachmentError(null)
+    setKeptExisting((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  function handleRemovePending(index: number) {
+    setAttachmentError(null)
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const submitting = isEdit ? editForm.formState.isSubmitting : createForm.formState.isSubmitting
 
   async function onCreate(values: z.infer<typeof createSchema>) {
+    const uploaded = await uploadDesignRequestAttachments(pendingFiles)
     const res = await fetch('/api/design-requests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,6 +210,7 @@ export function DesignRequestFormDialog({
         departmentTeam: values.departmentTeam,
         content: values.content,
         dueDate: dateToYmdLocal(values.dueDate),
+        attachments: uploaded,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -148,6 +223,10 @@ export function DesignRequestFormDialog({
 
   async function onEdit(values: z.infer<typeof editSchema>) {
     if (!initial) return
+    const uploaded = await uploadDesignRequestAttachments(pendingFiles)
+    const removedAttachmentIds = (initial.attachments ?? [])
+      .filter((a) => !keptExisting.some((k) => k.id === a.id))
+      .map((a) => a.id)
     const res = await fetch(`/api/design-requests/${initial.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -157,6 +236,8 @@ export function DesignRequestFormDialog({
         departmentTeam: values.departmentTeam,
         content: values.content,
         dueDate: dateToYmdLocal(values.dueDate),
+        addedAttachments: uploaded,
+        removedAttachmentIds,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -273,6 +354,18 @@ export function DesignRequestFormDialog({
                   </FormItem>
                 )}
               />
+              <FormItem>
+                <FormLabel>첨부파일</FormLabel>
+                <DesignRequestAttachmentsField
+                  existing={keptExisting}
+                  pending={pendingFiles}
+                  disabled={submitting}
+                  error={attachmentError}
+                  onAddFiles={handleAddFiles}
+                  onRemoveExisting={handleRemoveExisting}
+                  onRemovePending={handleRemovePending}
+                />
+              </FormItem>
               {createForm.formState.errors.root && (
                 <p className="text-sm text-destructive">
                   {createForm.formState.errors.root.message}
@@ -395,6 +488,18 @@ export function DesignRequestFormDialog({
                   </FormItem>
                 )}
               />
+              <FormItem>
+                <FormLabel>첨부파일</FormLabel>
+                <DesignRequestAttachmentsField
+                  existing={keptExisting}
+                  pending={pendingFiles}
+                  disabled={submitting}
+                  error={attachmentError}
+                  onAddFiles={handleAddFiles}
+                  onRemoveExisting={handleRemoveExisting}
+                  onRemovePending={handleRemovePending}
+                />
+              </FormItem>
               {editForm.formState.errors.root && (
                 <p className="text-sm text-destructive">
                   {editForm.formState.errors.root.message}

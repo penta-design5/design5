@@ -26,7 +26,8 @@ import {
   isProbablyRichHtml,
   sanitizeDesignRequestHtml,
 } from '@/lib/design-request-content'
-import { Loader2 } from 'lucide-react'
+import { formatFileSize } from '@/lib/design-request-attachments'
+import { Download, Loader2 } from 'lucide-react'
 
 interface Category {
   id: string
@@ -187,6 +188,29 @@ export function DesignRequestDetailPage({
             )}
           </dd>
         </div>
+        {item.attachments && item.attachments.length > 0 && (
+          <div>
+            <dt className="text-xs font-medium text-muted-foreground">첨부파일</dt>
+            <dd className="mt-1">
+              <ul className="space-y-1">
+                {item.attachments.map((a) => (
+                  <li key={a.id}>
+                    <a
+                      href={`/api/design-requests/${item.id}/attachments/${a.id}/download`}
+                      className="inline-flex max-w-full items-center gap-2 rounded-md border border-input bg-muted/30 px-2 py-1.5 text-sm hover:bg-muted"
+                    >
+                      <Download className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="min-w-0 truncate">{a.fileName}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatFileSize(a.fileSize)}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">

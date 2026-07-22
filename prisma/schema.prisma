@@ -356,11 +356,29 @@ model DesignRequest {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
+  attachments DesignRequestAttachment[]
+
   @@index([authorId])
   @@index([createdAt])
   @@index([dueDate])
   @@index([status])
   @@map("design_requests")
+}
+
+// 디자인 의뢰 첨부파일 (1:N). posts 버킷 design-requests/ prefix에 저장, DB에는 메타데이터+URL.
+// 의뢰당 최대 5개·파일당 25MB·확장자 화이트리스트는 lib/design-request-attachments.ts 에서 관리.
+model DesignRequestAttachment {
+  id        String        @id @default(cuid())
+  requestId String
+  request   DesignRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fileName  String // 원본 파일명(표시·다운로드명)
+  fileUrl   String // posts 버킷 객체 URL/키
+  fileSize  Int // bytes
+  mimeType  String
+  createdAt DateTime      @default(now())
+
+  @@index([requestId])
+  @@map("design_request_attachments")
 }
 
 // INSIGHTS: 「AI 사용가이드」(카드 갤러리)·「최신 동향」(게시판) 공용 모델.

@@ -5,6 +5,11 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { z } from 'zod'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
 import { NotFoundError, ForbiddenError, BadRequestError } from '@/lib/api/errors'
+import { deleteFileByUrl } from '@/lib/b2'
+import {
+  DESIGN_REQUEST_ATTACHMENT_MAX_COUNT,
+  designRequestAttachmentInputSchema,
+} from '@/lib/design-request-attachments'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +26,8 @@ const patchSchema = z.object({
   dueDate: dateStr.optional(),
   content: z.string().min(1).optional(),
   status: z.nativeEnum(DesignRequestStatus).optional(),
+  addedAttachments: z.array(designRequestAttachmentInputSchema).optional(),
+  removedAttachmentIds: z.array(z.string()).optional(),
 })
 
 function canMutate(
@@ -40,6 +47,7 @@ export const GET = withRouteHandler(
         author: {
           select: { id: true, name: true, email: true },
         },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     })
 
@@ -88,17 +96,83 @@ export const PATCH = withRouteHandler(
       update.status = data.status
     }
 
-    if (Object.keys(update).length === 0) {
+    const removedIds = data.removedAttachmentIds ?? []
+    const added = data.addedAttachments ?? []
+    const hasAttachmentChange = removedIds.length > 0 || added.length > 0
+
+    if (Object.keys(update).length === 0 && !hasAttachmentChange) {
       throw new BadRequestError('수정할 항목이 없습니다.')
     }
 
-    const updated = await prisma.designRequest.update({
+    // 첨부 개수 상한 재검증: (현재 - 삭제 + 추가) ≤ MAX
+    if (hasAttachmentChange) {
+      const current = await prisma.designRequestAttachment.findMany({
+        where: { requestId: params.id },
+        select: { id: true, fileUrl: true },
+      })
+      const currentIds = new Set(current.map((a) => a.id))
+      // 이 의뢰에 속하지 않는 삭제 요청은 무시
+      const validRemovedIds = removedIds.filter((id) => currentIds.has(id))
+      const finalCount = current.length - validRemovedIds.length + added.length
+      if (finalCount > DESIGN_REQUEST_ATTACHMENT_MAX_COUNT) {
+        throw new BadRequestError(
+          `첨부는 최대 ${DESIGN_REQUEST_ATTACHMENT_MAX_COUNT}개까지 가능합니다.`
+        )
+      }
+
+      // DB 반영 (트랜잭션): 제거분 삭제 + 신규 생성 + 본문 업데이트
+      await prisma.$transaction([
+        ...(validRemovedIds.length > 0
+          ? [
+              prisma.designRequestAttachment.deleteMany({
+                where: { id: { in: validRemovedIds }, requestId: params.id },
+              }),
+            ]
+          : []),
+        ...(added.length > 0
+          ? [
+              prisma.designRequestAttachment.createMany({
+                data: added.map((a) => ({
+                  requestId: params.id,
+                  fileName: a.fileName,
+                  fileUrl: a.fileUrl,
+                  fileSize: a.fileSize,
+                  mimeType: a.mimeType,
+                })),
+              }),
+            ]
+          : []),
+        prisma.designRequest.update({
+          where: { id: params.id },
+          data: update,
+        }),
+      ])
+
+      // S3 객체 정리 (DB 커밋 후, 실패해도 요청은 성공 처리 — 고아 객체는 로그만)
+      const removedUrls = current
+        .filter((a) => validRemovedIds.includes(a.id))
+        .map((a) => a.fileUrl)
+      await Promise.all(
+        removedUrls.map((url) =>
+          deleteFileByUrl(url).catch((e) =>
+            console.error('첨부 S3 삭제 실패:', url, e)
+          )
+        )
+      )
+    } else {
+      await prisma.designRequest.update({
+        where: { id: params.id },
+        data: update,
+      })
+    }
+
+    const updated = await prisma.designRequest.findUnique({
       where: { id: params.id },
-      data: update,
       include: {
         author: {
           select: { id: true, name: true, email: true },
         },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     })
 
@@ -121,6 +195,19 @@ export const DELETE = withRouteHandler(
     if (!canMutate(user, existing.authorId)) {
       throw new ForbiddenError('삭제 권한이 없습니다.')
     }
+
+    // 첨부 S3 객체 먼저 정리 (DB는 onDelete: Cascade로 자동 삭제)
+    const attachments = await prisma.designRequestAttachment.findMany({
+      where: { requestId: params.id },
+      select: { fileUrl: true },
+    })
+    await Promise.all(
+      attachments.map((a) =>
+        deleteFileByUrl(a.fileUrl).catch((e) =>
+          console.error('첨부 S3 삭제 실패:', a.fileUrl, e)
+        )
+      )
+    )
 
     await prisma.designRequest.delete({
       where: { id: params.id },

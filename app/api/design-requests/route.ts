@@ -5,6 +5,10 @@ import { requireAuth } from '@/lib/auth-helpers'
 import { notifyDesignRequestCreated } from '@/lib/mail/design-request-notification'
 import { z } from 'zod'
 import { withRouteHandler } from '@/lib/api/with-route-handler'
+import {
+  DESIGN_REQUEST_ATTACHMENT_MAX_COUNT,
+  designRequestAttachmentInputSchema,
+} from '@/lib/design-request-attachments'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +37,10 @@ const createBodySchema = z.object({
   departmentTeam: z.string().min(1, '의뢰 부서/팀을 입력해주세요.'),
   dueDate: dateStr,
   content: z.string().min(1, '의뢰 내용을 입력해주세요.'),
+  attachments: z
+    .array(designRequestAttachmentInputSchema)
+    .max(DESIGN_REQUEST_ATTACHMENT_MAX_COUNT, `첨부는 최대 ${DESIGN_REQUEST_ATTACHMENT_MAX_COUNT}개까지 가능합니다.`)
+    .optional(),
 })
 
 export const GET = withRouteHandler(async (request: Request) => {
@@ -121,6 +129,7 @@ export const GET = withRouteHandler(async (request: Request) => {
         author: {
           select: { id: true, name: true, email: true },
         },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     }),
   ])
@@ -146,11 +155,24 @@ export const POST = withRouteHandler(async (request: Request) => {
       dueDate: parseDateOnlyUtc(data.dueDate),
       status: DesignRequestStatus.REQUESTED,
       authorId: user.id,
+      ...(data.attachments && data.attachments.length > 0
+        ? {
+            attachments: {
+              create: data.attachments.map((a) => ({
+                fileName: a.fileName,
+                fileUrl: a.fileUrl,
+                fileSize: a.fileSize,
+                mimeType: a.mimeType,
+              })),
+            },
+          }
+        : {}),
     },
     include: {
       author: {
         select: { id: true, name: true, email: true },
       },
+      attachments: { orderBy: { createdAt: 'asc' } },
     },
   })
 
