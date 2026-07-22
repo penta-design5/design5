@@ -118,9 +118,12 @@ export function DesignRequestRichTextEditor({
         class: cn(
           'min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm',
           'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          '[&_.ProseMirror]:min-h-[120px] [&_.ProseMirror]:outline-none',
-          // 긴 URL 등 공백 없는 문자열이 너비를 넘겨 잘리지 않도록 줄바꿈
-          '[&_.ProseMirror]:[overflow-wrap:anywhere]',
+          // 이 class 는 .ProseMirror 편집 영역 자신에 적용된다.
+          // (후손 선택자 [&_.ProseMirror] 는 매칭되지 않으므로 규칙을 직접 붙인다)
+          'outline-none',
+          // 긴 URL 등 공백 없는 문자열이 너비를 넘겨 영역이 깨지지 않도록 줄바꿈.
+          // 편집 영역과 각 문단 모두에 적용해 문자 종류(한글/영문 등)와 무관하게 동작.
+          '[overflow-wrap:anywhere] [&_p]:[overflow-wrap:anywhere]',
           '[&_p]:my-1 [&_p]:leading-relaxed [&_strong]:font-semibold',
           '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2',
           ariaInvalid && 'border-destructive ring-destructive'
