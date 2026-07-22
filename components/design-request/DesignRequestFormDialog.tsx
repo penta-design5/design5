@@ -354,8 +354,8 @@ export function DesignRequestFormDialog({
                   </FormItem>
                 )}
               />
-              <FormItem>
-                <FormLabel>첨부파일</FormLabel>
+              <div className="grid gap-2">
+                <Label>첨부파일</Label>
                 <DesignRequestAttachmentsField
                   existing={keptExisting}
                   pending={pendingFiles}
@@ -365,7 +365,7 @@ export function DesignRequestFormDialog({
                   onRemoveExisting={handleRemoveExisting}
                   onRemovePending={handleRemovePending}
                 />
-              </FormItem>
+              </div>
               {createForm.formState.errors.root && (
                 <p className="text-sm text-destructive">
                   {createForm.formState.errors.root.message}
@@ -488,8 +488,8 @@ export function DesignRequestFormDialog({
                   </FormItem>
                 )}
               />
-              <FormItem>
-                <FormLabel>첨부파일</FormLabel>
+              <div className="grid gap-2">
+                <Label>첨부파일</Label>
                 <DesignRequestAttachmentsField
                   existing={keptExisting}
                   pending={pendingFiles}
@@ -499,7 +499,7 @@ export function DesignRequestFormDialog({
                   onRemoveExisting={handleRemoveExisting}
                   onRemovePending={handleRemovePending}
                 />
-              </FormItem>
+              </div>
               {editForm.formState.errors.root && (
                 <p className="text-sm text-destructive">
                   {editForm.formState.errors.root.message}
