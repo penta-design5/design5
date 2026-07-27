@@ -31,8 +31,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // 테마 전환 UI가 숨겨진 상태이므로 라이트 모드로 고정한다.
+  // defaultTheme="system" + enableSystem 이면 Windows 다크 모드 사용자에게
+  // OS 설정이 그대로 적용되어(.dark), 미유지 상태인 다크 팔레트 때문에
+  // 검정 배경 + 검정 텍스트로 본문이 보이지 않는다.
+  // 테마 기능을 정식 공개할 때 defaultTheme="system" enableSystem 으로 되돌린다.
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider delayDuration={300}>
         <SessionProvider>
           <ConfirmDialogProvider>
