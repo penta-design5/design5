@@ -1,15 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-  type FormEvent,
-  type PointerEvent,
-} from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,11 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { UploadCloud, Loader2, File as FileIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { clamp, formatCoordinate, getContainedRect } from './anchor-utils'
 import type { IconPlusType } from './types'
 
 interface IconPlusUploadDialogProps {
@@ -37,7 +25,7 @@ interface IconPlusUploadDialogProps {
 const UPLOAD_COPY: Record<IconPlusType, { title: string; policy: string }> = {
   MAIN: {
     title: '메인 아이콘 업로드',
-    policy: 'SVG 1개만 업로드할 수 있으며 최대 256KB까지 허용됩니다.',
+    policy: '완전한 모습의 SVG 1개만 업로드할 수 있으며 최대 256KB까지 허용됩니다.',
   },
   MERGE_ICON: {
     title: '병합용 아이콘 업로드',
@@ -51,8 +39,9 @@ const UPLOAD_COPY: Record<IconPlusType, { title: string; policy: string }> = {
 
 /**
  * ICON+ 리소스 업로드 다이얼로그.
- * - MERGE_ICON/MERGE_TEXT: SVG 다중 업로드(anchor 없음).
- * - MAIN: SVG 단건 + anchorX/anchorY 필수(미리보기 위 클릭·드래그로 십자선 지정, 좌표 직접 입력 가능).
+ * - MERGE_ICON/MERGE_TEXT: SVG 다중 업로드.
+ * - MAIN: **완전한 모습의 SVG 단건**만 받는다. 절단 원·앵커는 업로드 후 마스킹 프리셋 편집
+ *   다이얼로그(`IconPlusMainEditDialog`)에서 위치별로 설정한다(P8 결정 8).
  *
  * 미리보기는 업로드 전 sanitize되지 않은 파일이므로 `dangerouslySetInnerHTML` 대신
  * object URL + `<img>`로 렌더한다(SVG를 이미지로 로드하면 스크립트가 실행되지 않음).
@@ -70,16 +59,11 @@ export function IconPlusUploadDialog({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewUrlRef = useRef<string | null>(null)
-  const stageRef = useRef<HTMLDivElement>(null)
-  const imageRef = useRef<HTMLDivElement>(null)
 
   const [files, setFiles] = useState<File[]>([])
-  const [anchorX, setAnchorX] = useState('')
-  const [anchorY, setAnchorY] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [isDraggingAnchor, setIsDraggingAnchor] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -97,27 +81,13 @@ export function IconPlusUploadDialog({
     if (!open) {
       clearPreview()
       setFiles([])
-      setAnchorX('')
-      setAnchorY('')
       setPreviewUrl(null)
       setPreviewSize(null)
       setErrorMessage(null)
       setIsDragging(false)
-      setIsDraggingAnchor(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }, [open])
-
-  const anchorPosition = useMemo(() => {
-    if (!previewSize) return null
-    const x = Number(anchorX)
-    const y = Number(anchorY)
-    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
-    return {
-      left: `${clamp((x / previewSize.width) * 100, 0, 100)}%`,
-      top: `${clamp((y / previewSize.height) * 100, 0, 100)}%`,
-    }
-  }, [anchorX, anchorY, previewSize])
 
   const applyFiles = (fileList: FileList | File[]) => {
     const next = Array.from(fileList)
@@ -149,8 +119,6 @@ export function IconPlusUploadDialog({
     const objectUrl = URL.createObjectURL(file)
     previewUrlRef.current = objectUrl
     setPreviewUrl(objectUrl)
-    setAnchorX('')
-    setAnchorY('')
     file.text().then((svg) => setPreviewSize(readClientSvgSize(svg)))
   }
 
@@ -164,43 +132,6 @@ export function IconPlusUploadDialog({
     applyFiles(event.dataTransfer.files)
   }
 
-  const updateAnchorFromPointer = (event: PointerEvent<HTMLDivElement>) => {
-    if (!previewSize || !stageRef.current) return
-    const imageRect =
-      imageRef.current?.getBoundingClientRect() ??
-      getContainedRect(stageRef.current.getBoundingClientRect(), previewSize)
-    const x = clamp(
-      ((event.clientX - imageRect.left) / imageRect.width) * previewSize.width,
-      0,
-      previewSize.width
-    )
-    const y = clamp(
-      ((event.clientY - imageRect.top) / imageRect.height) * previewSize.height,
-      0,
-      previewSize.height
-    )
-    setAnchorX(formatCoordinate(x))
-    setAnchorY(formatCoordinate(y))
-    setErrorMessage(null)
-  }
-
-  const handleAnchorPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    updateAnchorFromPointer(event)
-    setIsDraggingAnchor(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  const handleAnchorPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (isDraggingAnchor) updateAnchorFromPointer(event)
-  }
-
-  const handleAnchorPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    setIsDraggingAnchor(false)
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
@@ -209,18 +140,9 @@ export function IconPlusUploadDialog({
       setErrorMessage('업로드할 SVG 파일을 선택해 주세요.')
       return
     }
-    if (isMain && (!anchorX || !anchorY)) {
-      setErrorMessage('메인 아이콘은 anchorX와 anchorY 좌표가 필요합니다.')
-      return
-    }
-
     const formData = new FormData()
     formData.append('type', type)
     files.forEach((file) => formData.append('files', file))
-    if (isMain) {
-      formData.append('anchorX', anchorX)
-      formData.append('anchorY', anchorY)
-    }
 
     setUploading(true)
     try {
@@ -298,95 +220,34 @@ export function IconPlusUploadDialog({
             </div>
           )}
 
-          {/* MAIN: anchor 지정 (미리보기 + 좌표 입력) */}
+          {/* MAIN: 업로드 미리보기 (anchor 입력 없음 — 절단 원·앵커는 업로드 후 프리셋에서 설정) */}
           {isMain && (
-            <div className="grid gap-4 md:grid-cols-[1fr_180px]">
-              <div
-                ref={stageRef}
-                role="presentation"
-                className="relative flex min-h-56 touch-none select-none items-center justify-center overflow-hidden rounded-lg border border-border bg-muted p-4"
-                style={{
-                  cursor:
-                    previewUrl && previewSize
-                      ? isDraggingAnchor
-                        ? 'grabbing'
-                        : 'crosshair'
-                      : 'default',
-                }}
-                onPointerDown={previewUrl && previewSize ? handleAnchorPointerDown : undefined}
-                onPointerMove={previewUrl && previewSize ? handleAnchorPointerMove : undefined}
-                onPointerUp={previewUrl && previewSize ? handleAnchorPointerUp : undefined}
-                onPointerCancel={previewUrl && previewSize ? handleAnchorPointerUp : undefined}
-              >
-                {previewUrl && previewSize ? (
+            <div className="space-y-2">
+              <div className="flex min-h-56 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted p-4">
+                {previewUrl ? (
                   <div
-                    ref={imageRef}
-                    className="pointer-events-none relative h-48 max-w-full"
-                    style={{ aspectRatio: `${previewSize.width} / ${previewSize.height}` }}
+                    className="relative h-48 max-w-full"
+                    style={
+                      previewSize
+                        ? { aspectRatio: `${previewSize.width} / ${previewSize.height}` }
+                        : undefined
+                    }
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={previewUrl}
                       alt="메인 아이콘 업로드 미리보기"
                       draggable={false}
-                      className="absolute inset-0 h-full w-full select-none object-contain"
+                      className="h-full w-full select-none object-contain"
                     />
-                    {anchorPosition && (
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background shadow before:absolute before:left-1/2 before:top-[-10px] before:h-8 before:w-px before:-translate-x-1/2 before:bg-primary after:absolute after:left-[-10px] after:top-1/2 after:h-px after:w-8 after:-translate-y-1/2 after:bg-primary"
-                        style={anchorPosition}
-                      />
-                    )}
                   </div>
-                ) : previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={previewUrl}
-                    alt="메인 아이콘 업로드 미리보기"
-                    draggable={false}
-                    className="h-48 w-full select-none object-contain"
-                  />
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    SVG 선택 시 미리보기가 표시됩니다.
-                  </p>
+                  <p className="text-sm text-muted-foreground">SVG 선택 시 미리보기가 표시됩니다.</p>
                 )}
               </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="icon-plus-anchor-x" className="text-xs text-muted-foreground">
-                    anchorX
-                  </Label>
-                  <Input
-                    id="icon-plus-anchor-x"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    placeholder="0"
-                    value={anchorX}
-                    onChange={(e) => setAnchorX(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="icon-plus-anchor-y" className="text-xs text-muted-foreground">
-                    anchorY
-                  </Label>
-                  <Input
-                    id="icon-plus-anchor-y"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    placeholder="0"
-                    value={anchorY}
-                    onChange={(e) => setAnchorY(e.target.value)}
-                  />
-                </div>
-                <p className="text-xs leading-4 text-muted-foreground">
-                  미리보기 아이콘 위를 클릭하거나 드래그해 병합 시작 좌표를 설정할 수 있습니다.
-                </p>
-              </div>
+              <p className="text-xs leading-4 text-muted-foreground">
+                절단 원과 병합 앵커는 업로드 후 메인 카드의 편집(⌖) 버튼에서 위치별 프리셋으로 설정합니다.
+              </p>
             </div>
           )}
 

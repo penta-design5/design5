@@ -22,7 +22,7 @@
 | P5 | 병합 미리보기 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과 + `?tab=plus` 컴파일·200. 실 병합 렌더는 사내망 대기 |
 | P6 | 속성 조정 & 다운로드 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과(신규 8종) + `?tab=plus` 컴파일·200. 실 다운로드/다크모드 육안은 사내망 대기 |
 | P7 | 반응형/접근성/QA | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus`·`/chart-generator` 컴파일·200. 모바일 속성 시트(하단 슬라이딩)·플로팅 버튼 + close 버튼 겹침 해결(전역) + ICON 탭 버튼 줄바꿈. **사내망 모바일 QA 확인 완료(2026-07-08)** ✅ |
-| P8 | 마스킹 프리셋 (원형 절단) | ⬜ 대기 | — | **계획 수립 완료 · 구현 미착수.** 계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md) (P8-1~P8-4로 분할). 다음 세션은 이 문서부터 확인 |
+| P8 | 마스킹 프리셋 (원형 절단) | 🟡 진행중 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | **P8-1~P8-4 코드 완료.** 개발망 `migrate deploy` 적용 + 프리셋 왕복·유니크·cascade·legacy 무영향 확인 ✅ / tsc·lint 0 + 단위테스트 228 통과(신규 30종) + `?tab=plus` 200. **남은 것은 개발망 육안 검증**(계획서 §10). 계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md) |
 
 ---
 
@@ -201,17 +201,102 @@
 - 다음 작업:
   - (없음) — P7 완료. 전역 애니메이션 활성화에 따른 타 페이지 시트/다이얼로그 동작은 운영 배포 시 참고.
 
+### Phase 8 — 마스킹 프리셋 (원형 절단)  🟡
+> 계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md) · P8-1 → P8-2 → P8-3 → P8-4
+
+#### P8-1 데이터·API  ✅ (코드 완료 · 개발망 마이그레이션·데이터 계층 검증 완료 2026-07-29)
+- [x] `IconPlusCutPosition` enum + `IconPlusMainPreset` 모델 + `IconPlusResource.presets` 관계(cascade), legacy 필드 주석
+- [x] 수동 SQL 마이그레이션(신규 타입·테이블만 — 순수 additive, shadow DB 미사용)
+- [x] `GET /api/icon-plus` → `include: { presets: true }`
+- [x] `PATCH /api/icon-plus/[id]` → 프리셋 **전체 교체**(트랜잭션) + legacy anchor 하위호환
+- [x] `POST /api/icon-plus` → MAIN anchor 필수 검증 제거
+- [x] `types.ts` 프리셋 타입 + 라벨/표시 순서 상수
+- 수정/신규 파일:
+  - `prisma/schema.prisma` (enum·모델·관계 추가, `anchorX/anchorY`에 legacy 주석)
+  - `prisma/migrations/20260729120000_add_icon_plus_main_presets/migration.sql` (신규 — CREATE TYPE/TABLE/UNIQUE INDEX + FK `ON DELETE CASCADE`. 기존 테이블 미변경)
+  - `app/api/icon-plus/route.ts` (GET include, POST anchor 필수 분기 삭제)
+  - `app/api/icon-plus/[id]/route.ts` (프리셋 파싱·검증 + `$transaction`으로 `deleteMany`→`createMany`, MAIN 존재 확인 후 404, 응답에 최신 `presets` 포함)
+  - `components/category-pages/IconCategory/iconplus/types.ts` (`IconPlusCutPosition`, `IconPlusMainPreset`, `CUT_POSITION_ORDER`/`CUT_POSITION_LABELS`, `sortPresets`, `IconPlusResource.presets?`)
+- 검증:
+  - `npx prisma validate` → valid 🚀, `npx prisma generate` → 성공(`IconPlusCutPosition`/`iconPlusMainPreset` 클라이언트 반영 확인)
+  - `npm run typecheck` → 0, `npm run lint` → 신규/수정 파일 error 0
+  - `npx vitest run` → ICON+ 관련 전체 통과(merge-svg 4 / process-svg 9 / icon-plus-properties 12). **기존 실패 15건**(`preset-storage`·`card-schemas`의 localStorage 테스트)은 이번 변경 전에도 동일하게 실패하는 **선존재 이슈**(ICON+ 무관, `git stash` 상태에서 동일 결과 확인)
+- 계획 대비 변경/결정:
+  - **POST의 anchor 저장은 유지**(필수 검증만 제거). 계획 §6.3은 "MAIN도 null로 저장"이지만, MAIN anchor 입력 UI 제거는 P8-4 범위여서 지금 강제 null로 바꾸면 P8-1~P8-3 구간에서 기존 업로드 다이얼로그가 보낸 좌표가 유실된다. 전달되면 legacy 값으로 저장, 없으면 null.
+  - **PATCH 검증 완화**: legacy anchor의 `>= 0` 제약을 제거하고 finite만 요구(§6.2 "anchor 음수 허용"). 프리셋 앵커는 상단 오버플로로 음수가 정상값.
+  - **PATCH 응답**에 최신 `presets` 배열을 함께 반환(관리자 다이얼로그가 저장 직후 상태를 확인할 수 있게). 기존 `{ ok: true }` 계약은 유지.
+  - `updateMany`+404 → `findFirst`(MAIN 확인) 후 트랜잭션 구조로 변경. 프리셋 삭제/생성과 anchor 수정이 한 트랜잭션에 묶인다.
+  - `process-svg.ts`의 `maskUnits` 허용목록 추가는 마스크 코어와 함께 다루는 편이 맞아 **P8-2로 이연**.
+- **개발망 검증 완료 (2026-07-29, 로컬 터널 `127.0.0.1:15432`)**:
+  - `npx prisma migrate status` → pending은 이번 1건뿐(이전 9건 적용 완료 = 이력 정합) → `npx prisma migrate deploy` → `20260729120000_add_icon_plus_main_presets` 적용 성공
+  - DB 실물 확인: 컬럼 10개(전부 NOT NULL), `IconPlusCutPosition` = `['TOP_RIGHT','BOTTOM_RIGHT']`, `icon_plus_main_presets_resourceId_position_key` UNIQUE, FK `ON DELETE CASCADE ON UPDATE CASCADE`(`confdeltype=c`)
+  - **legacy 무영향 확인**: 기존 MAIN 5건이 `presets=0` + `anchorX/anchorY` 보존(예: cloud=(15.5,12)). `include: { presets: true }` 쿼리 정상
+  - **프리셋 왕복(PATCH 트랜잭션 로직과 동일)**: 2개 저장(우측 상단 `anchorY=-1.68` **음수 정상 저장**) → 1개로 교체(나머지 위치 초기화) → 전체 삭제(0건) 모두 정상
+  - **유니크 제약**: 같은 `(resourceId, position)` 중복 생성 시 `P2002` 거부 확인
+  - **cascade**: `deleteMany`로 MAIN 삭제 시 프리셋 1건 → 0건 함께 삭제(FK 위반 없음)
+  - 검증용 임시 리소스는 즉시 정리 완료(잔여 0건, 전체 프리셋 0건, MAIN 5건 = 검증 전 상태와 동일)
+- 잔여 검증(브라우저·로그인 필요):
+  - `PATCH /api/icon-plus/[id]` **HTTP 왕복**(관리자 세션) 및 **비관리자 403** — 라우트 게이팅은 `requireAdmin()`로 P2와 동일 구조. 실사용 확인은 P8-4 편집 다이얼로그와 함께 하는 편이 효율적
+
+#### P8-2 마스크 코어  ✅ (로컬 단위테스트 통과)
+- [x] `lib/svg/corner-cut.ts` 신규 — `buildCutMaskDefs` / `applyCornerCutToSvg` / `isValidCornerCut` / `buildCutMaskId`
+- [x] `merge-svg.ts` 오프셋 정규화(음수 anchor 대응) + 마스크 통합, 타입 옵셔널 확장(`cutX/cutY/cutRadius/maskId`)
+- [x] `process-svg.ts` 허용 속성에 `maskUnits` 추가
+- 수정/신규 파일: `lib/svg/corner-cut.ts`(신규), `lib/svg/corner-cut.test.ts`(신규), `lib/svg/merge-svg.ts`, `lib/svg/process-svg.ts`, `lib/svg/merge-svg.test.ts`, `lib/svg/icon-plus-properties.test.ts`
+- 검증: `npx vitest run lib/svg/` → **57건 통과**. 하드 제약 3종을 테스트로 고정
+  - ① `<defs>`가 `data-layer="main"`보다 앞 + **색상 10종 baking 후에도 마스크 `#fff`/`#000` 보존**(가장 중요한 회귀)
+  - ② 마스크 도형 `fill` 명시 · `stroke` 미사용(globals.css 오염 방지)
+  - ③ mask 래퍼 `<g>`에 `transform` 없음(translate는 안쪽 `<g>`)
+  - **기존 출력 불변 회귀**: `anchor ≥ 0`이면 병합 결과 문자열이 P8 이전과 **완전히 동일**(바이트 비교)
+- 계획 대비 변경/결정:
+  - `isValidCornerCut`의 입력 타입을 `MaybeCornerCut`(nullable 3필드)로 정의 — DB/프리셋 값이 `null`일 수 있어 `Partial<CornerCut>`로는 타입이 맞지 않았다.
+  - 마스크가 없을 때는 **기존 구조(`<g data-layer="main" transform=…>`)를 그대로** 생성해 legacy 출력이 바뀌지 않게 분기했다.
+  - `maskId` 미지정 시 기본값(`iconplus-cut-mask`)을 쓰되, 호출부는 `buildCutMaskId(resourceId, position)`로 고유 id를 주입한다.
+
+#### P8-3 사용자 경로  ✅ (코드 완료 · 개발망 육안 확인 대기)
+- [x] 속성 패널 "마스킹 위치" 프리셋 선택 컨트롤(관리자가 설정한 위치만 노출, FORMAT 버튼과 동일 스타일)
+- [x] 기본 선택 우측 하단(없으면 우측 상단), 프리셋 0개면 컨트롤 숨김 + legacy anchor 경로
+- [x] 선택 프리셋의 anchor + 절단 원 + maskId를 `mergeSvgsByAnchor`에 전달 → 결과 슬롯·SVG/PNG/JPG 다운로드에 자동 반영
+- 수정 파일: `components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel.tsx`
+- 계획 대비 변경/결정:
+  - 기본 선택을 `useEffect`로 되돌리지 않고 **순수 파생(useMemo)으로 판정**했다. 메인 아이콘을 바꿀 때 effect가 한 프레임 뒤에 보정하며 생기는 깜빡임(및 "anchor 없음" 경고가 스치는 현상)이 없다.
+  - 카드(`IconPlusCard`)와 입력 미리보기(`PreviewSlot`)는 **렌더 로직을 손대지 않았다** → 항상 완전한 모습(결정 1).
+  - "anchor 좌표가 없어 미리보기를 만들 수 없습니다" 안내 문구를 "프리셋과 anchor가 모두 없음"으로 수정(프리셋이 있으면 항상 병합 가능하므로 legacy 전용 안내가 됨).
+
+#### P8-4 관리자 편집 다이얼로그  ✅ (코드 완료 · 개발망 육안 확인 대기)
+- [x] `IconPlusAnchorDialog` → **`IconPlusMainEditDialog`로 개명·확장**(프리셋 2탭, 탭별 `설정됨/미설정` 표시)
+- [x] 25% 여백 프레임 스테이지 + 아이콘 bbox 점선 + 실시간 마스킹 미리보기(`applyCornerCutToSvg`)
+- [x] 절단 원(빨간 실선) / 앵커 십자선 / 비활성 프리셋(회색 점선 원) / 참조 오버레이(반투명)
+- [x] 편집 대상 모드 토글 `[절단 원 지정] [앵커 지정]`, 지름 슬라이더(짧은 변 10~100%), 좌표 입력(음수 허용)
+- [x] `앵커를 원 좌상단에 맞추기`, `프리셋 추가`, `이 프리셋 삭제(초기화)`
+- [x] 두 프리셋 draft를 함께 보관 → **저장은 PATCH 1회 전체 교체**, 취소는 전체 폐기
+- [x] 업로드 다이얼로그의 MAIN anchor 입력 UI 제거(결정 8)
+- 수정/신규 파일:
+  - `components/category-pages/IconCategory/iconplus/IconPlusMainEditDialog.tsx` (신규 — 기존 `IconPlusAnchorDialog.tsx` 삭제)
+  - `components/category-pages/IconCategory/iconplus/anchor-utils.ts` (`STAGE_PADDING_RATIO`, `clampToExtendedRange`, `readViewBoxRect` 추가)
+  - `components/category-pages/IconCategory/iconplus/IconPlusCard.tsx` / `ResourceSection.tsx` (prop `onEditAnchor` → `onEdit`, aria-label 갱신)
+  - `components/category-pages/IconCategory/iconplus/IconPlusUploadDialog.tsx` (anchor state·포인터 핸들러·입력 제거, 미리보기만 유지)
+  - `app/_category-pages/icon/IconPlusWorkspace.tsx` (다이얼로그 교체, `referenceResources` prop 전달, 토스트 문구)
+- 계획 대비 변경/결정:
+  - **좌표 기준을 `readViewBoxRect`로 viewBox min까지 반영**했다. 기존 anchor 다이얼로그는 `0..width`를 가정했으나 `merge-svg`는 anchor/cut에서 `main.min`을 차감하므로, `viewBox="10 10 …"`처럼 min이 0이 아닌 SVG에서 좌표가 어긋난다.
+  - 수치 입력은 전용 `CoordinateInput`으로 분리했다. 단순 controlled number 입력은 `1.`·`-`처럼 **입력 중간 문자열이 즉시 반올림돼 소수점·음수를 타이핑할 수 없다** → 로컬 텍스트를 유지하고 외부 값이 실제로 달라졌을 때만 표시를 갱신한다.
+  - **legacy anchor 편집 UI는 제공하지 않는다**(계획 §7.2 범위). 프리셋 없는 pre-cut 아이콘은 다이얼로그 하단 안내문으로 "프리셋 추가 시 전환됨"을 알린다. 기존 anchor 값은 DB·API에 그대로 남아 legacy 렌더에 계속 쓰인다.
+  - 참조 오버레이 목록은 `mergeIconResources + mergeTextResources`를 prop으로 전달(추가 fetch 없음).
+- 로컬 검증: `npm run typecheck` 0 / `npm run lint`(변경 파일) 0 / `npx vitest run` **228 통과**(신규 30종 포함, 선존재 실패 15건은 ICON+ 무관) / `next dev`에서 `/icon?tab=plus`·`/icon` **200**, `/api/icon-plus` 무인증 **401**, 컴파일 에러 없음
+- 다음 작업:
+  - **개발망 육안 검증**(계획서 §10 2~13번): legacy 회귀 → 완전한 아이콘 업로드 → 프리셋 설정 → 사용자 전환 → 상단 오버플로 잘림 여부 → 3포맷 다운로드 일치 → Safari 마스크 → cascade 삭제 → 비관리자 403
+
 ---
 
 ## 구현 완료 (2026-07-08)
 - **ICON+ 전 단계(P0~P7) 코드 구현 완료.** 모든 계획서(§) 항목이 반영되었으며, tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus` 컴파일·200으로 검증됨. 브랜치 `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` push 완료.
 - 남은 것은 **코드 작업이 아니라 운영(사내망) 육안 확인 항목**뿐 — 아래 잔여 목록 참고.
 
-## 후속 기능 — P8 마스킹 프리셋 (2026-07-29 계획 수립, 구현 대기)
-- **계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md)** — 새 세션은 이 문서 기준으로 착수한다.
+## 후속 기능 — P8 마스킹 프리셋 (2026-07-29 계획 수립, **P8-1~P8-4 코드 완료 · 개발망 육안 검증 대기**)
+- **계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md)** — 새 세션은 이 문서와 위 "Phase 8" 상세 기준으로 이어간다.
 - 요지: 메인 아이콘을 **완전한 모습으로 업로드·표시**하고, 관리자가 **우측 상단/우측 하단 2곳**에 대해 (절단 원 + 앵커) 프리셋을 설정. 사용자는 속성 패널에서 프리셋을 선택해 마스킹된 병합 결과를 받는다.
 - P0~P7의 "pre-cut 파일 + 단일 anchor" 방식은 **legacy 경로로 유지**되어 기존 데이터는 그대로 동작한다.
-- 착수 단계: **P8-1(스키마 `IconPlusMainPreset` + 수동 SQL 마이그레이션 + API)** → P8-2 마스크 코어 → P8-3 사용자 경로 → P8-4 관리자 편집 다이얼로그.
+- 단계: ~~P8-1 스키마·마이그레이션·API~~ ✅ → ~~P8-2 마스크 코어~~ ✅ → ~~P8-3 사용자 경로~~ ✅ → ~~P8-4 관리자 편집 다이얼로그~~ ✅ → **개발망 육안 검증**(계획서 §10 2~13번)
 
 ## 미해결 / 결정 대기
 - (없음) — 다크 모드는 **미지원 확정**(2026-07-08, 관련 UI 아이콘도 이미 숨김). 선결요건 b의 카드 다크 대응 잔여 항목은 방침에 따라 종료.
@@ -246,4 +331,9 @@
 | 2026-07-08 | P7 | 사용자 피드백 반영: ①ICON+ 모바일 시트를 우측→**하단(`side="bottom"`)** 으로 변경(ICON 탭·타 페이지와 방향 일관). ②**슬라이딩 미동작 근본 원인 해결**: `tailwind.config.ts`에 `tailwindcss-animate` 플러그인 미등록 → 모든 `Sheet`/`Dialog` 애니메이션 클래스가 no-op이던 문제. 플러그인 등록으로 전 페이지 하단 시트 부드러운 슬라이딩 활성(gallery/character/chart-generator/ci-bi/ppt/design-request/pdf-extractor/GenericListPage/ICON 탭 등 공용 `Sheet` 사용처 전부). 생성 CSS에 `@keyframes enter/exit` 방출 확인. tsc/lint 0 + 190 통과 |
 | 2026-07-08 | P7 | 사내망 1차 QA 피드백 4건: ①ICON+ 플로팅 버튼 좌측 아이콘 제거. ②**시트 close 버튼 겹침 해결(전역)**: 공용 `sheet.tsx` close를 둥근 아이콘 버튼(rounded-full+border+bg)으로 재스타일 + 모바일 시트 속성 패널 상단 패딩 `pt-6`→`pt-14`(초기화 버튼 위로 close 배치, 겹침 제거). 적용: Icon/IconPlus/Character/CiBi/Ppt/Generic PropertyPanel + ChartSettingsPanel. ③ICON 탭 액션 버튼 행 `flex-wrap`(폭 초과 시 줄바꿈, 검색창 `min-w-[200px]`). ④ICON 탭 "속성 패널 열기" 버튼 제거(아이콘 선택 시 시트 자동 오픈으로 불필요). tsc 0 + 190 통과 + `/icon?tab=plus`·`/chart-generator` 200 |
 | 2026-07-29 | P8 | **마스킹 프리셋 계획 수립**([ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md)). 메인 아이콘을 완전한 모습으로 업로드·표시하고, 관리자가 우측 상단/하단 2곳에 (절단 원 + 앵커) 프리셋을 설정 → 사용자가 속성 패널에서 위치 프리셋을 선택. 자녀 테이블 `IconPlusMainPreset`(+`IconPlusCutPosition` enum, cascade) / 렌더 시점 SVG `<mask>` 비파괴 절단 / `merge-svg` 오프셋 정규화로 상단 오버플로 대응. 기존 pre-cut 아이콘은 legacy 경로 유지. **문서 작업만, 구현 미착수** |
+| 2026-07-29 | P8-1 | **데이터·API 구현**: `IconPlusCutPosition` enum + `IconPlusMainPreset` 모델(+`presets` 관계, cascade) + 수동 SQL 마이그레이션 `20260729120000_add_icon_plus_main_presets`(순수 additive). GET `include: { presets: true }`, PATCH 프리셋 전체 교체(트랜잭션 `deleteMany`→`createMany`, position enum·중복·finite·`cutRadius>0` 검증, anchor 음수 허용, legacy anchor 하위호환), POST MAIN anchor 필수 검증 제거(전달 시 legacy 값으로 저장 — UI 제거는 P8-4). `types.ts`에 프리셋 타입·라벨·순서 상수. validate/generate + typecheck/lint 0 |
+| 2026-07-29 | P8-1 | **개발망 검증 완료**(로컬 터널 15432): `migrate status`로 pending 1건 확인 후 `migrate deploy` 적용. DB 실물에서 컬럼·enum·UNIQUE(`resourceId`,`position`)·FK CASCADE 확인, 기존 MAIN 5건 legacy anchor 보존(`presets=0`), 프리셋 2개 저장(우측 상단 anchorY 음수 포함)→1개 교체→전체 삭제 왕복, 중복 `P2002` 거부, `deleteMany` 삭제 시 cascade 동작 확인. 검증용 임시 데이터 정리 완료 → **P8-1 ✅**. 잔여: PATCH HTTP 왕복·비관리자 403(로그인 필요, P8-4와 함께) |
+| 2026-07-29 | P8-2 | **마스크 코어**: `lib/svg/corner-cut.ts` 신규(`buildCutMaskDefs`/`applyCornerCutToSvg`/`isValidCornerCut`/`buildCutMaskId`) + `merge-svg.ts` 오프셋 정규화(음수 anchor 시 두 레이어 평행이동, viewBox min은 0 유지)·마스크 통합 + `process-svg.ts` `maskUnits` 허용. 하드 제약 3종을 테스트로 고정하고 **색상 baking 후 마스크 보존**·**anchor ≥ 0 출력 바이트 불변** 회귀 포함, `lib/svg/` 57건 통과 → **P8-2 ✅** |
+| 2026-07-29 | P8-3 | **사용자 경로**: 속성 패널 "마스킹 위치" 프리셋 버튼(설정된 위치만), 기본 우측 하단(없으면 우측 상단)을 **순수 파생으로 판정**(effect 보정 깜빡임 제거), 프리셋 0개면 컨트롤 숨김 + legacy anchor 경로. 선택 프리셋의 anchor·절단 원·maskId를 병합에 전달 → 결과 슬롯·3포맷 다운로드 자동 반영. 카드·입력 미리보기는 완전한 모습 유지 → **P8-3 ✅**(육안 대기) |
+| 2026-07-29 | P8-4 | **관리자 편집 다이얼로그**: `IconPlusAnchorDialog` → `IconPlusMainEditDialog` 개명·확장(프리셋 2탭 + draft 동시 보관 + PATCH 1회 전체 교체). 25% 여백 스테이지·실시간 마스킹 미리보기·절단 원/앵커/비활성 프리셋/참조 오버레이·모드 토글·지름 슬라이더·`앵커 맞추기`·추가/삭제. 업로드 다이얼로그 MAIN anchor 입력 제거(결정 8), 카드 prop `onEditAnchor`→`onEdit`, `anchor-utils`에 확장 clamp·`readViewBoxRect` 추가(viewBox min 반영). tsc/lint 0 + **228 통과** + `?tab=plus` 200 → **P8-4 ✅**(육안 대기) |
 | 2026-07-08 | P7 | **사내망 모바일 QA 확인 완료** → P7 ✅. ICON+ 전 단계(P0~P7) 구현 완료 확정. 잔여는 코드 작업이 아닌 운영 육안 확인 항목(P2 관리자 API/P3 실 데이터 카드/P4 위험 SVG 차단/anchor 재편집)뿐. 문서 상태 갱신 |

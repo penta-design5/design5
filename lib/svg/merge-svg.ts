@@ -6,7 +6,18 @@
  * 미리보기·다운로드가 동일 함수를 사용하도록 순수 함수로 유지한다(클라이언트/서버 공용).
  *
  * icon-merger `src/lib/svg/merge-svg.ts` 이식본. 하드코딩 의존성 없음(순수 문자열 처리).
+ *
+ * P8(마스킹 프리셋)에서 두 가지가 추가되었다:
+ * - **오프셋 정규화**: anchor가 음수여도(배지가 아이콘 위/왼쪽으로 오버플로) 잘리지 않도록
+ *   viewBox min을 음수로 만들지 않고 두 레이어를 평행이동한다. anchor ≥ 0이면 기존 출력과 동일하다.
+ * - **절단 마스크 통합**: `cutX/cutY/cutRadius`가 모두 유효하면 `<defs><mask>`를 head에 삽입하고
+ *   메인 레이어에만 적용한다(원본 SVG는 훼손하지 않음).
+ *
+ * @see lib/svg/corner-cut.ts 마스크 생성 및 하드 제약 3가지
+ * @see docs/ICON_PLUS_절단마스킹_구현계획.md §5
  */
+
+import { buildCutMaskDefs, isValidCornerCut } from './corner-cut'
 
 export type MergeSvgIcon = {
   svgContent: string
@@ -17,6 +28,15 @@ export type MergeSvgIcon = {
 export type MainMergeSvgIcon = MergeSvgIcon & {
   anchorX: number | null
   anchorY: number | null
+  /**
+   * 절단 원(마스킹 프리셋). 3값이 모두 유효할 때만 `<mask>`를 삽입한다.
+   * 옵셔널이므로 프리셋이 없는 legacy pre-cut 아이콘 호출부는 변경 없이 동작한다.
+   */
+  cutX?: number | null
+  cutY?: number | null
+  cutRadius?: number | null
+  /** 페이지 내 고유 마스크 id. 여러 SVG가 인라인되므로 호출부에서 주입한다 */
+  maskId?: string
 }
 
 export type MergedSvgResult = {
@@ -50,15 +70,48 @@ export function mergeSvgsByAnchor(
   const resource = readSvgParts(resourceIcon.svgContent, resourceIcon)
   const anchorX = mainIcon.anchorX - main.minX
   const anchorY = mainIcon.anchorY - main.minY
-  const resultWidth = Math.max(main.width, anchorX + resource.width)
-  const resultHeight = Math.max(main.height, anchorY + resource.height)
+
+  // 오프셋 정규화: anchor가 음수면(우측 상단 프리셋처럼 배지가 위/왼쪽으로 삐져나오면)
+  // viewBox min을 음수로 만들지 않고 두 레이어를 오버플로만큼 평행이동한다.
+  // anchor가 0 이상이면 off = 0이 되어 기존 출력과 완전히 동일하다.
+  const left = Math.min(0, anchorX)
+  const right = Math.max(main.width, anchorX + resource.width)
+  const top = Math.min(0, anchorY)
+  const bottom = Math.max(main.height, anchorY + resource.height)
+  const offX = -left
+  const offY = -top
+  const resultWidth = right - left
+  const resultHeight = bottom - top
+
   const viewBox = `0 0 ${formatNumber(resultWidth)} ${formatNumber(resultHeight)}`
+
+  // 절단 마스크: 원 좌표를 결과 좌표계로 변환(cut - main.min + off)하고,
+  // 마스크 영역 기준은 결과 좌표계에서 메인 아이콘이 차지하는 사각형으로 잡는다.
+  const cut = { cutX: mainIcon.cutX, cutY: mainIcon.cutY, cutRadius: mainIcon.cutRadius }
+  const mask = isValidCornerCut(cut)
+    ? buildCutMaskDefs({
+        maskId: mainIcon.maskId ?? 'iconplus-cut-mask',
+        cut: {
+          cutX: cut.cutX - main.minX + offX,
+          cutY: cut.cutY - main.minY + offY,
+          cutRadius: cut.cutRadius,
+        },
+        bounds: { minX: offX, minY: offY, width: main.width, height: main.height },
+      })
+    : null
+
+  const mainTranslate = `translate(${formatNumber(offX - main.minX)} ${formatNumber(offY - main.minY)})`
+  // 마스크가 있으면 래퍼 <g>가 mask만 담당하고 translate는 안쪽 <g>로 내린다(제약 ③)
+  const mainLayer = mask
+    ? `<g data-layer="main" mask="${mask.maskAttr}"><g transform="${mainTranslate}">${main.innerSvg}</g></g>`
+    : `<g data-layer="main" transform="${mainTranslate}">${main.innerSvg}</g>`
+
   const svgContent = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${formatNumber(resultWidth)}" height="${formatNumber(resultHeight)}">`,
-    `<g data-layer="main" transform="translate(${formatNumber(-main.minX)} ${formatNumber(-main.minY)})">`,
-    main.innerSvg,
-    '</g>',
-    `<g data-layer="merge" transform="translate(${formatNumber(anchorX - resource.minX)} ${formatNumber(anchorY - resource.minY)})">`,
+    // defs는 data-layer="main"보다 반드시 앞(제약 ①) — 색상 baking이 마스크 fill을 덮어쓰지 않게 한다
+    mask?.defs ?? '',
+    mainLayer,
+    `<g data-layer="merge" transform="translate(${formatNumber(offX + anchorX - resource.minX)} ${formatNumber(offY + anchorY - resource.minY)})">`,
     resource.innerSvg,
     '</g>',
     '</svg>',

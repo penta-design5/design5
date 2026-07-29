@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { ResourceSection } from '@/components/category-pages/IconCategory/iconplus/ResourceSection'
 import { IconPlusPropertyPanel } from '@/components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel'
 import { IconPlusUploadDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusUploadDialog'
-import { IconPlusAnchorDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusAnchorDialog'
+import { IconPlusMainEditDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusMainEditDialog'
 import type { IconPlusResource, IconPlusType } from '@/components/category-pages/IconCategory/iconplus/types'
 
 interface Category {
@@ -61,7 +61,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
   // 업로드 다이얼로그 대상 타입 (null이면 닫힘)
   const [uploadType, setUploadType] = useState<IconPlusType | null>(null)
   // anchor 편집 대상 MAIN 리소스 id (null이면 닫힘)
-  const [anchorEditId, setAnchorEditId] = useState<string | null>(null)
+  const [mainEditId, setMainEditId] = useState<string | null>(null)
 
   const fetchType = useCallback(async (type: IconPlusType): Promise<IconPlusResource[]> => {
     try {
@@ -202,12 +202,18 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
     void refresh(uploadType)
   }, [uploadType, refresh])
 
-  const handleAnchorEditSuccess = useCallback(() => {
-    toast.success('anchor 좌표가 저장되었습니다.')
+  const handleMainEditSuccess = useCallback(() => {
+    toast.success('마스킹 프리셋이 저장되었습니다.')
     void refresh('MAIN')
   }, [refresh])
 
-  const anchorEditResource = mainResources.find((r) => r.id === anchorEditId) ?? null
+  const mainEditResource = mainResources.find((r) => r.id === mainEditId) ?? null
+
+  // 프리셋 편집 다이얼로그의 참조 오버레이 목록(병합용 아이콘 + 텍스트)
+  const referenceResources = useMemo(
+    () => [...mergeIconResources, ...mergeTextResources],
+    [mergeIconResources, mergeTextResources]
+  )
 
   const selectedMain = mainResources.find((r) => mainSelected.has(r.id)) ?? null
   const selectedResource =
@@ -253,7 +259,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
               onDeselectAll={() => setMainSelected(new Set())}
               onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
               onAdd={() => setUploadType('MAIN')}
-              onEditAnchor={isAdmin ? (id) => setAnchorEditId(id) : undefined}
+              onEdit={isAdmin ? (id) => setMainEditId(id) : undefined}
             />
 
             {/* 병합용 아이콘 + 병합용 텍스트 */}
@@ -355,12 +361,14 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
         />
       )}
 
-      {/* anchor 편집 다이얼로그 (관리자 전용, 기존 MAIN 재편집) */}
+      {/* 마스킹 프리셋 편집 다이얼로그 (관리자 전용, MAIN) */}
       {isAdmin && (
-        <IconPlusAnchorDialog
-          resource={anchorEditResource}
-          onClose={() => setAnchorEditId(null)}
-          onSuccess={handleAnchorEditSuccess}
+        <IconPlusMainEditDialog
+          resource={mainEditResource}
+          // 참조 오버레이용 목록 — 이미 로드된 state를 재사용(추가 fetch 없음)
+          mergeResources={referenceResources}
+          onClose={() => setMainEditId(null)}
+          onSuccess={handleMainEditSuccess}
         />
       )}
     </div>

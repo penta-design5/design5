@@ -47,15 +47,21 @@ export const GET = withRouteHandler(async (request: Request) => {
     throw new BadRequestError('유효하지 않은 아이콘 타입입니다.')
   }
 
+  // presets는 MAIN 전용이지만 MERGE_*는 빈 배열이 되어 무해하므로 타입 분기 없이 항상 포함한다.
   const resources = await prisma.iconPlusResource.findMany({
     where: type ? { type } : {},
     orderBy: { createdAt: 'desc' },
+    include: { presets: true },
   })
 
   return NextResponse.json({ resources })
 }, 'ICON+ 리소스를 불러오는 중 오류가 발생했습니다.')
 
-/** POST /api/icon-plus — SVG 업로드(검증·sanitize·normalize·DB 저장). 관리자 전용. MAIN은 anchor 필수 */
+/**
+ * POST /api/icon-plus — SVG 업로드(검증·sanitize·normalize·DB 저장). 관리자 전용.
+ * MAIN은 파일 1개 제한만 있고 anchor는 필수가 아니다(마스킹 프리셋에서 위치별로 설정).
+ * anchorX/anchorY가 전달되면 legacy pre-cut 아이콘용으로 그대로 저장한다.
+ */
 export const POST = withRouteHandler(async (request: Request) => {
   const admin = await requireAdmin()
 
@@ -77,10 +83,6 @@ export const POST = withRouteHandler(async (request: Request) => {
 
   const anchorX = getNumberValue(formData.get('anchorX'))
   const anchorY = getNumberValue(formData.get('anchorY'))
-
-  if (type === IconPlusType.MAIN && (anchorX === null || anchorY === null)) {
-    throw new BadRequestError('메인 아이콘은 anchorX와 anchorY 좌표가 필요합니다.')
-  }
 
   // processSvgFile은 SvgProcessingError(=BadRequestError)를 던질 수 있음 → withRouteHandler에서 400 처리
   const processedSvgs = await Promise.all(files.map((file) => processSvgFile({ file })))

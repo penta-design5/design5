@@ -21,8 +21,8 @@ interface IconPlusCardProps {
    * 미지정 시 기본 높이(h-20)를 사용한다. text 변형에서만 적용.
    */
   cardHeight?: number
-  /** 지정 시 카드 우상단에 anchor 편집 버튼 노출(관리자 MAIN 카드). 선택 버튼과 형제로 두어 버튼 중첩 회피 */
-  onEditAnchor?: (id: string) => void
+  /** 지정 시 카드 우상단에 편집 버튼 노출(관리자 MAIN 카드 — 마스킹 프리셋 편집). 선택 버튼과 형제로 두어 버튼 중첩 회피 */
+  onEdit?: (id: string) => void
 }
 
 /**
@@ -46,7 +46,7 @@ export function IconPlusCard({
   onClick,
   variant = 'icon',
   cardHeight,
-  onEditAnchor,
+  onEdit,
 }: IconPlusCardProps) {
   const isText = variant === 'text'
   // MAIN·MERGE_ICON은 라인으로, 병합용 텍스트는 채움 그대로
@@ -69,7 +69,7 @@ export function IconPlusCard({
             onClick={() => onClick(resource.id)}
             aria-pressed={isSelected}
             aria-label={resource.name}
-            style={onEditAnchor ? undefined : style}
+            style={onEdit ? undefined : style}
             className={cn(
               'group relative flex shrink-0 items-center justify-center rounded-lg border transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -104,9 +104,9 @@ export function IconPlusCard({
     </TooltipProvider>
   )
 
-  if (!onEditAnchor) return selectButton
+  if (!onEdit) return selectButton
 
-  // anchor 편집 버튼은 선택 버튼과 형제로 배치(버튼 중첩 회피). hover/포커스 시 노출.
+  // 편집 버튼은 선택 버튼과 형제로 배치(버튼 중첩 회피). hover/포커스 시 노출.
   return (
     <div className="group relative w-full">
       {selectButton}
@@ -114,9 +114,9 @@ export function IconPlusCard({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          onEditAnchor(resource.id)
+          onEdit(resource.id)
         }}
-        aria-label={`${resource.name} anchor 편집`}
+        aria-label={`${resource.name} 마스킹 프리셋 편집`}
         className={cn(
           'absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition',
           'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

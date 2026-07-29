@@ -56,6 +56,9 @@ const allowedSvgAttributes = [
   'height',
   'id',
   'mask',
+  // 마스킹 프리셋(corner-cut.ts)이 생성하는 마스크는 런타임 생성이라 sanitize를 거치지 않지만,
+  // 향후 마스크를 포함한 SVG를 저장하는 경로가 생길 때를 대비해 허용한다.
+  'maskUnits',
   'offset',
   'opacity',
   'points',

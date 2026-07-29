@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { XMLValidator } from 'fast-xml-parser'
 import { applyIconPlusProperties, scaleWidthFromHeight } from './icon-plus-properties'
-import type { MergedSvgResult } from './merge-svg'
+import { mergeSvgsByAnchor, type MergedSvgResult } from './merge-svg'
 
 /**
  * main(라인 + fill + fill&stroke 혼재) + merge(라인) 레이어를 가진 병합 결과 스텁.
@@ -147,6 +147,80 @@ describe('applyIconPlusProperties', () => {
       resourceKind,
       mode,
     })
+    expect(XMLValidator.validate(result.svgContent)).toBe(true)
+  })
+})
+
+/**
+ * P8 마스킹 프리셋의 **가장 중요한 회귀**: 색상 baking은 `none`/`url()`을 뺀 모든 fill을 선택 색으로
+ * 덮어쓰므로, 마스크의 `#fff`/`#000`이 같은 색이 되면 마스크가 완전히 깨진다.
+ * `<defs>`를 head 구간(=main/merge 분할 대상 밖)에 두는 제약 ①이 이를 막는다.
+ */
+describe('절단 마스크 + 색상 baking (제약 ① 회귀)', () => {
+  const MAIN = {
+    svgContent:
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path data-main="1" stroke="#000000" d="M0 0h24"></path></svg>',
+    width: 24,
+    height: 24,
+  }
+  const RESOURCE = {
+    svgContent:
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" width="12" height="12"><circle data-res="1" stroke="#000000" cx="6" cy="6" r="6"></circle></svg>',
+    width: 12,
+    height: 12,
+  }
+
+  function mergedWithCut() {
+    return mergeSvgsByAnchor(
+      { ...MAIN, anchorX: 15, anchorY: 15, cutX: 20, cutY: 20, cutRadius: 5, maskId: 'm1' },
+      RESOURCE
+    )!
+  }
+
+  it.each(['#0060A9', '#FFFFFF', '#000000'] as const)(
+    '색상 %s를 bake해도 마스크의 #fff/#000이 보존된다',
+    (color) => {
+      const result = applyIconPlusProperties(mergedWithCut(), {
+        color,
+        strokeWidth: 1.5,
+        outputHeight: 48,
+        resourceKind: 'icon',
+      })
+      const defs = result.svgContent.slice(
+        result.svgContent.indexOf('<defs>'),
+        result.svgContent.indexOf('</defs>')
+      )
+
+      expect(defs).toContain('fill="#fff"')
+      expect(defs).toContain('fill="#000"')
+      // 마스크 도형이 선택 색으로 덮어써지면(=둘이 같은 색) 마스크가 무효화된다
+      expect(defs).not.toContain(`fill="${color}"`)
+    }
+  )
+
+  it('bake 후에도 mask 참조와 래퍼 구조가 유지된다', () => {
+    const result = applyIconPlusProperties(mergedWithCut(), {
+      color: '#0060A9',
+      strokeWidth: 1.5,
+      outputHeight: 48,
+      resourceKind: 'icon',
+    })
+
+    expect(result.svgContent).toContain('mask="url(#m1)"')
+    expect(result.svgContent).toContain('<mask id="m1"')
+    // 메인 레이어의 획에는 색상이 정상 반영된다
+    expect(tagOf(result.svgContent, 'data-main')).toContain('stroke="#0060A9"')
+  })
+
+  it.each(['preview', 'download'] as const)('%s 모드 결과가 유효한 XML이다', (mode) => {
+    const result = applyIconPlusProperties(mergedWithCut(), {
+      color: '#0060A9',
+      strokeWidth: 1.5,
+      outputHeight: 48,
+      resourceKind: 'icon',
+      mode,
+    })
+
     expect(XMLValidator.validate(result.svgContent)).toBe(true)
   })
 })

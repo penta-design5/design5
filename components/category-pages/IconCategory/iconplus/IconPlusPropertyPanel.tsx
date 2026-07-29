@@ -8,13 +8,19 @@ import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import { mergeSvgsByAnchor, type MergedSvgResult } from '@/lib/svg/merge-svg'
 import { applyIconPlusProperties, type ResourceKind } from '@/lib/svg/icon-plus-properties'
+import { buildCutMaskId } from '@/lib/svg/corner-cut'
 import {
   createDownloadBlob,
   createMergedFilename,
   downloadBlob,
   type DownloadFormat,
 } from '@/lib/svg/icon-plus-download'
-import type { IconPlusResource } from './types'
+import {
+  CUT_POSITION_LABELS,
+  sortPresets,
+  type IconPlusCutPosition,
+  type IconPlusResource,
+} from './types'
 
 interface IconPlusPropertyPanelProps {
   selectedMain: IconPlusResource | null
@@ -77,7 +83,10 @@ function toMergeIcon(resource: IconPlusResource) {
  * Phase 6: 색상 10종 / 선 두께 / 크기 / 포맷 / 초기화 컨트롤과 SVG·PNG·JPG 다운로드.
  * - 선 두께는 라인 획([stroke]:not([fill]))에만 적용, fill 부분은 색상만 반영(선결요건 a).
  * - 결과/입력 미리보기 타일은 밝은 배경을 고정해 다크 모드에서도 가시성 확보(선결요건 b, 흰색 선택 시 결과 타일만 검정).
+ * P8: "마스킹 위치" 프리셋 선택 컨트롤. 선택한 프리셋의 (절단 원 + 앵커)로 병합하므로
+ * **결과 슬롯과 다운로드에만** 마스킹이 반영되고, 입력 미리보기(메인/리소스)는 항상 완전한 모습이다(결정 1·2).
  * @see docs/ICON_PLUS_개발계획.md §3.3, §7
+ * @see docs/ICON_PLUS_절단마스킹_구현계획.md §7.1
  */
 export function IconPlusPropertyPanel({
   selectedMain,
@@ -100,14 +109,54 @@ export function IconPlusPropertyPanel({
     if (whiteSelected && format === 'jpg') setFormat('png')
   }, [whiteSelected, format])
 
-  // 원본 병합 결과(속성 미적용). 메인 anchor가 없으면 null.
+  // --- 마스킹 위치 프리셋 (P8) ---
+  // 관리자가 설정한 프리셋만 노출한다. 0개면(legacy pre-cut 아이콘) 컨트롤을 숨기고 기존 anchor로 병합한다.
+  const presets = useMemo(() => sortPresets(selectedMain?.presets ?? []), [selectedMain])
+  const [selectedPosition, setSelectedPosition] = useState<IconPlusCutPosition | null>(null)
+
+  // 기본 선택: 우측 하단(없으면 우측 상단 = 정렬상 첫 프리셋).
+  // 사용자 선택을 state로 두되 **유효성은 파생으로 판정**한다 → 메인 아이콘이 바뀌어 그 위치의 프리셋이
+  // 없어지면 자동으로 기본값으로 돌아가고, effect로 되돌릴 때 생기는 한 프레임 깜빡임이 없다.
+  const cutPosition = useMemo<IconPlusCutPosition | null>(() => {
+    if (selectedPosition && presets.some((preset) => preset.position === selectedPosition)) {
+      return selectedPosition
+    }
+    return (
+      presets.find((preset) => preset.position === 'BOTTOM_RIGHT')?.position ??
+      presets[0]?.position ??
+      null
+    )
+  }, [selectedPosition, presets])
+
+  const activePreset = useMemo(
+    () => presets.find((preset) => preset.position === cutPosition) ?? null,
+    [presets, cutPosition]
+  )
+
+  // 원본 병합 결과(속성 미적용).
+  // - 프리셋 선택 시: 프리셋의 anchor + 절단 원으로 마스킹된 결과
+  // - 프리셋 없음(legacy): 기존 resource.anchorX/anchorY로 마스킹 없이 병합. anchor도 없으면 null
   const merged: MergedSvgResult | null = useMemo(() => {
     if (!selectedMain || !selectedResource) return null
-    return mergeSvgsByAnchor(
-      { ...toMergeIcon(selectedMain), anchorX: selectedMain.anchorX, anchorY: selectedMain.anchorY },
-      toMergeIcon(selectedResource)
-    )
-  }, [selectedMain, selectedResource])
+
+    const mainIcon = activePreset
+      ? {
+          ...toMergeIcon(selectedMain),
+          anchorX: activePreset.anchorX,
+          anchorY: activePreset.anchorY,
+          cutX: activePreset.cutX,
+          cutY: activePreset.cutY,
+          cutRadius: activePreset.cutRadius,
+          maskId: buildCutMaskId(selectedMain.id, activePreset.position),
+        }
+      : {
+          ...toMergeIcon(selectedMain),
+          anchorX: selectedMain.anchorX,
+          anchorY: selectedMain.anchorY,
+        }
+
+    return mergeSvgsByAnchor(mainIcon, toMergeIcon(selectedResource))
+  }, [selectedMain, selectedResource, activePreset])
 
   // 미리보기 표시 높이(px). 크기 컨트롤을 반영해 작게 시작 → 최대 64px까지 커진다(설명글과 일치).
   const previewDisplaySize = Math.min(Math.max(size * 1.5, 24), 64)
@@ -220,8 +269,9 @@ export function IconPlusPropertyPanel({
             메인 아이콘 1개와 병합용 아이콘 또는 병합용 텍스트 1개를 선택하면 병합 결과가 표시됩니다.
           </p>
         ) : isMissingAnchor ? (
+          // 프리셋도 없고 legacy anchor도 없는 경우에만 표시된다(프리셋이 있으면 항상 병합 가능)
           <p className="mt-3 text-xs text-destructive">
-            선택한 메인 아이콘에 anchor 좌표가 없어 병합 미리보기를 만들 수 없습니다.
+            선택한 메인 아이콘에 마스킹 프리셋과 anchor 좌표가 모두 없어 병합 미리보기를 만들 수 없습니다.
           </p>
         ) : downloadSvg ? (
           <p className="mt-3 text-xs text-muted-foreground">
@@ -229,6 +279,35 @@ export function IconPlusPropertyPanel({
           </p>
         ) : null}
       </div>
+
+      {/* 마스킹 위치 프리셋 — 관리자가 설정한 위치만 노출. 미설정(legacy)이면 컨트롤 자체를 숨긴다 */}
+      {presets.length > 0 && (
+        <div className="space-y-3">
+          <Label className="text-xs text-muted-foreground">마스킹 위치</Label>
+          <div className="flex items-center gap-2" role="group" aria-label="마스킹 위치">
+            {presets.map((preset) => (
+              <Button
+                key={preset.position}
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-pressed={cutPosition === preset.position}
+                className={
+                  cutPosition === preset.position
+                    ? 'text-xs dark:text-black bg-penta-sky/20 dark:bg-gray-50 hover:bg-penta-sky/20 border-none flex-1 h-8'
+                    : 'text-xs bg-white dark:bg-penta-sky/20 dark:hover:bg-penta-sky/30 flex-1 h-8 dark:text-white dark:hover:text-white border'
+                }
+                onClick={() => setSelectedPosition(preset.position)}
+              >
+                {CUT_POSITION_LABELS[preset.position]}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs font-light text-muted-foreground">
+            * 선택한 위치에 맞춰 메인 아이콘이 원형으로 잘리고 그 자리에 리소스가 놓입니다.
+          </p>
+        </div>
+      )}
 
       {/* 색상 10종 */}
       <div className="space-y-3">
