@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
 import { IconPlusCard } from './IconPlusCard'
-import type { IconPlusResource } from './types'
+import type { IconPlusCutPosition, IconPlusResource } from './types'
 
 interface ResourceSectionProps {
   title: string
@@ -37,8 +37,8 @@ interface ResourceSectionProps {
   onDeselectAll: () => void
   onDelete: () => void
   onAdd: () => void
-  /** 지정 시 각 카드에 편집 버튼 노출(관리자 MAIN 섹션 전용 — 마스킹 프리셋 편집) */
-  onEdit?: (id: string) => void
+  /** 지정 시 각 카드에 프리셋 코너 점 노출(관리자 MAIN 섹션 전용). 점 클릭 → 해당 위치 프리셋 편집 */
+  onEdit?: (id: string, position: IconPlusCutPosition) => void
 }
 
 /**

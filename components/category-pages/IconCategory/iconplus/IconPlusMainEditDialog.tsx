@@ -47,6 +47,12 @@ interface IconPlusMainEditDialogProps {
   resource: IconPlusResource | null
   /** 참조 오버레이용 병합 리소스 목록(워크스페이스 state 재사용 — 추가 fetch 없음) */
   mergeResources?: IconPlusResource[]
+  /**
+   * 열 때 활성화할 프리셋 탭. 카드의 코너 점을 클릭한 위치가 전달된다.
+   * 미설정 위치를 지정하면 기본값 draft를 만들어 바로 편집할 수 있게 한다(저장 전이라 취소로 되돌림).
+   * 미지정 시 설정된 프리셋 중 우측 하단 → 우측 상단 순으로 자동 선택한다.
+   */
+  initialPosition?: IconPlusCutPosition
   onClose: () => void
   onSuccess: () => void
 }
@@ -101,6 +107,7 @@ function createDefaultDraft(
 export function IconPlusMainEditDialog({
   resource,
   mergeResources = [],
+  initialPosition,
   onClose,
   onSuccess,
 }: IconPlusMainEditDialogProps) {
@@ -124,9 +131,10 @@ export function IconPlusMainEditDialog({
     [resource]
   )
 
-  // 대상이 바뀌면 저장된 프리셋으로 draft를 초기화한다
+  // 대상(또는 요청 탭)이 바뀌면 저장된 프리셋으로 draft를 초기화한다.
+  // 카드의 다른 코너를 눌러 다시 열었을 때도 그 탭으로 열리도록 initialPosition을 의존성에 포함한다.
   useEffect(() => {
-    if (!resource) return
+    if (!resource || !rect) return
 
     const next: DraftMap = { ...EMPTY_DRAFTS }
     for (const preset of resource.presets ?? []) {
@@ -138,13 +146,23 @@ export function IconPlusMainEditDialog({
         anchorY: preset.anchorY,
       }
     }
+
+    // 요청된 탭이 있으면 그 탭으로 열고, 비어 있으면 기본값 draft를 만들어 바로 편집하게 한다.
+    // 요청이 없으면 설정된 프리셋 중 우측 하단 → 우측 상단 순으로 선택한다.
+    if (initialPosition) {
+      if (!next[initialPosition]) next[initialPosition] = createDefaultDraft(initialPosition, rect)
+      setActivePosition(initialPosition)
+    } else {
+      setActivePosition(
+        next.BOTTOM_RIGHT ? 'BOTTOM_RIGHT' : next.TOP_RIGHT ? 'TOP_RIGHT' : 'BOTTOM_RIGHT'
+      )
+    }
+
     setDrafts(next)
-    // 열 때 활성 탭: 설정된 프리셋 중 우측 하단 → 우측 상단 → (둘 다 없으면) 우측 하단의 '추가' 상태
-    setActivePosition(next.BOTTOM_RIGHT ? 'BOTTOM_RIGHT' : next.TOP_RIGHT ? 'TOP_RIGHT' : 'BOTTOM_RIGHT')
     setEditTarget('cut')
     setErrorMessage(null)
     setDragging(false)
-  }, [resource])
+  }, [resource, rect, initialPosition])
 
   const activeDraft = drafts[activePosition]
   const activeBasis = CUT_POSITION_ANCHOR_BASIS[activePosition]

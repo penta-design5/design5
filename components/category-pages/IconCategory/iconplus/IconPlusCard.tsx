@@ -1,6 +1,5 @@
 'use client'
 
-import { Crosshair } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -9,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { CutPresetCornerDots } from './CutPositionGlyph'
-import type { IconPlusResource } from './types'
+import type { IconPlusCutPosition, IconPlusResource } from './types'
 
 interface IconPlusCardProps {
   resource: IconPlusResource
@@ -22,8 +21,11 @@ interface IconPlusCardProps {
    * 미지정 시 기본 높이(h-20)를 사용한다. text 변형에서만 적용.
    */
   cardHeight?: number
-  /** 지정 시 카드 우상단에 편집 버튼 노출(관리자 MAIN 카드 — 마스킹 프리셋 편집). 선택 버튼과 형제로 두어 버튼 중첩 회피 */
-  onEdit?: (id: string) => void
+  /**
+   * 지정 시 카드 우측 코너에 프리셋 점 노출(관리자 MAIN 카드 전용).
+   * 점을 누르면 해당 위치의 프리셋 탭으로 편집 다이얼로그를 연다. 선택 버튼과 형제로 두어 버튼 중첩 회피.
+   */
+  onEdit?: (id: string, position: IconPlusCutPosition) => void
 }
 
 /**
@@ -70,7 +72,7 @@ export function IconPlusCard({
             onClick={() => onClick(resource.id)}
             aria-pressed={isSelected}
             aria-label={resource.name}
-            style={onEdit ? undefined : style}
+            style={onEdit && variant === 'main' ? undefined : style}
             className={cn(
               'group relative flex shrink-0 items-center justify-center rounded-lg border transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -105,35 +107,17 @@ export function IconPlusCard({
     </TooltipProvider>
   )
 
-  if (!onEdit) return selectButton
+  if (!onEdit || variant !== 'main') return selectButton
 
-  // 편집 버튼은 선택 버튼과 형제로 배치(버튼 중첩 회피). hover/포커스 시 노출.
+  // 프리셋 코너 점이 편집 진입로다(별도 편집 버튼 없음).
+  // 선택 버튼과 형제로 배치해 버튼 중첩을 피하고, 카드 hover/포커스 시 노출한다.
   return (
     <div className="group relative w-full">
       {selectButton}
-      {/* 프리셋 설정 여부(관리자 MAIN 카드) — 카드의 실제 코너(우측 상단/하단)에 점으로 표시해
-          위치와 설정 여부를 한 번에 읽게 한다. 편집 버튼은 좌측 상단이라 서로 겹치지 않는다. */}
-      {variant === 'main' && (
-        <CutPresetCornerDots
-          positions={(resource.presets ?? []).map((preset) => preset.position)}
-        />
-      )}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation()
-          onEdit(resource.id)
-        }}
-        aria-label={`${resource.name} 마스킹 프리셋 편집`}
-        className={cn(
-          // 좌측 상단 배치 — 우측 코너는 프리셋 표시 점이 쓴다
-          'absolute left-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition',
-          'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-          'hover:border-penta-sky hover:text-penta-blue'
-        )}
-      >
-        <Crosshair className="h-3.5 w-3.5" />
-      </button>
+      <CutPresetCornerDots
+        positions={(resource.presets ?? []).map((preset) => preset.position)}
+        onSelect={(position) => onEdit(resource.id, position)}
+      />
     </div>
   )
 }

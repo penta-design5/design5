@@ -11,7 +11,11 @@ import { ResourceSection } from '@/components/category-pages/IconCategory/iconpl
 import { IconPlusPropertyPanel } from '@/components/category-pages/IconCategory/iconplus/IconPlusPropertyPanel'
 import { IconPlusUploadDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusUploadDialog'
 import { IconPlusMainEditDialog } from '@/components/category-pages/IconCategory/iconplus/IconPlusMainEditDialog'
-import type { IconPlusResource, IconPlusType } from '@/components/category-pages/IconCategory/iconplus/types'
+import type {
+  IconPlusCutPosition,
+  IconPlusResource,
+  IconPlusType,
+} from '@/components/category-pages/IconCategory/iconplus/types'
 
 interface Category {
   id: string
@@ -60,8 +64,10 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
 
   // 업로드 다이얼로그 대상 타입 (null이면 닫힘)
   const [uploadType, setUploadType] = useState<IconPlusType | null>(null)
-  // anchor 편집 대상 MAIN 리소스 id (null이면 닫힘)
-  const [mainEditId, setMainEditId] = useState<string | null>(null)
+  // 편집 대상 MAIN + 열 때 활성화할 프리셋 탭(카드에서 클릭한 코너)
+  const [mainEdit, setMainEdit] = useState<{ id: string; position: IconPlusCutPosition } | null>(
+    null
+  )
 
   const fetchType = useCallback(async (type: IconPlusType): Promise<IconPlusResource[]> => {
     try {
@@ -207,7 +213,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
     void refresh('MAIN')
   }, [refresh])
 
-  const mainEditResource = mainResources.find((r) => r.id === mainEditId) ?? null
+  const mainEditResource = mainEdit ? mainResources.find((r) => r.id === mainEdit.id) ?? null : null
 
   // 프리셋 편집 다이얼로그의 참조 오버레이 목록(병합용 아이콘 + 텍스트)
   const referenceResources = useMemo(
@@ -245,7 +251,11 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
             {/* 메인 아이콘 */}
             <ResourceSection
               title="메인 아이콘"
-              description="병합 기준점이 저장되는 원본 아이콘입니다."
+              description={
+                isAdmin
+                  ? '완전한 모습으로 업로드하고, 카드 우측 코너의 점을 눌러 마스킹 프리셋을 설정합니다.'
+                  : '병합 기준이 되는 원본 아이콘입니다.'
+              }
               addLabel="메인 추가"
               resources={mainResources}
               selectedIds={mainSelected}
@@ -259,7 +269,7 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
               onDeselectAll={() => setMainSelected(new Set())}
               onDelete={() => handleDelete('MAIN', mainSelected, () => setMainSelected(new Set()))}
               onAdd={() => setUploadType('MAIN')}
-              onEdit={isAdmin ? (id) => setMainEditId(id) : undefined}
+              onEdit={isAdmin ? (id, position) => setMainEdit({ id, position }) : undefined}
             />
 
             {/* 병합용 아이콘 + 병합용 텍스트 */}
@@ -367,7 +377,9 @@ export function IconPlusWorkspace({ header }: IconPlusWorkspaceProps) {
           resource={mainEditResource}
           // 참조 오버레이용 목록 — 이미 로드된 state를 재사용(추가 fetch 없음)
           mergeResources={referenceResources}
-          onClose={() => setMainEditId(null)}
+          // 카드에서 클릭한 코너의 탭으로 열린다
+          initialPosition={mainEdit?.position}
+          onClose={() => setMainEdit(null)}
           onSuccess={handleMainEditSuccess}
         />
       )}
