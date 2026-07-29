@@ -40,39 +40,43 @@ export function CutPositionGlyph({
 }
 
 /**
- * 메인 카드용 프리셋 배지. 두 위치의 글리프를 나란히 보여 어떤 프리셋이 설정됐는지 목록에서 바로 구분한다.
- * 프리셋이 하나도 없으면 두 글리프가 모두 비어 있어 "미설정" 상태로 읽힌다.
+ * 메인 카드용 프리셋 표시 점.
+ *
+ * 카드의 **실제 코너**(우측 상단 / 우측 하단)에 점을 찍어, 위치를 따로 설명하지 않아도
+ * "어디에 구멍이 설정됐는지"가 바로 읽히게 한다.
+ * - 설정됨: 항상 보이는 채워진 점(포인트 색)
+ * - 미설정: 카드 hover/포커스 시에만 보이는 점선 빈 점 → 평소에는 목록이 깔끔하고,
+ *   관리자가 카드에 마우스를 올리면 "비어 있는 자리"를 확인할 수 있다.
+ *
+ * 부모에 `group relative`가 있어야 한다(카드 래퍼).
  */
-export function CutPresetBadge({
-  positions,
-  className,
-}: {
-  positions: IconPlusCutPosition[]
-  className?: string
-}) {
+export function CutPresetCornerDots({ positions }: { positions: IconPlusCutPosition[] }) {
   const configured = CUT_POSITION_ORDER.filter((position) => positions.includes(position))
-  const title =
+  const summary =
     configured.length > 0
       ? `마스킹 프리셋: ${configured.map((position) => CUT_POSITION_LABELS[position]).join(', ')}`
       : '마스킹 프리셋 없음'
 
   return (
-    <span
-      title={title}
-      className={cn(
-        'pointer-events-auto flex items-center gap-0.5 rounded-md border border-border bg-background/95 px-1 py-0.5 shadow-sm',
-        className
-      )}
-    >
-      <span className="sr-only">{title}</span>
-      {CUT_POSITION_ORDER.map((position) => (
-        <CutPositionGlyph
-          key={position}
-          position={position}
-          filled={positions.includes(position)}
-          className="h-3 w-3"
-        />
-      ))}
-    </span>
+    <>
+      <span className="sr-only">{summary}</span>
+      {CUT_POSITION_ORDER.map((position) => {
+        const isConfigured = positions.includes(position)
+        return (
+          <span
+            key={position}
+            aria-hidden="true"
+            title={`${CUT_POSITION_LABELS[position]} 프리셋 ${isConfigured ? '설정됨' : '없음'}`}
+            className={cn(
+              'pointer-events-none absolute right-1.5 z-10 h-2 w-2 rounded-full border transition-opacity',
+              position === 'TOP_RIGHT' ? 'top-1.5' : 'bottom-1.5',
+              isConfigured
+                ? 'border-penta-blue bg-penta-blue opacity-100 dark:border-penta-sky dark:bg-penta-sky'
+                : 'border-dashed border-neutral-400 bg-transparent opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+            )}
+          />
+        )
+      })}
+    </>
   )
 }

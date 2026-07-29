@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { CutPresetBadge } from './CutPositionGlyph'
+import { CutPresetCornerDots } from './CutPositionGlyph'
 import type { IconPlusResource } from './types'
 
 interface IconPlusCardProps {
@@ -111,12 +111,11 @@ export function IconPlusCard({
   return (
     <div className="group relative w-full">
       {selectButton}
-      {/* 프리셋 설정 여부 배지(관리자 MAIN 카드) — 다이얼로그 탭과 같은 글리프로 목록에서 바로 구분한다.
-          채워진 점 = 해당 위치 프리셋 있음, 빈 점 = 없음 */}
+      {/* 프리셋 설정 여부(관리자 MAIN 카드) — 카드의 실제 코너(우측 상단/하단)에 점으로 표시해
+          위치와 설정 여부를 한 번에 읽게 한다. 편집 버튼은 좌측 상단이라 서로 겹치지 않는다. */}
       {variant === 'main' && (
-        <CutPresetBadge
+        <CutPresetCornerDots
           positions={(resource.presets ?? []).map((preset) => preset.position)}
-          className="absolute bottom-1 right-1 z-10"
         />
       )}
       <button
@@ -127,7 +126,8 @@ export function IconPlusCard({
         }}
         aria-label={`${resource.name} 마스킹 프리셋 편집`}
         className={cn(
-          'absolute right-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition',
+          // 좌측 상단 배치 — 우측 코너는 프리셋 표시 점이 쓴다
+          'absolute left-1.5 top-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition',
           'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           'hover:border-penta-sky hover:text-penta-blue'
         )}
