@@ -84,6 +84,82 @@ describe('mergeSvgsByAnchor', () => {
     })
   })
 
+  describe('앵커 기준 코너 (anchorBasis)', () => {
+    it('기본값(TOP_LEFT)은 기존 동작 — 앵커에 리소스 좌상단이 붙는다', () => {
+      const implicit = mergeSvgsByAnchor({ ...MAIN, anchorX: 15, anchorY: 15 }, RESOURCE)
+      const explicit = mergeSvgsByAnchor(
+        { ...MAIN, anchorX: 15, anchorY: 15, anchorBasis: 'TOP_LEFT' },
+        RESOURCE
+      )
+
+      expect(implicit!.svgContent).toBe(explicit!.svgContent)
+      expect(implicit!.svgContent).toContain('<g data-layer="merge" transform="translate(15 15)">')
+    })
+
+    it('BOTTOM_LEFT는 앵커에 리소스 좌하단이 붙는다(높이만큼 위로 배치)', () => {
+      // resource height=12, anchorY=20 → 리소스 상단 y = 20 - 12 = 8
+      const result = mergeSvgsByAnchor(
+        { ...MAIN, anchorX: 15, anchorY: 20, anchorBasis: 'BOTTOM_LEFT' },
+        RESOURCE
+      )
+
+      expect(result!.svgContent).toContain('<g data-layer="merge" transform="translate(15 8)">')
+      // main 24 안에 들어가므로 크기 변화 없음(가로는 15+12=27로 확장)
+      expect(result!.height).toBe(24)
+      expect(result!.width).toBe(27)
+    })
+
+    it('BOTTOM_LEFT에서 리소스가 위로 넘치면 평행이동으로 잘리지 않는다', () => {
+      // anchorY=6, height=12 → 상단 y=-6 → offY=6, 결과 높이 30
+      const result = mergeSvgsByAnchor(
+        { ...MAIN, anchorX: 18, anchorY: 6, anchorBasis: 'BOTTOM_LEFT' },
+        RESOURCE
+      )
+
+      expect(result!.height).toBe(30)
+      expect(result!.viewBox).toBe('0 0 30 30')
+      expect(result!.svgContent).toContain('<g data-layer="main" transform="translate(0 6)">')
+      expect(result!.svgContent).toContain('<g data-layer="merge" transform="translate(18 0)">')
+    })
+
+    it('BOTTOM_LEFT는 높이가 다른 리소스의 아래쪽 변을 같은 y에 정렬한다', () => {
+      const tall = { ...RESOURCE, height: 20, svgContent: RESOURCE.svgContent.replace('0 0 12 12', '0 0 12 20') }
+      const short = RESOURCE
+
+      const tallResult = mergeSvgsByAnchor(
+        { ...MAIN, anchorX: 15, anchorY: 22, anchorBasis: 'BOTTOM_LEFT' },
+        tall
+      )
+      const shortResult = mergeSvgsByAnchor(
+        { ...MAIN, anchorX: 15, anchorY: 22, anchorBasis: 'BOTTOM_LEFT' },
+        short
+      )
+
+      // 두 결과 모두 하단이 y=22에 맞춰진다: 상단 = 22 - 각자 높이
+      expect(tallResult!.svgContent).toContain('transform="translate(15 2)"')
+      expect(shortResult!.svgContent).toContain('transform="translate(15 10)"')
+    })
+
+    it('마스크와 함께 써도 절단 원 좌표는 앵커 기준과 무관하다', () => {
+      const result = mergeSvgsByAnchor(
+        {
+          ...MAIN,
+          anchorX: 15,
+          anchorY: 6,
+          anchorBasis: 'BOTTOM_LEFT',
+          cutX: 20,
+          cutY: 4,
+          cutRadius: 5,
+          maskId: 'm1',
+        },
+        RESOURCE
+      )
+
+      // offY=6 → cy = 4 - 0 + 6 = 10 (원은 메인과 함께 이동)
+      expect(result!.svgContent).toContain('<circle cx="20" cy="10" r="5" fill="#000"/>')
+    })
+  })
+
   describe('절단 마스크', () => {
     const CUT = { cutX: 20, cutY: 20, cutRadius: 5 }
 

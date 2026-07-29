@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { CutPresetBadge } from './CutPositionGlyph'
 import type { IconPlusResource } from './types'
 
 interface IconPlusCardProps {
@@ -110,6 +111,14 @@ export function IconPlusCard({
   return (
     <div className="group relative w-full">
       {selectButton}
+      {/* 프리셋 설정 여부 배지(관리자 MAIN 카드) — 다이얼로그 탭과 같은 글리프로 목록에서 바로 구분한다.
+          채워진 점 = 해당 위치 프리셋 있음, 빈 점 = 없음 */}
+      {variant === 'main' && (
+        <CutPresetBadge
+          positions={(resource.presets ?? []).map((preset) => preset.position)}
+          className="absolute bottom-1 right-1 z-10"
+        />
+      )}
       <button
         type="button"
         onClick={(e) => {

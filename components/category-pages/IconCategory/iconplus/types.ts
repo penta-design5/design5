@@ -1,5 +1,7 @@
 /** ICON+ 클라이언트 공용 타입 */
 
+import type { MergeAnchorBasis } from '@/lib/svg/merge-svg'
+
 export type IconPlusType = 'MAIN' | 'MERGE_ICON' | 'MERGE_TEXT'
 
 /** MAIN 아이콘 마스킹 프리셋의 위치 */
@@ -12,6 +14,43 @@ export const CUT_POSITION_ORDER: readonly IconPlusCutPosition[] = ['TOP_RIGHT', 
 export const CUT_POSITION_LABELS: Record<IconPlusCutPosition, string> = {
   TOP_RIGHT: '우측 상단',
   BOTTOM_RIGHT: '우측 하단',
+}
+
+/**
+ * 위치별 **앵커 기준 코너**.
+ * 우측 하단은 앵커에 리소스 좌상단을, 우측 상단은 앵커에 리소스 **좌하단**을 맞춘다
+ * → 높이가 다른 리소스들도 우측 상단에서는 아래쪽 변이 앵커에 정렬된다.
+ * 위치를 늘릴 때는 이 매핑에 한 줄만 추가한다(DB 컬럼 없이 코드로 결정).
+ */
+export const CUT_POSITION_ANCHOR_BASIS: Record<IconPlusCutPosition, MergeAnchorBasis> = {
+  TOP_RIGHT: 'BOTTOM_LEFT',
+  BOTTOM_RIGHT: 'TOP_LEFT',
+}
+
+/** 앵커 기준 코너에 맞춘 "맞추기" 버튼 라벨 */
+export const ANCHOR_BASIS_ALIGN_LABELS: Record<MergeAnchorBasis, string> = {
+  TOP_LEFT: '앵커를 원 좌상단에 맞추기',
+  BOTTOM_LEFT: '앵커를 원 좌하단에 맞추기',
+}
+
+/** 앵커 기준 코너 설명(편집 다이얼로그 안내문) */
+export const ANCHOR_BASIS_DESCRIPTIONS: Record<MergeAnchorBasis, string> = {
+  TOP_LEFT: '앵커에 리소스의 좌측 상단이 맞춰집니다.',
+  BOTTOM_LEFT: '앵커에 리소스의 좌측 하단이 맞춰집니다(배지가 앵커 위로 쌓입니다).',
+}
+
+/**
+ * 앵커 기준 코너에 맞춰 절단 원에 정합되는 앵커 좌표를 계산한다.
+ * 원의 좌상단(또는 좌하단)에 리소스 코너를 붙인다.
+ */
+export function getAlignedAnchor(
+  cut: { cutX: number; cutY: number; cutRadius: number },
+  basis: MergeAnchorBasis
+): { anchorX: number; anchorY: number } {
+  return {
+    anchorX: cut.cutX - cut.cutRadius,
+    anchorY: basis === 'BOTTOM_LEFT' ? cut.cutY + cut.cutRadius : cut.cutY - cut.cutRadius,
+  }
 }
 
 /** MAIN 아이콘의 마스킹 프리셋 1건 — (절단 원 + 병합 앵커) 한 세트 */

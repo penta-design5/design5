@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { Loader2, Plus, Trash2 } from 'lucide-react'
+import { Check, Loader2, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { applyCornerCutToSvg, buildCutMaskId } from '@/lib/svg/corner-cut'
 import {
@@ -30,9 +30,14 @@ import {
   readViewBoxRect,
   STAGE_PADDING_RATIO,
 } from './anchor-utils'
+import { CutPositionGlyph } from './CutPositionGlyph'
 import {
+  ANCHOR_BASIS_ALIGN_LABELS,
+  ANCHOR_BASIS_DESCRIPTIONS,
+  CUT_POSITION_ANCHOR_BASIS,
   CUT_POSITION_LABELS,
   CUT_POSITION_ORDER,
+  getAlignedAnchor,
   type IconPlusCutPosition,
   type IconPlusResource,
 } from './types'
@@ -66,7 +71,10 @@ const EMPTY_DRAFTS: DraftMap = { TOP_RIGHT: null, BOTTOM_RIGHT: null }
 const MIN_DIAMETER_PERCENT = 10
 const MAX_DIAMETER_PERCENT = 100
 
-/** 위치별 신규 프리셋 기본값. 앵커는 원 좌상단에 맞춘다. */
+/**
+ * 위치별 신규 프리셋 기본값.
+ * 앵커는 기준 코너에 맞춰 원에 정합시킨다(우측 하단=원 좌상단, 우측 상단=원 좌하단).
+ */
 function createDefaultDraft(
   position: IconPlusCutPosition,
   rect: { minX: number; minY: number; width: number; height: number }
@@ -74,7 +82,8 @@ function createDefaultDraft(
   const cutRadius = Math.min(rect.width, rect.height) * 0.22
   const cutX = rect.minX + rect.width * 0.85
   const cutY = position === 'TOP_RIGHT' ? rect.minY + rect.height * 0.15 : rect.minY + rect.height * 0.85
-  return { cutX, cutY, cutRadius, anchorX: cutX - cutRadius, anchorY: cutY - cutRadius }
+  const cut = { cutX, cutY, cutRadius }
+  return { ...cut, ...getAlignedAnchor(cut, CUT_POSITION_ANCHOR_BASIS[position]) }
 }
 
 /**
@@ -138,6 +147,7 @@ export function IconPlusMainEditDialog({
   }, [resource])
 
   const activeDraft = drafts[activePosition]
+  const activeBasis = CUT_POSITION_ANCHOR_BASIS[activePosition]
   const inactivePosition: IconPlusCutPosition =
     activePosition === 'TOP_RIGHT' ? 'BOTTOM_RIGHT' : 'TOP_RIGHT'
   const inactiveDraft = drafts[inactivePosition]
@@ -198,11 +208,19 @@ export function IconPlusMainEditDialog({
     }
   }
 
-  const handleAddPreset = () => {
+  const handleAddPreset = (position: IconPlusCutPosition = activePosition) => {
     if (!rect) return
-    setDrafts((current) => ({ ...current, [activePosition]: createDefaultDraft(activePosition, rect) }))
+    setDrafts((current) =>
+      current[position] ? current : { ...current, [position]: createDefaultDraft(position, rect) }
+    )
     setEditTarget('cut')
     setErrorMessage(null)
+  }
+
+  /** 탭 전환. 미설정 위치를 고르면 기본값으로 draft를 만들어 바로 편집할 수 있게 한다(저장 전이라 취소·삭제로 되돌릴 수 있음). */
+  const handleSelectTab = (position: IconPlusCutPosition) => {
+    setActivePosition(position)
+    if (!drafts[position]) handleAddPreset(position)
   }
 
   const handleRemovePreset = () => {
@@ -212,9 +230,10 @@ export function IconPlusMainEditDialog({
 
   const handleAlignAnchorToCircle = () => {
     if (!activeDraft) return
+    const aligned = getAlignedAnchor(activeDraft, activeBasis)
     updateActiveDraft({
-      anchorX: Number(formatCoordinate(activeDraft.cutX - activeDraft.cutRadius)),
-      anchorY: Number(formatCoordinate(activeDraft.cutY - activeDraft.cutRadius)),
+      anchorX: Number(formatCoordinate(aligned.anchorX)),
+      anchorY: Number(formatCoordinate(aligned.anchorY)),
     })
   }
 
@@ -299,30 +318,42 @@ export function IconPlusMainEditDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 프리셋 탭 */}
+          {/* 프리셋 탭 — 설정 여부를 4중으로 표시: 미니 다이어그램 / 아이콘(✓·+) / 실선·점선 / 라벨(추가) */}
           <div className="flex items-center gap-2" role="tablist" aria-label="마스킹 프리셋 위치">
-            {CUT_POSITION_ORDER.map((position) => (
-              <Button
-                key={position}
-                type="button"
-                role="tab"
-                aria-selected={activePosition === position}
-                variant="outline"
-                size="sm"
-                className={cn(
-                  'h-8 flex-1 text-xs',
-                  activePosition === position
-                    ? 'border-none bg-penta-sky/20 hover:bg-penta-sky/20 dark:bg-gray-50 dark:text-black'
-                    : 'border bg-white dark:bg-penta-sky/20 dark:text-white'
-                )}
-                onClick={() => setActivePosition(position)}
-              >
-                {CUT_POSITION_LABELS[position]}
-                <span className="ml-1 text-[10px] text-muted-foreground">
-                  {drafts[position] ? '설정됨' : '미설정'}
-                </span>
-              </Button>
-            ))}
+            {CUT_POSITION_ORDER.map((position) => {
+              const isConfigured = drafts[position] !== null
+              const isActive = activePosition === position
+              return (
+                <button
+                  key={position}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={cn(
+                    'flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-xs transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isConfigured
+                      ? 'border border-solid border-penta-blue/40 bg-penta-sky/10 font-medium text-foreground hover:bg-penta-sky/20'
+                      : 'border border-dashed border-border bg-muted/40 text-muted-foreground hover:border-penta-sky/60',
+                    // 활성 탭은 링으로 구분 → 설정/미설정 표시와 겹치지 않는다
+                    isActive && 'ring-2 ring-primary ring-offset-1 ring-offset-background'
+                  )}
+                  onClick={() => handleSelectTab(position)}
+                >
+                  <CutPositionGlyph position={position} filled={isConfigured} />
+                  {isConfigured ? (
+                    <Check className="h-3.5 w-3.5 text-penta-blue" aria-hidden="true" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>
+                    {CUT_POSITION_LABELS[position]}
+                    {!isConfigured && ' 추가'}
+                  </span>
+                  <span className="sr-only">{isConfigured ? '설정됨' : '미설정'}</span>
+                </button>
+              )
+            })}
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_220px]">
@@ -359,14 +390,19 @@ export function IconPlusMainEditDialog({
                     />
                   </div>
 
-                  {/* 참조 오버레이 — 앵커 위치에 native 크기·반투명으로 겹쳐 원 지름과의 정합을 확인 */}
+                  {/* 참조 오버레이 — 앵커 기준 코너에 맞춰 native 크기·반투명으로 겹쳐 원 지름과의 정합을 확인.
+                      BOTTOM_LEFT면 앵커에 **아래쪽 변**이 걸리므로 높이만큼 위로 올려 그린다(실제 병합과 동일). */}
                   {activeDraft && referenceResource && (
                     <span
                       aria-hidden="true"
                       className="svg-line-preview pointer-events-none absolute text-primary opacity-40 [&_svg]:h-full [&_svg]:w-full"
                       style={{
                         left: `${toPercentX(activeDraft.anchorX)}%`,
-                        top: `${toPercentY(activeDraft.anchorY)}%`,
+                        top: `${toPercentY(
+                          activeBasis === 'BOTTOM_LEFT'
+                            ? activeDraft.anchorY - referenceResource.height
+                            : activeDraft.anchorY
+                        )}%`,
                         width: `${toPercentW(referenceResource.width)}%`,
                         height: `${toPercentH(referenceResource.height)}%`,
                       }}
@@ -431,7 +467,7 @@ export function IconPlusMainEditDialog({
                     {CUT_POSITION_LABELS[activePosition]} 프리셋이 없습니다. 추가하면 기본 원과 앵커가
                     생성됩니다.
                   </p>
-                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={handleAddPreset}>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => handleAddPreset()}>
                     <Plus className="mr-1 h-3.5 w-3.5" />
                     프리셋 추가
                   </Button>
@@ -522,7 +558,7 @@ export function IconPlusMainEditDialog({
                     className="w-full text-xs"
                     onClick={handleAlignAnchorToCircle}
                   >
-                    앵커를 원 좌상단에 맞추기
+                    {ANCHOR_BASIS_ALIGN_LABELS[activeBasis]}
                   </Button>
 
                   {/* 참조 오버레이 선택 — 목록은 워크스페이스 state 재사용 */}
@@ -560,8 +596,13 @@ export function IconPlusMainEditDialog({
 
                   <p className="text-xs leading-4 text-muted-foreground">
                     스테이지를 클릭·드래그해 {editTarget === 'cut' ? '절단 원' : '앵커'}을 옮깁니다.
-                    아이콘 밖(여백)으로도 끌어낼 수 있어 <strong>우측 상단은 anchorY가 음수</strong>가 되는
-                    것이 정상입니다.
+                    아이콘 밖(여백)으로도 끌어낼 수 있고, 배지가 아이콘 위로 삐져나와도 결과에서 잘리지
+                    않습니다.
+                  </p>
+                  {/* 위치별 앵커 기준 코너 안내 — 우측 상단은 리소스의 아래쪽 변이 앵커에 맞춰진다 */}
+                  <p className="rounded-md border border-border bg-muted/50 px-2 py-1.5 text-xs leading-4 text-muted-foreground">
+                    <strong className="text-foreground">{CUT_POSITION_LABELS[activePosition]}</strong>:{' '}
+                    {ANCHOR_BASIS_DESCRIPTIONS[activeBasis]}
                   </p>
                 </>
               )}

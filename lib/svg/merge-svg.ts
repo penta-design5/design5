@@ -7,7 +7,9 @@
  *
  * icon-merger `src/lib/svg/merge-svg.ts` 이식본. 하드코딩 의존성 없음(순수 문자열 처리).
  *
- * P8(마스킹 프리셋)에서 두 가지가 추가되었다:
+ * P8(마스킹 프리셋)에서 세 가지가 추가되었다:
+ * - **앵커 기준 코너**(`anchorBasis`): 우측 하단 프리셋은 앵커에 리소스 **좌상단**을, 우측 상단 프리셋은
+ *   앵커에 리소스 **좌하단**을 맞춘다(배지가 앵커 위로 쌓여 아래쪽 변이 정렬된다).
  * - **오프셋 정규화**: anchor가 음수여도(배지가 아이콘 위/왼쪽으로 오버플로) 잘리지 않도록
  *   viewBox min을 음수로 만들지 않고 두 레이어를 평행이동한다. anchor ≥ 0이면 기존 출력과 동일하다.
  * - **절단 마스크 통합**: `cutX/cutY/cutRadius`가 모두 유효하면 `<defs><mask>`를 head에 삽입하고
@@ -25,9 +27,18 @@ export type MergeSvgIcon = {
   height: number
 }
 
+/**
+ * 앵커 지점이 병합 리소스의 **어느 코너**와 맞춰지는지.
+ * - `TOP_LEFT`(기본): 앵커에 리소스의 좌상단을 붙인다(기존 동작 = 우측 하단 프리셋).
+ * - `BOTTOM_LEFT`: 앵커에 리소스의 좌하단을 붙인다(우측 상단 프리셋 — 배지가 앵커 위쪽으로 쌓인다).
+ */
+export type MergeAnchorBasis = 'TOP_LEFT' | 'BOTTOM_LEFT'
+
 export type MainMergeSvgIcon = MergeSvgIcon & {
   anchorX: number | null
   anchorY: number | null
+  /** 앵커 기준 코너. 기본 `TOP_LEFT`(기존 호출부·출력 불변) */
+  anchorBasis?: MergeAnchorBasis
   /**
    * 절단 원(마스킹 프리셋). 3값이 모두 유효할 때만 `<mask>`를 삽입한다.
    * 옵셔널이므로 프리셋이 없는 legacy pre-cut 아이콘 호출부는 변경 없이 동작한다.
@@ -71,13 +82,18 @@ export function mergeSvgsByAnchor(
   const anchorX = mainIcon.anchorX - main.minX
   const anchorY = mainIcon.anchorY - main.minY
 
-  // 오프셋 정규화: anchor가 음수면(우측 상단 프리셋처럼 배지가 위/왼쪽으로 삐져나오면)
+  // 앵커 기준 코너에 따라 리소스의 상단 y를 정한다.
+  // BOTTOM_LEFT면 앵커가 리소스의 **아래쪽 변**이므로 높이만큼 위로 올려 배치한다.
+  const resourceTop =
+    (mainIcon.anchorBasis ?? 'TOP_LEFT') === 'BOTTOM_LEFT' ? anchorY - resource.height : anchorY
+
+  // 오프셋 정규화: 리소스가 아이콘 위/왼쪽으로 삐져나오면(우측 상단 프리셋)
   // viewBox min을 음수로 만들지 않고 두 레이어를 오버플로만큼 평행이동한다.
-  // anchor가 0 이상이면 off = 0이 되어 기존 출력과 완전히 동일하다.
+  // 오버플로가 없으면 off = 0이 되어 기존 출력과 완전히 동일하다.
   const left = Math.min(0, anchorX)
   const right = Math.max(main.width, anchorX + resource.width)
-  const top = Math.min(0, anchorY)
-  const bottom = Math.max(main.height, anchorY + resource.height)
+  const top = Math.min(0, resourceTop)
+  const bottom = Math.max(main.height, resourceTop + resource.height)
   const offX = -left
   const offY = -top
   const resultWidth = right - left
@@ -111,7 +127,7 @@ export function mergeSvgsByAnchor(
     // defs는 data-layer="main"보다 반드시 앞(제약 ①) — 색상 baking이 마스크 fill을 덮어쓰지 않게 한다
     mask?.defs ?? '',
     mainLayer,
-    `<g data-layer="merge" transform="translate(${formatNumber(offX + anchorX - resource.minX)} ${formatNumber(offY + anchorY - resource.minY)})">`,
+    `<g data-layer="merge" transform="translate(${formatNumber(offX + anchorX - resource.minX)} ${formatNumber(offY + resourceTop - resource.minY)})">`,
     resource.innerSvg,
     '</g>',
     '</svg>',

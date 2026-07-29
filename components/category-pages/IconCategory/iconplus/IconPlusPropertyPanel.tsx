@@ -16,6 +16,7 @@ import {
   type DownloadFormat,
 } from '@/lib/svg/icon-plus-download'
 import {
+  CUT_POSITION_ANCHOR_BASIS,
   CUT_POSITION_LABELS,
   sortPresets,
   type IconPlusCutPosition,
@@ -144,6 +145,8 @@ export function IconPlusPropertyPanel({
           ...toMergeIcon(selectedMain),
           anchorX: activePreset.anchorX,
           anchorY: activePreset.anchorY,
+          // 우측 상단은 앵커에 리소스 좌하단을 맞춘다(높이가 달라도 아래쪽 변이 정렬)
+          anchorBasis: CUT_POSITION_ANCHOR_BASIS[activePreset.position],
           cutX: activePreset.cutX,
           cutY: activePreset.cutY,
           cutRadius: activePreset.cutRadius,
