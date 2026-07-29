@@ -22,6 +22,7 @@
 | P5 | 병합 미리보기 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과 + `?tab=plus` 컴파일·200. 실 병합 렌더는 사내망 대기 |
 | P6 | 속성 조정 & 다운로드 | ✅ 완료 | `refactor/phase2-api-layer` | tsc/lint 0 + 단위테스트 186 통과(신규 8종) + `?tab=plus` 컴파일·200. 실 다운로드/다크모드 육안은 사내망 대기 |
 | P7 | 반응형/접근성/QA | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus`·`/chart-generator` 컴파일·200. 모바일 속성 시트(하단 슬라이딩)·플로팅 버튼 + close 버튼 겹침 해결(전역) + ICON 탭 버튼 줄바꿈. **사내망 모바일 QA 확인 완료(2026-07-08)** ✅ |
+| P8 | 마스킹 프리셋 (원형 절단) | ⬜ 대기 | — | **계획 수립 완료 · 구현 미착수.** 계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md) (P8-1~P8-4로 분할). 다음 세션은 이 문서부터 확인 |
 
 ---
 
@@ -206,6 +207,12 @@
 - **ICON+ 전 단계(P0~P7) 코드 구현 완료.** 모든 계획서(§) 항목이 반영되었으며, tsc/lint 0 + 단위테스트 190 통과 + `?tab=plus` 컴파일·200으로 검증됨. 브랜치 `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` push 완료.
 - 남은 것은 **코드 작업이 아니라 운영(사내망) 육안 확인 항목**뿐 — 아래 잔여 목록 참고.
 
+## 후속 기능 — P8 마스킹 프리셋 (2026-07-29 계획 수립, 구현 대기)
+- **계획서: [ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md)** — 새 세션은 이 문서 기준으로 착수한다.
+- 요지: 메인 아이콘을 **완전한 모습으로 업로드·표시**하고, 관리자가 **우측 상단/우측 하단 2곳**에 대해 (절단 원 + 앵커) 프리셋을 설정. 사용자는 속성 패널에서 프리셋을 선택해 마스킹된 병합 결과를 받는다.
+- P0~P7의 "pre-cut 파일 + 단일 anchor" 방식은 **legacy 경로로 유지**되어 기존 데이터는 그대로 동작한다.
+- 착수 단계: **P8-1(스키마 `IconPlusMainPreset` + 수동 SQL 마이그레이션 + API)** → P8-2 마스크 코어 → P8-3 사용자 경로 → P8-4 관리자 편집 다이얼로그.
+
 ## 미해결 / 결정 대기
 - (없음) — 다크 모드는 **미지원 확정**(2026-07-08, 관련 UI 아이콘도 이미 숨김). 선결요건 b의 카드 다크 대응 잔여 항목은 방침에 따라 종료.
 
@@ -238,4 +245,5 @@
 | 2026-07-08 | P7 | 모바일 반응형: `useIsMobileViewport` + 슬라이딩 `Sheet`로 속성 패널 접근. 메인+리소스 모두 선택 시 하단 플로팅 버튼("메인 + 아이콘/텍스트 : 결과 조정하기") → 시트 오픈, 선택 해제 시 자동 닫힘. `IconPlusPropertyPanel`에 `variant='sheet'` 추가. ICON 탭 모바일 패턴 채택(두 탭 일관), icon-merger UX 이식. tsc/lint 0 + 190 통과 + `?tab=plus` 200 → **P7 🟡** (실기기 육안은 사내망 대기) |
 | 2026-07-08 | P7 | 사용자 피드백 반영: ①ICON+ 모바일 시트를 우측→**하단(`side="bottom"`)** 으로 변경(ICON 탭·타 페이지와 방향 일관). ②**슬라이딩 미동작 근본 원인 해결**: `tailwind.config.ts`에 `tailwindcss-animate` 플러그인 미등록 → 모든 `Sheet`/`Dialog` 애니메이션 클래스가 no-op이던 문제. 플러그인 등록으로 전 페이지 하단 시트 부드러운 슬라이딩 활성(gallery/character/chart-generator/ci-bi/ppt/design-request/pdf-extractor/GenericListPage/ICON 탭 등 공용 `Sheet` 사용처 전부). 생성 CSS에 `@keyframes enter/exit` 방출 확인. tsc/lint 0 + 190 통과 |
 | 2026-07-08 | P7 | 사내망 1차 QA 피드백 4건: ①ICON+ 플로팅 버튼 좌측 아이콘 제거. ②**시트 close 버튼 겹침 해결(전역)**: 공용 `sheet.tsx` close를 둥근 아이콘 버튼(rounded-full+border+bg)으로 재스타일 + 모바일 시트 속성 패널 상단 패딩 `pt-6`→`pt-14`(초기화 버튼 위로 close 배치, 겹침 제거). 적용: Icon/IconPlus/Character/CiBi/Ppt/Generic PropertyPanel + ChartSettingsPanel. ③ICON 탭 액션 버튼 행 `flex-wrap`(폭 초과 시 줄바꿈, 검색창 `min-w-[200px]`). ④ICON 탭 "속성 패널 열기" 버튼 제거(아이콘 선택 시 시트 자동 오픈으로 불필요). tsc 0 + 190 통과 + `/icon?tab=plus`·`/chart-generator` 200 |
+| 2026-07-29 | P8 | **마스킹 프리셋 계획 수립**([ICON_PLUS_절단마스킹_구현계획.md](./ICON_PLUS_절단마스킹_구현계획.md)). 메인 아이콘을 완전한 모습으로 업로드·표시하고, 관리자가 우측 상단/하단 2곳에 (절단 원 + 앵커) 프리셋을 설정 → 사용자가 속성 패널에서 위치 프리셋을 선택. 자녀 테이블 `IconPlusMainPreset`(+`IconPlusCutPosition` enum, cascade) / 렌더 시점 SVG `<mask>` 비파괴 절단 / `merge-svg` 오프셋 정규화로 상단 오버플로 대응. 기존 pre-cut 아이콘은 legacy 경로 유지. **문서 작업만, 구현 미착수** |
 | 2026-07-08 | P7 | **사내망 모바일 QA 확인 완료** → P7 ✅. ICON+ 전 단계(P0~P7) 구현 완료 확정. 잔여는 코드 작업이 아닌 운영 육안 확인 항목(P2 관리자 API/P3 실 데이터 카드/P4 위험 SVG 차단/anchor 재편집)뿐. 문서 상태 갱신 |
