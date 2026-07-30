@@ -7,6 +7,9 @@
 > **본 문서는 계획서이며 구현 코드는 포함하지 않는다.**
 
 > 📊 구현 진행 상태는 [ICON_PLUS_handoff.md](./ICON_PLUS_handoff.md)에서 관리한다(단일 원본). 본 계획은 **P8** 단계로 편성.
+>
+> ✅ **2026-07-30 구현·개발망 확인 완료.** 아래 §1~13은 착수 시점의 스펙이며, 구현 중 개발망 피드백으로
+> **확정 변경된 사항은 §14에 정리**했다. 서로 다를 경우 **§14가 우선**한다.
 
 - 작성일: 2026-07-29
 - 선행 문서: [ICON_PLUS_개발계획.md](./ICON_PLUS_개발계획.md) (P0~P7 완료), [ICON_PLUS_handoff.md](./ICON_PLUS_handoff.md)
@@ -435,7 +438,8 @@ npx vitest run
 
 - `prisma/migrations/<timestamp>_add_icon_plus_main_presets/migration.sql`
 - `lib/svg/corner-cut.ts`, `lib/svg/corner-cut.test.ts`
-- `components/category-pages/IconCategory/iconplus/IconPlusMainEditDialog.tsx` (기존 `IconPlusAnchorDialog.tsx` 개명·확장)
+- `components/category-pages/IconCategory/iconplus/IconPlusMainEditDialog.tsx` (기존 `IconPlusAnchorDialog.tsx` 개명·확장 → 원본 파일 삭제)
+- `components/category-pages/IconCategory/iconplus/CutPositionGlyph.tsx` (§14.2·14.3 — 프리셋 위치 글리프 + 카드 코너 점 버튼)
 
 **수정**
 
@@ -464,3 +468,45 @@ npx vitest run
 - 로컬 브랜치는 `refactor/phase2-api-layer`, **푸시 대상은 항상 `git push origin HEAD:2026-06-17-tiper`**.
 - 푸시 전 `/preflight`(typecheck + lint) 통과 필수, **푸시 등 외부 반영은 사전 확인 후** 진행한다.
 - 개발망 배포 시 `prisma migrate deploy`를 **코드 pull과 함께** 실행한다.
+
+---
+
+## 14. 구현 확정 변경 사항 (2026-07-30)
+
+§1~13은 착수 시점 스펙이다. 개발망 검증 피드백으로 **다음 3가지가 확정 변경**되었다(구현·확인 완료).
+단계별 상세와 이유는 [ICON_PLUS_handoff.md](./ICON_PLUS_handoff.md) "Phase 8"에 기록되어 있다.
+
+### 14.1 위치별 앵커 기준 코너 (P8-5) — §5 보강
+
+앵커가 병합 리소스의 **어느 코너와 맞춰지는지**를 위치별로 달리한다.
+
+| 프리셋 | 앵커가 맞춰지는 리소스 코너 | 결과 |
+| --- | --- | --- |
+| 우측 하단 (`BOTTOM_RIGHT`) | 좌측 **상단** (기존과 동일) | 배지가 앵커에서 아래·오른쪽으로 놓인다 |
+| 우측 상단 (`TOP_RIGHT`) | 좌측 **하단** | 배지가 앵커 위로 쌓여, **높이가 다른 리소스들의 아래쪽 변이 정렬**된다 |
+
+- `mergeSvgsByAnchor`에 `anchorBasis?: 'TOP_LEFT' | 'BOTTOM_LEFT'`(기본 `TOP_LEFT`)를 추가했다. `BOTTOM_LEFT`면 리소스 상단 y를 `anchorY - resource.height`로 계산하며, §5의 오프셋 정규화가 위쪽 오버플로를 그대로 흡수한다.
+- 위치 → 기준 코너 매핑은 **DB 컬럼 없이 코드 상수**(`CUT_POSITION_ANCHOR_BASIS`)로 결정한다. 위치를 늘릴 때 한 줄만 추가하면 되고 마이그레이션이 없다. 관리자가 코너를 직접 고르게 하려면 컬럼 추가가 필요하다(현 요구사항은 위치로 결정되므로 미채택).
+- 이에 따라 §7.2의 `앵커를 원 좌상단에 맞추기` 버튼은 **기준 코너에 따라 라벨·동작이 바뀐다**(우측 상단에서는 `앵커를 원 좌하단에 맞추기` = `(cutX - r, cutY + r)`). 참조 오버레이도 아래쪽 변을 앵커에 맞춰 그린다.
+
+### 14.2 프리셋 설정 여부 시각화 (P8-5) — §7.2 보강
+
+- 편집 다이얼로그 탭: **미니 다이어그램**(코너에 점을 찍은 작은 사각형) + `✓`/`+` 아이콘 + 실선/점선 테두리 + 라벨(`우측 상단 추가`)의 4중 표시. 활성 탭은 ring으로 별도 구분해 "선택된 탭"과 "설정된 탭"이 섞이지 않게 한다.
+- 공용 컴포넌트 `CutPositionGlyph.tsx`를 신설해 다이얼로그와 카드가 **같은 시각 언어**를 쓴다.
+
+### 14.3 메인 카드 진입 방식 — 코너 점 클릭 (P8-6) — §7.2 대체
+
+§7.2의 "메인 카드 hover → 편집 버튼(⌖) 클릭"을 다음으로 **대체**한다.
+
+- **별도 편집 버튼 없음.** 카드 우측 코너의 점 2개가 유일한 편집 진입로다.
+- 점을 누르면 **그 위치의 프리셋 탭으로** 다이얼로그가 열린다(`initialPosition`). **미설정 코너를 누르면 그 위치에 기본 프리셋 draft가 생성**되어 "빈 코너를 눌러 구멍을 만든다"는 흐름이 된다(저장 전이라 취소/삭제로 되돌림).
+- 표시 규칙: 카드 hover/포커스 시 두 점이 함께 나타난다(설정=채운 점, 미설정=점선 빈 점). **hover가 없는 기기(터치)는 항상 표시** — 그렇지 않으면 관리자의 진입로가 사라진다.
+- 클릭 표적은 8px 점이 아니라 **20px 버튼**(점은 그 안에 렌더). 점 위에서 커서가 포인터로 바뀌고 점이 확대+링으로 강조된다. **툴팁은 사용하지 않고** 접근성 이름은 `aria-label`(`우측 상단 프리셋 편집/추가`)로 제공한다.
+- 편집 버튼이 없어진 만큼 메인 섹션 설명문을 **관리자에게만** `카드 우측 코너의 점을 눌러 마스킹 프리셋을 설정합니다`로 노출해 진입 방법을 안내한다.
+
+### 14.4 그 밖의 구현 결정
+
+- `POST /api/icon-plus`는 MAIN anchor **필수 검증만 해제**하고, 전달되면 legacy 값으로 저장한다(§6.3의 "null로 저장"을 그대로 적용하면 P8-4 이전 구간에서 기존 업로드 폼이 보낸 좌표가 유실됨). 업로드 폼의 anchor 입력은 P8-4에서 제거되었다.
+- `PATCH /api/icon-plus/[id]` 응답에 최신 `presets` 배열을 함께 반환한다(기존 `{ ok: true }` 계약 유지).
+- **legacy anchor 편집 UI는 제공하지 않는다.** 프리셋 없는 pre-cut 아이콘은 다이얼로그 하단 안내문으로 "프리셋 추가 시 전환됨"을 알린다. 기존 anchor 값은 DB·API에 남아 legacy 렌더에 계속 쓰인다.
+- 좌표 기준은 `readViewBoxRect`로 **viewBox min까지 반영**한다(`merge-svg`가 `main.min`을 차감하므로 `viewBox="10 10 …"` 같은 SVG에서 어긋나는 것을 방지).
