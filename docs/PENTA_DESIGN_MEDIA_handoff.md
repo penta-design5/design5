@@ -5,8 +5,8 @@
 
 - 대상: **Penta Design**(갤러리 카테고리 `penta-design`) 게시물에 **동영상(mp4)** + **유튜브 링크** 첨부 지원. 상세 페이지에서 다이얼로그로 재생.
 - 핵심 결정: `Post.images`(JSON) 요소에 `type`(image/video/youtube) 추가(**마이그레이션 불필요**) · 동영상 공개 URL 직접 재생 · 동영상 100MB · 썸네일 1초 프레임 캡처(클라이언트) · 유튜브 썸네일 직접 참조(고→저해상도→자체 카드 폴백) · 대표 썸네일은 전 미디어 지정 가능
-- 최종 업데이트: 2026-08-04 (P0~P5 완료 · 후속 개선 P7 추가 — 개발망 검증 대기)
-- **상태: 코드 작업 P0~P5 완료 + 개발망 검증 통과. P6(사내망 통합 QA)은 사용자 판단으로 미진행(스킵). P7(순서 이동 최상단/최하단 버튼) 코드 완료, 개발망 검증 대기.**
+- 최종 업데이트: 2026-08-04 (P0~P5 완료 · 후속 개선 P7·P8 추가 — 개발망 검증 대기)
+- **상태: 코드 작업 P0~P5 완료 + 개발망 검증 통과. P6(사내망 통합 QA)은 사용자 판단으로 미진행(스킵). P7(순서 이동 최상단/최하단 버튼)·P8(대표 썸네일 선택 시인성 개선) 코드 완료, 개발망 검증 대기.**
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록 · ⏭️ 스킵
 
@@ -23,7 +23,8 @@
 | P4 | 상세 렌더링(`ImageGallery.tsx`) 타입 분기 + 재생 다이얼로그 신규 `MediaPlayerDialog.tsx` (video=`<video>`, youtube=`<iframe embed>`) | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (3945af3) | tsc 0 / lint 신규경고 0(기존 `any` 1건만). 개발망서 상세 placeholder 재발 확인 후 재검증 |
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 포함 배지 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (f178544) | tsc 0 / lint 신규경고 0(기존 `any` 3건만). 개발망 표시 확인 통과 |
 | P6 | 통합 QA + 사내망 검증 (스펙 검증 8항목) | ⏭️ 스킵 | - | 사용자 판단으로 미진행 |
-| P7 | 첨부 순서 이동에 **최상단/최하단 즉시 이동** 버튼 추가 (`PostUploadDialog.tsx`) | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 신규경고 0(기존 `any` 2건만). 개발망 동작 확인 필요 |
+| P7 | 첨부 순서 이동에 **최상단/최하단 즉시 이동** 버튼 추가 (`PostUploadDialog.tsx`) | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (47ff255) | tsc 0 / lint 신규경고 0(기존 `any` 2건만). 개발망 동작 확인 필요 |
+| P8 | **대표(커버) 썸네일 선택 시인성 개선** — 전용 강조색 토큰 `--cover`(#DD524C) + 테두리·디밍·라벨 확대 | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 신규경고 0. Tailwind 실제 컴파일로 유틸 생성·`.dark` 반영 확인 |
 
 > 진행 규칙: 각 Phase 착수 시 상태를 🟡, 완료 시 ✅ 로 갱신하고 브랜치/커밋·검증 결과를 채운다. 로컬은 DB 비의존(컴파일·유틸 단위테스트)까지, 실제 업로드/DB/재생은 개발망(로그인+DB+S3/MinIO) 검증으로 분리 기록한다.
 
@@ -90,6 +91,19 @@
 - [x] 목록 안내 문구에 겹화살표 동작 설명 추가
 - 변경 파일: `components/category-pages/GalleryCategory/PostUploadDialog.tsx` **단 1개** (API·스키마·DB 무변경. `order`는 제출 시 배열 인덱스로 재부여, 좌측 미리보기도 `mediaItems` 파생이라 자동 반영)
 - 검증: tsc 0 / lint 신규경고 0. **개발망 확인 필요**: ① 6개 이상 첨부 후 ⇈·⇊ 1클릭 이동 ② 이동 후 대표 표시가 원래 항목을 따라가는지 ③ 저장 후 상세페이지 순서 일치 ④ 편집 재진입 시 순서 유지 ⑤ 첫/마지막 항목 버튼 비활성
+
+### P8 — 대표(커버) 썸네일 선택 시인성 개선 🟡
+> 계기: 첨부가 많을 때 대표 지정 항목을 찾기 어려웠다. 원인 분석 결과 **`--primary`가 파란색이 아니라 `hsl(222.2 47.4% 11.2%)`(≈#0F172A, 거의 검정에 가까운 짙은 남색)** 이라 테두리·라벨이 썸네일 윤곽선과 구분되지 않았음. 다크모드에선 거의 흰색으로 뒤집혀 양쪽 모두 무채색.
+- [x] **전용 강조색 토큰 신설** `--cover: 2 68% 58%`(#DD524C, 아이콘 프리셋·destructive와 동일 브랜드 레드) + `--cover-foreground: 0 0% 100%`. **`:root`와 `.dark`에 동일 값 고정** — `--destructive`는 다크에서 `hsl(0 62.8% 30.6%)`로 어두워져 강조 효과가 사라지므로 그대로 쓰지 않음
+- [x] `tailwind.config.ts`에 색 등록. **키는 `cover`가 아니라 `cover-accent`** — `cover`로 두면 내장 유틸 `bg-cover`(`background-size`)와 클래스명이 충돌한다(현재 사용처는 없으나 향후 함정)
+- [x] 대표 테두리: `border-2 border-primary` + `ring-2 ring-offset-2` → **`border-[3px] border-cover-accent` + `shadow-lg z-10`**. ring 제거 — 그리드 `gap-2`(8px)에서 `ring-offset-2`가 이웃 카드와 붙는 문제 해소. `box-sizing: border-box`라 카드 외곽 크기는 불변
+- [x] **비대표 항목 `opacity-70` 디밍**(hover 시 100% 복귀) — 대비로 대표가 즉시 드러남. 항목이 많을 때 가장 효과가 큰 조치
+- [x] 대표 라벨: `text-[10px]`·`py-0.5`·`bg-primary/80`(반투명 남색) → **`text-sm`(14px) `font-bold`·`py-1`·`bg-cover-accent`(불투명)·흰 글자 + `Star`(fill) 아이콘**. 반투명은 이미지가 비쳐 가독성이 떨어져 불투명으로 변경
+- [x] **빨강 의미 충돌 해소**: 같은 카드의 삭제 버튼이 `variant="destructive"`(항상 빨강)여서 "빨강=대표"와 겹쳤음 → `variant="secondary"` + `hover:bg-destructive hover:text-destructive-foreground`로 변경(평상시 중립, hover 시에만 빨강)
+- [x] 목록 안내 문구에 **`대표 썸네일: N번째 항목`**(강조색) 동적 표시 — 항목이 많아도 스캔 없이 위치 파악
+- [x] a11y: 카드에 `aria-pressed={isCover}` + 상태별 `title`("현재 대표 썸네일" / "클릭하여 대표 썸네일로 지정")
+- 변경 파일: `app/globals.css`(토큰) · `tailwind.config.ts`(색 등록) · `components/category-pages/GalleryCategory/PostUploadDialog.tsx`. 순수 스타일 변경으로 로직·API·DB 무관, 목록 카드·상세페이지 영향 없음
+- 검증: tsc 0 / lint 신규경고 0. `npx tailwindcss` 실제 컴파일로 `border-cover-accent`·`bg-cover-accent`·`text-cover-accent-foreground` 생성 + `:root`/`.dark` 양쪽 `--cover` 반영 + `.bg-cover{background-size:cover}` 보존 확인. **개발망 확인 필요**: ① 첨부 다수에서 대표 항목이 한눈에 보이는지 ② 라벨 글자 크기·가독성 ③ 삭제 버튼 hover 시에만 빨강인지 ④ 안내 문구의 N번째가 실제 대표와 일치하는지(순서 이동·삭제 후에도) ⑤ 다크모드에서도 강조색 유지
 
 ---
 

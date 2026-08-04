@@ -55,6 +55,12 @@ const config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        // 대표(커버) 선택 강조색 — 라이트/다크 동일 고정.
+        // ※ 키를 `cover`로 두면 내장 유틸 `bg-cover`(background-size)와 충돌하므로 접미사 필수
+        "cover-accent": {
+          DEFAULT: "hsl(var(--cover))",
+          foreground: "hsl(var(--cover-foreground))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

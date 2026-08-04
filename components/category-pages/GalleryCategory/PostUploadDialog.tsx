@@ -36,6 +36,7 @@ import {
   ImageIcon,
   Film,
   Plus,
+  Star,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
@@ -765,6 +766,10 @@ export function PostUploadDialog({
               {mediaItems.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
                   <p className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-cover-accent">
+                      대표 썸네일: {selectedThumbnailIndex + 1}번째 항목
+                    </span>
+                    {' · '}
                     항목을 클릭하면 대표(커버) 썸네일로 지정됩니다. 마우스를 올리면 순서 변경·삭제 버튼이 표시되며, 겹화살표(⇈ ⇊)는 맨 처음·맨 마지막으로 즉시 이동합니다.
                   </p>
                   <div className="grid grid-cols-3 gap-2">
@@ -774,13 +779,16 @@ export function PostUploadDialog({
                         <div
                           key={item.key}
                           className={cn(
-                            'relative aspect-square border-2 rounded-md overflow-hidden bg-muted group cursor-pointer transition-colors',
+                            'relative aspect-square rounded-md overflow-hidden bg-muted group cursor-pointer transition-all',
                             isCover
-                              ? 'border-primary ring-2 ring-primary ring-offset-2'
-                              : 'border-transparent hover:border-muted-foreground/30'
+                              ? // 대표: 두꺼운 강조색 테두리 + 그림자로 이웃 위에 띄운다
+                                'border-[3px] border-cover-accent shadow-lg z-10'
+                              : // 비대표: 살짝 디밍해 대표가 대비로 튀게 (hover 시 복귀)
+                                'border-2 border-transparent opacity-70 hover:opacity-100 hover:border-muted-foreground/30'
                           )}
                           onClick={() => setSelectedThumbnailIndex(index)}
-                          title="클릭하여 대표 썸네일로 지정"
+                          aria-pressed={isCover}
+                          title={isCover ? '현재 대표 썸네일' : '클릭하여 대표 썸네일로 지정'}
                         >
                           {item.previewUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -885,24 +893,26 @@ export function PostUploadDialog({
                             </Button>
                           </div>
 
-                          {/* 삭제 */}
+                          {/* 삭제 — 대표 강조색(빨강)과 의미가 겹치지 않게 기본은 중립, hover 시에만 빨강 */}
                           <Button
                             type="button"
-                            variant="destructive"
+                            variant="secondary"
                             size="icon"
-                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleRemoveItem(index)
                             }}
                             disabled={busy}
+                            title="항목 삭제"
                           >
                             <X className="h-3 w-3" />
                           </Button>
 
                           {/* 대표 라벨 */}
                           {isCover && (
-                            <span className="absolute bottom-0 left-0 right-0 bg-primary/80 text-primary-foreground text-[10px] text-center py-0.5 pointer-events-none">
+                            <span className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 bg-cover-accent py-1 text-sm font-bold text-cover-accent-foreground pointer-events-none">
+                              <Star className="h-3.5 w-3.5 fill-current" />
                               대표
                             </span>
                           )}
