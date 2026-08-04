@@ -29,6 +29,8 @@ import {
   X,
   ChevronUp,
   ChevronDown,
+  ChevronsUp,
+  ChevronsDown,
   Play,
   Youtube,
   ImageIcon,
@@ -392,20 +394,27 @@ export function PostUploadDialog({
     })
   }
 
-  const moveItem = (index: number, dir: -1 | 1) => {
-    const target = index + dir
-    if (target < 0 || target >= mediaItems.length) return
+  // 항목을 from → to 위치로 이동. 한 칸 이동·맨 처음/맨 마지막 이동을 모두 처리한다.
+  const moveItemTo = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= mediaItems.length) return
     setMediaItems((prev) => {
       const next = [...prev]
-      ;[next[index], next[target]] = [next[target], next[index]]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
       return next
     })
+    // 이동 항목 사이에 끼인 항목들은 한 칸씩 밀리므로 대표 인덱스를 재계산
     setSelectedThumbnailIndex((prev) => {
-      if (prev === index) return target
-      if (prev === target) return index
+      if (prev === from) return to
+      if (from < prev && prev <= to) return prev - 1
+      if (to <= prev && prev < from) return prev + 1
       return prev
     })
   }
+
+  const moveItem = (index: number, dir: -1 | 1) => moveItemTo(index, index + dir)
+  const moveItemToStart = (index: number) => moveItemTo(index, 0)
+  const moveItemToEnd = (index: number) => moveItemTo(index, mediaItems.length - 1)
 
   const onSubmit = async (values: PostFormValues) => {
     if (isSubmittingRef.current) {
@@ -756,7 +765,7 @@ export function PostUploadDialog({
               {mediaItems.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
                   <p className="text-xs text-muted-foreground">
-                    항목을 클릭하면 대표(커버) 썸네일로 지정됩니다. 마우스를 올리면 순서 변경·삭제 버튼이 표시됩니다.
+                    항목을 클릭하면 대표(커버) 썸네일로 지정됩니다. 마우스를 올리면 순서 변경·삭제 버튼이 표시되며, 겹화살표(⇈ ⇊)는 맨 처음·맨 마지막으로 즉시 이동합니다.
                   </p>
                   <div className="grid grid-cols-3 gap-2">
                     {mediaItems.map((item, index) => {
@@ -816,8 +825,22 @@ export function PostUploadDialog({
                             )}
                           </span>
 
-                          {/* 순서 이동 */}
-                          <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* 순서 이동: 위 행=앞으로, 아래 행=뒤로 / 좌측 열=맨 끝까지, 우측 열=한 칸 */}
+                          <div className="absolute left-1 top-1/2 -translate-y-1/2 grid grid-cols-2 gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItemToStart(index)
+                              }}
+                              disabled={index === 0 || busy}
+                              title="맨 처음으로 이동"
+                            >
+                              <ChevronsUp className="h-3 w-3" />
+                            </Button>
                             <Button
                               type="button"
                               variant="secondary"
@@ -828,9 +851,23 @@ export function PostUploadDialog({
                                 moveItem(index, -1)
                               }}
                               disabled={index === 0 || busy}
-                              title="위로 이동"
+                              title="한 칸 앞으로 이동"
                             >
                               <ChevronUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                moveItemToEnd(index)
+                              }}
+                              disabled={index === mediaItems.length - 1 || busy}
+                              title="맨 마지막으로 이동"
+                            >
+                              <ChevronsDown className="h-3 w-3" />
                             </Button>
                             <Button
                               type="button"
@@ -842,7 +879,7 @@ export function PostUploadDialog({
                                 moveItem(index, 1)
                               }}
                               disabled={index === mediaItems.length - 1 || busy}
-                              title="아래로 이동"
+                              title="한 칸 뒤로 이동"
                             >
                               <ChevronDown className="h-3 w-3" />
                             </Button>
