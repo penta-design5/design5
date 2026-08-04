@@ -27,12 +27,14 @@ interface MediaPlayerDialogProps {
  * 닫기 정책: 배경(overlay) 클릭 시 **팝업만 닫고 상세 페이지에 머문다**(목록으로 이동하지 않음).
  * 닫기 버튼·ESC도 동일.
  *
- * ※ 이전에는 배경 클릭이 목록 이동으로 이어졌는데, 원인은 버블링이 아니라 고스트 클릭이었다.
- *   Radix 기본 동작은 pointerdown에서 닫기 → overlay가 즉시 unmount → 뒤이어 도착한 click이
- *   그 자리 아래 갤러리 배경(GalleryDetailPage의 handleBackdropClick)에 떨어져 목록으로 이동.
- *   그래서 pointerdown 기반 닫기를 끄고(onPointerDownOutside preventDefault) overlay의 click에서
- *   닫는다. click 시점에는 overlay가 살아 있어 이벤트 타깃이 overlay 자신이고, 포털이라
- *   갤러리 배경으로 버블링되지 않는다.
+ * ※ 이전에 배경 클릭이 목록 이동으로 이어진 원인은 **두 가지**였고, 둘 다 막아야 한다.
+ *   (1) 고스트 클릭 — Radix 기본 동작은 pointerdown에서 닫기 → overlay가 즉시 unmount →
+ *       뒤이어 도착한 click이 그 자리 아래 갤러리 배경 div에 떨어진다.
+ *   (2) React 트리 전파 — React 포털은 DOM 트리가 아니라 **React 트리**를 따라 이벤트를 전파한다.
+ *       이 컴포넌트는 ImageGallery 안에 있고 그 ImageGallery는 GalleryDetailPage의
+ *       `onClick={handleBackdropClick}`(목록 이동) div 안에 있으므로, overlay가 body로 포털되어도
+ *       클릭이 그 핸들러까지 도달한다. → overlay에서 stopPropagation 필수.
+ *   기존 DialogContent의 stopPropagation은 (2)를 콘텐츠에 대해서만 막고 있었다.
  */
 export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
   const open = media !== null
@@ -42,10 +44,17 @@ export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
       <DialogContent
         // [&>button:last-child]:hidden — 공용 DialogContent의 기본 닫기 버튼(마지막 자식) 숨김(전용 버튼으로 대체)
         className="w-[95vw] max-w-4xl overflow-visible border-0 bg-transparent p-0 shadow-none [&>button:last-child]:hidden"
-        // pointerdown 기반 닫기를 끈다(고스트 클릭 방지). 실제 닫기는 아래 overlayProps.onClick 담당
+        // (1) pointerdown 기반 닫기를 끈다 → overlay가 click 시점까지 살아있어 고스트 클릭이 없다
         onPointerDownOutside={(e) => e.preventDefault()}
-        // 배경 클릭 = 팝업만 닫기. overlay가 살아있는 click 시점에 처리하므로 갤러리 배경으로 새지 않음
-        overlayProps={{ onClick: onClose }}
+        // (2) 배경 클릭 = 팝업만 닫기. React 포털은 DOM이 아니라 **React 트리**를 따라 전파되므로
+        //     stopPropagation 없이는 상위 갤러리 배경(handleBackdropClick=목록 이동)까지 도달한다.
+        overlayProps={{
+          onClick: (e) => {
+            e.stopPropagation()
+            onClose()
+          },
+          onPointerDown: (e) => e.stopPropagation(),
+        }}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >

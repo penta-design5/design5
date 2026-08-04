@@ -108,12 +108,15 @@
 
 ### P9 — 재생 팝업 배경 클릭 시 목록 이탈 문제 수정 🟡
 > 계기: 동영상/유튜브 팝업에서 배경을 무심코 클릭해 팝업만 닫으려 했는데 목록 페이지로 이동해 사용자가 당황. 이미지 확대는 다시 클릭하면 축소되어 상세에 머무는데 동영상만 이탈하는 비대칭.
-- **원인은 이벤트 버블링이 아니라 고스트 클릭이었다.** Radix Dialog는 포털로 `body`에 렌더되므로 overlay 클릭이 DOM 버블링으로 갤러리 영역에 닿지 않는다. 실제 순서: ① overlay에 pointerdown → Radix가 `onPointerDownOutside` 기본 동작으로 닫음 → ② overlay 즉시 unmount → ③ 뒤이어 도착한 click이 그 자리 아래 갤러리 배경 div(`GalleryDetailPage.tsx` `onClick={handleBackdropClick}`)에 떨어짐 → `router.push(목록)`
-- [x] `MediaPlayerDialog.tsx`에 `onPointerDownOutside={(e) => e.preventDefault()}` — **pointerdown 기반 닫기를 끔**(고스트 클릭의 원인 제거)
-- [x] `overlayProps={{ onClick: onClose }}` — 공용 `dialog.tsx`의 `DialogContent`가 이미 지원하는 확장 포인트(`overlayProps`)로 **click 시점에 팝업만 닫음**. click 시점에는 overlay가 살아 있어 이벤트 타깃이 overlay 자신이고, 포털이라 갤러리 배경으로 버블링되지 않음
-- [x] 닫기 정책 주석을 실제 동작에 맞게 갱신(기존 주석은 "배경 클릭은 목록 이동에 맡긴다"고 의도적 설계처럼 기술되어 있었음)
+- **원인은 두 가지였고 둘 다 막아야 한다.** (1차 시도에서 ①만 막아 개발망에서 증상이 그대로 재현됨 → 2차에서 ② 추가)
+  - ① **고스트 클릭**: overlay에 pointerdown → Radix `onPointerDownOutside` 기본 동작으로 팝업 닫힘 → overlay 즉시 unmount → 뒤이어 도착한 click이 그 자리 아래 갤러리 배경 div(`GalleryDetailPage.tsx:315` `onClick={handleBackdropClick}`)에 떨어짐 → `router.push(목록)`
+  - ② **React 트리 전파**: React 포털은 DOM 트리가 아니라 **React 트리**를 따라 이벤트를 전파한다. `MediaPlayerDialog`는 `ImageGallery.tsx:299`에 있고 그 `ImageGallery`는 `GalleryDetailPage.tsx:313` 배경 div의 자식이므로, overlay가 `body`로 포털되어도 클릭이 `handleBackdropClick`까지 **정상 전파**된다. 기존 `DialogContent`의 `stopPropagation`은 이 경로를 **콘텐츠에 대해서만** 막고 있었고 overlay에는 없었다
+- [x] `MediaPlayerDialog.tsx`: `onPointerDownOutside={(e) => e.preventDefault()}` — pointerdown 기반 닫기를 끔(① 제거). overlay가 click 시점까지 살아있게 됨
+- [x] `MediaPlayerDialog.tsx`: `overlayProps={{ onClick: (e) => { e.stopPropagation(); onClose() }, onPointerDown: stopPropagation }}` — 공용 `dialog.tsx`의 `overlayProps` 확장 포인트로 **click 시점에 팝업만 닫고 전파를 끊음**(② 제거)
+- [x] `ImageGallery.tsx`: `MediaPlayerDialog`를 `<div className="contents" onClick/onPointerDown stopPropagation>`으로 감싸 **2차 방어**. 다이얼로그 내부 구조가 바뀌어도 이탈이 재발하지 않게 한 곳에서 차단(`GalleryDetailPage`가 `PostUploadDialog`를 감싸는 기존 패턴과 동일). `className="contents"`는 부모 flex(`space-y-4`)에 빈 박스가 끼어 여백이 생기는 것을 방지하며, `display:contents`는 CSS 박스만 없애므로 React 트리 전파 차단에는 영향 없음
+- [x] 닫기 정책 주석을 실제 동작·원인에 맞게 갱신(기존 주석은 "배경 클릭은 목록 이동에 맡긴다"고 의도적 설계처럼 기술되어 있었음)
 - 대안으로 검토했다가 폐기: `ImageGallery` → `GalleryDetailPage`로 재생 상태를 올려 `handleBackdropClick`에서 가드하는 방식. 고스트 클릭이 **팝업이 닫힌 뒤** 도착하므로 ref가 이미 false여서 새어나가고, "닫힌 직후 N ms 무시" 타이머 방어가 추가로 필요해 파일 3개를 건드리면서 더 취약함
-- 변경 파일: `components/category-pages/GalleryCategory/MediaPlayerDialog.tsx` **1개**. 유튜브 팝업도 같은 다이얼로그를 쓰므로 함께 해결. 이미지 확대/축소는 별개 경로(`expandedIndex`)라 영향 없음
+- 변경 파일: `components/category-pages/GalleryCategory/MediaPlayerDialog.tsx` · `components/category-pages/GalleryCategory/ImageGallery.tsx`. 유튜브 팝업도 같은 다이얼로그를 쓰므로 함께 해결. 이미지 확대/축소는 별개 경로(`expandedIndex`)라 영향 없음
 - 검증: tsc 0 / lint 0. **개발망 확인 필요**: ① 동영상 팝업 배경 클릭 → 팝업만 닫히고 상세 유지 ② 유튜브 팝업도 동일 ③ 닫기 버튼·ESC 정상 ④ 닫은 뒤 다른 영상/이미지 계속 열람 ⑤ **팝업이 없을 때 갤러리 회색 배경 클릭 → 기존대로 목록 이동(회귀 확인)** ⑥ 영상 시크바 드래그가 팝업을 닫지 않는지 ⑦ 모바일 터치 동작
 
 ---

@@ -296,7 +296,22 @@ export function ImageGallery({ images, postId, onImageZoomChange }: ImageGallery
         )
       })}
 
-      <MediaPlayerDialog media={playerMedia} onClose={() => setPlayerMedia(null)} />
+      {/*
+        재생 다이얼로그 — 래퍼에서 전파 차단(2차 방어).
+        React 포털은 DOM이 아니라 React 트리를 따라 전파되므로, 팝업(overlay/콘텐츠) 클릭이
+        상위 GalleryDetailPage의 배경 핸들러(handleBackdropClick=목록 이동)까지 도달한다.
+        여기서 한 번에 끊어 두면 다이얼로그 내부 구조가 바뀌어도 이탈이 재발하지 않는다.
+        (GalleryDetailPage가 PostUploadDialog를 감싸는 것과 동일한 패턴)
+      */}
+      {/* className="contents" — 부모 flex(space-y-4)에 빈 박스가 끼어 여백이 생기지 않게 함.
+          display:contents는 CSS 박스만 없애며 React 트리 전파 차단에는 영향이 없다. */}
+      <div
+        className="contents"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <MediaPlayerDialog media={playerMedia} onClose={() => setPlayerMedia(null)} />
+      </div>
     </div>
   )
 }
