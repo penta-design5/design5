@@ -24,7 +24,8 @@
 | P5 | 카드/그리드(`PostCard.tsx`) 동영상·유튜브 포함 배지 | ✅ 완료 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (f178544) | tsc 0 / lint 신규경고 0(기존 `any` 3건만). 개발망 표시 확인 통과 |
 | P6 | 통합 QA + 사내망 검증 (스펙 검증 8항목) | ⏭️ 스킵 | - | 사용자 판단으로 미진행 |
 | P7 | 첨부 순서 이동에 **최상단/최하단 즉시 이동** 버튼 추가 (`PostUploadDialog.tsx`) | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (47ff255) | tsc 0 / lint 신규경고 0(기존 `any` 2건만). 개발망 동작 확인 필요 |
-| P8 | **대표(커버) 썸네일 선택 시인성 개선** — 전용 강조색 토큰 `--cover`(#DD524C) + 테두리·디밍·라벨 확대 | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 신규경고 0. Tailwind 실제 컴파일로 유틸 생성·`.dark` 반영 확인 |
+| P8 | **대표(커버) 썸네일 선택 시인성 개선** — 전용 강조색 토큰 `--cover`(#DD524C) + 테두리·디밍·라벨 확대 | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` (b3deec1) | tsc 0 / lint 신규경고 0. Tailwind 실제 컴파일로 유틸 생성·`.dark` 반영 확인 |
+| P9 | **재생 팝업 배경 클릭 시 목록으로 이탈하던 문제 수정** — 고스트 클릭 제거, 배경 클릭=팝업만 닫기 | 🟡 개발망 검증 대기 | `refactor/phase2-api-layer` → `origin/2026-06-17-tiper` | tsc 0 / lint 0 |
 
 > 진행 규칙: 각 Phase 착수 시 상태를 🟡, 완료 시 ✅ 로 갱신하고 브랜치/커밋·검증 결과를 채운다. 로컬은 DB 비의존(컴파일·유틸 단위테스트)까지, 실제 업로드/DB/재생은 개발망(로그인+DB+S3/MinIO) 검증으로 분리 기록한다.
 
@@ -105,6 +106,16 @@
 - 변경 파일: `app/globals.css`(토큰) · `tailwind.config.ts`(색 등록) · `components/category-pages/GalleryCategory/PostUploadDialog.tsx`. 순수 스타일 변경으로 로직·API·DB 무관, 목록 카드·상세페이지 영향 없음
 - 검증: tsc 0 / lint 신규경고 0. `npx tailwindcss` 실제 컴파일로 `border-cover-accent`·`bg-cover-accent`·`text-cover-accent-foreground` 생성 + `:root`/`.dark` 양쪽 `--cover` 반영 + `.bg-cover{background-size:cover}` 보존 확인. **개발망 확인 필요**: ① 첨부 다수에서 대표 항목이 한눈에 보이는지 ② 라벨 글자 크기·가독성 ③ 삭제 버튼 hover 시에만 빨강인지 ④ 안내 문구의 N번째가 실제 대표와 일치하는지(순서 이동·삭제 후에도) ⑤ 다크모드에서도 강조색 유지
 
+### P9 — 재생 팝업 배경 클릭 시 목록 이탈 문제 수정 🟡
+> 계기: 동영상/유튜브 팝업에서 배경을 무심코 클릭해 팝업만 닫으려 했는데 목록 페이지로 이동해 사용자가 당황. 이미지 확대는 다시 클릭하면 축소되어 상세에 머무는데 동영상만 이탈하는 비대칭.
+- **원인은 이벤트 버블링이 아니라 고스트 클릭이었다.** Radix Dialog는 포털로 `body`에 렌더되므로 overlay 클릭이 DOM 버블링으로 갤러리 영역에 닿지 않는다. 실제 순서: ① overlay에 pointerdown → Radix가 `onPointerDownOutside` 기본 동작으로 닫음 → ② overlay 즉시 unmount → ③ 뒤이어 도착한 click이 그 자리 아래 갤러리 배경 div(`GalleryDetailPage.tsx` `onClick={handleBackdropClick}`)에 떨어짐 → `router.push(목록)`
+- [x] `MediaPlayerDialog.tsx`에 `onPointerDownOutside={(e) => e.preventDefault()}` — **pointerdown 기반 닫기를 끔**(고스트 클릭의 원인 제거)
+- [x] `overlayProps={{ onClick: onClose }}` — 공용 `dialog.tsx`의 `DialogContent`가 이미 지원하는 확장 포인트(`overlayProps`)로 **click 시점에 팝업만 닫음**. click 시점에는 overlay가 살아 있어 이벤트 타깃이 overlay 자신이고, 포털이라 갤러리 배경으로 버블링되지 않음
+- [x] 닫기 정책 주석을 실제 동작에 맞게 갱신(기존 주석은 "배경 클릭은 목록 이동에 맡긴다"고 의도적 설계처럼 기술되어 있었음)
+- 대안으로 검토했다가 폐기: `ImageGallery` → `GalleryDetailPage`로 재생 상태를 올려 `handleBackdropClick`에서 가드하는 방식. 고스트 클릭이 **팝업이 닫힌 뒤** 도착하므로 ref가 이미 false여서 새어나가고, "닫힌 직후 N ms 무시" 타이머 방어가 추가로 필요해 파일 3개를 건드리면서 더 취약함
+- 변경 파일: `components/category-pages/GalleryCategory/MediaPlayerDialog.tsx` **1개**. 유튜브 팝업도 같은 다이얼로그를 쓰므로 함께 해결. 이미지 확대/축소는 별개 경로(`expandedIndex`)라 영향 없음
+- 검증: tsc 0 / lint 0. **개발망 확인 필요**: ① 동영상 팝업 배경 클릭 → 팝업만 닫히고 상세 유지 ② 유튜브 팝업도 동일 ③ 닫기 버튼·ESC 정상 ④ 닫은 뒤 다른 영상/이미지 계속 열람 ⑤ **팝업이 없을 때 갤러리 회색 배경 클릭 → 기존대로 목록 이동(회귀 확인)** ⑥ 영상 시크바 드래그가 팝업을 닫지 않는지 ⑦ 모바일 터치 동작
+
 ---
 
 ## 사내망 확인 로그
@@ -112,7 +123,7 @@
 - **2026-07-14 개발망(design6) 검증 통과**:
   - 업로드 다이얼로그: mp4·유튜브 링크 첨부, 썸네일(1초 프레임)·유튜브 썸네일 미리보기 정상. 미디어 안내 문구/배치·유튜브 placeholder 문구 수정 반영.
   - 상세페이지: 동영상/유튜브 썸네일 정상 표시(초기 placeholder 버그 → P4 타입 분기로 해결), 재생 다이얼로그에서 mp4·유튜브 재생 정상.
-  - 재생 다이얼로그 닫기 UX: 배경 클릭=목록 이동(기존 동작 유지), 우측 상단 닫기 버튼(기본 40% 투명, 호버 시 완전 표시)·ESC로만 팝업 닫힘.
+  - 재생 다이얼로그 닫기 UX: 배경 클릭=목록 이동, 우측 상단 닫기 버튼(기본 40% 투명, 호버 시 완전 표시)·ESC로만 팝업 닫힘. → **P9에서 배경 클릭=팝업만 닫기로 변경됨**
   - 목록 카드: 영상 포함 게시물에만 우측 상단 "영상" 배지 표시.
 - 미확인(운영 배포 시 인프라 확인 필요): 100MB 실업로드 시 앞단 프록시 `client_max_body_size`, 사내망에서 `img.youtube.com`/`youtube.com/embed` 외부 접근(차단 시 썸네일은 자체 카드 폴백, 재생은 한계).
 

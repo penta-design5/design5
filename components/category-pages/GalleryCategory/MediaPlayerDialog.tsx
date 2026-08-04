@@ -24,9 +24,15 @@ interface MediaPlayerDialogProps {
  * - youtube: `<iframe>` embed(autoplay=1)
  * 16:9 비율, 넓은 컨텐츠(max-w-4xl).
  *
- * 닫기 정책: 배경(overlay) 클릭은 기존대로 상세→목록 이동에 맡긴다(overlay를 가로채지 않음).
- * 재생 팝업은 우측 상단 닫기 버튼 또는 ESC로만 닫는다. 콘텐츠(영상/컨트롤/닫기버튼) 클릭만
- * 배경 핸들러로 버블링되지 않도록 전파를 차단한다.
+ * 닫기 정책: 배경(overlay) 클릭 시 **팝업만 닫고 상세 페이지에 머문다**(목록으로 이동하지 않음).
+ * 닫기 버튼·ESC도 동일.
+ *
+ * ※ 이전에는 배경 클릭이 목록 이동으로 이어졌는데, 원인은 버블링이 아니라 고스트 클릭이었다.
+ *   Radix 기본 동작은 pointerdown에서 닫기 → overlay가 즉시 unmount → 뒤이어 도착한 click이
+ *   그 자리 아래 갤러리 배경(GalleryDetailPage의 handleBackdropClick)에 떨어져 목록으로 이동.
+ *   그래서 pointerdown 기반 닫기를 끄고(onPointerDownOutside preventDefault) overlay의 click에서
+ *   닫는다. click 시점에는 overlay가 살아 있어 이벤트 타깃이 overlay 자신이고, 포털이라
+ *   갤러리 배경으로 버블링되지 않는다.
  */
 export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
   const open = media !== null
@@ -36,6 +42,10 @@ export function MediaPlayerDialog({ media, onClose }: MediaPlayerDialogProps) {
       <DialogContent
         // [&>button:last-child]:hidden — 공용 DialogContent의 기본 닫기 버튼(마지막 자식) 숨김(전용 버튼으로 대체)
         className="w-[95vw] max-w-4xl overflow-visible border-0 bg-transparent p-0 shadow-none [&>button:last-child]:hidden"
+        // pointerdown 기반 닫기를 끈다(고스트 클릭 방지). 실제 닫기는 아래 overlayProps.onClick 담당
+        onPointerDownOutside={(e) => e.preventDefault()}
+        // 배경 클릭 = 팝업만 닫기. overlay가 살아있는 click 시점에 처리하므로 갤러리 배경으로 새지 않음
+        overlayProps={{ onClick: onClose }}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
