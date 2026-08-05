@@ -29,6 +29,11 @@ const CARD_GAP = 24 // gap-6
 
 // 카드 폭 320px 고정 그리드. 한 행의 카드는 grid 기본값(align-items: stretch)에 의해
 // 그 행에서 가장 높은 카드에 자동으로 맞춰진다(= masonry에서는 불가능했던 행 단위 정렬).
+//
+// auto-fill은 첫 측정 전까지의 폴백일 뿐이다. 측정 후에는 컬럼 수를 인라인 스타일로
+// 명시해 덮어쓴다 — 재배치를 브라우저가 아니라 React가 일으켜야 FLIP이 동작하기 때문.
+// (Flipper는 getSnapshotBeforeUpdate에서 이전 위치를 재는데, auto-fill이면 그 시점에
+//  브라우저가 이미 재배치를 끝내 이동 거리가 0으로 측정된다.)
 const CARD_GRID_CLASS =
   'grid grid-cols-[repeat(auto-fill,320px)] gap-6 justify-center md:justify-start'
 
@@ -114,6 +119,12 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
     items.length > 0
       ? `${columnCount}:${items.map((it) => it.id).join(',')}`
       : 'empty'
+
+  // 측정 전(0)에는 CARD_GRID_CLASS의 auto-fill을 그대로 쓰고, 측정 후에는 컬럼 수를 고정한다.
+  const gridStyle =
+    columnCount > 0
+      ? { gridTemplateColumns: `repeat(${columnCount}, ${CARD_WIDTH}px)` }
+      : undefined
 
   const handleCardClick = useCallback(
     (id: string) => {
@@ -214,7 +225,7 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
 
         {!loading && items.length > 0 && (
           <Flipper flipKey={flipKey}>
-            <div ref={gridRef} className={CARD_GRID_CLASS}>
+            <div ref={gridRef} className={CARD_GRID_CLASS} style={gridStyle}>
               {items.map((it) => (
                 // translate: 위치만 애니메이션한다. 행 단위 stretch로 카드 높이가
                 // 함께 바뀌는데, 기본값(scale 포함)이면 전환 중 글자가 늘어나 보인다.
