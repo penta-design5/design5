@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import type { InsightPostDTO } from '@/lib/insights-schemas'
 
 const CARD_WIDTH = 320
+const CARD_GAP = 24 // gap-6
 
 // 카드 폭 320px 고정 그리드. 한 행의 카드는 grid 기본값(align-items: stretch)에 의해
 // 그 행에서 가장 높은 카드에 자동으로 맞춰진다(= masonry에서는 불가능했던 행 단위 정렬).
@@ -59,6 +60,10 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // 배치는 grid가 하지만, 리사이즈로 컬럼 수가 바뀌는 순간을 React가 알아야
+  // Flipper가 FLIP 애니메이션을 돌릴 수 있다. 그래서 컬럼 "개수"만 state로 관측한다.
+  const [columnCount, setColumnCount] = useState(0)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const fetchItems = useCallback(async () => {
     try {
@@ -86,7 +91,29 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
     fetchItems()
   }, [fetchItems])
 
-  const flipKey = items.length > 0 ? items.map((it) => it.id).join(',') : 'empty'
+  // 그리드 폭을 관측해 컬럼 수를 갱신. 값이 바뀌는 임계점에서만 setState가 일어나므로
+  // 리사이즈 도중 불필요한 리렌더는 없다. (grid는 block 요소라 폭이 내용에 영향받지 않음 → 피드백 루프 없음)
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const measure = () => {
+      const next = Math.max(
+        1,
+        Math.floor((el.offsetWidth + CARD_GAP) / (CARD_WIDTH + CARD_GAP))
+      )
+      setColumnCount((prev) => (prev === next ? prev : next))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [loading, items.length])
+
+  // 컬럼 수를 포함시켜야 리사이즈 시에도 Flipper가 재배치를 애니메이션한다.
+  const flipKey =
+    items.length > 0
+      ? `${columnCount}:${items.map((it) => it.id).join(',')}`
+      : 'empty'
 
   const handleCardClick = useCallback(
     (id: string) => {
@@ -187,9 +214,11 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
 
         {!loading && items.length > 0 && (
           <Flipper flipKey={flipKey}>
-            <div className={CARD_GRID_CLASS}>
+            <div ref={gridRef} className={CARD_GRID_CLASS}>
               {items.map((it) => (
-                <Flipped key={it.id} flipId={it.id}>
+                // translate: 위치만 애니메이션한다. 행 단위 stretch로 카드 높이가
+                // 함께 바뀌는데, 기본값(scale 포함)이면 전환 중 글자가 늘어나 보인다.
+                <Flipped key={it.id} flipId={it.id} translate>
                   {/* grid 아이템이므로 h-full로 행 높이를 그대로 카드에 전달한다 */}
                   <div className="h-full">
                     <InsightGuideCard
