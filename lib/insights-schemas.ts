@@ -49,6 +49,12 @@ export const INSIGHT_CARD_COLOR_VALUES = INSIGHT_CARD_COLOR_PRESETS.map(
 /** 카드 그라데이션 우하단 기본 색(프리셋 미선택 시) */
 export const INSIGHT_CARD_DEFAULT_COLOR = '#F7F8FA'
 
+/**
+ * 가이드 카드 장식 아이콘의 기본 색(프리셋 미선택 시).
+ * INSIGHT_CARD_DEFAULT_COLOR는 카드 배경색과 같아 아이콘에는 쓸 수 없어 별도로 둔다.
+ */
+export const INSIGHT_CARD_ICON_NEUTRAL_COLOR = '#94A3B8'
+
 /** 카드 색 검증: 빈 문자열(기본) 또는 프리셋 중 하나 */
 const cardColorField = z
   .string()

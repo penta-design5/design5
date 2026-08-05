@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,14 @@ import type { InsightPostDTO } from '@/lib/insights-schemas'
 
 const CARD_WIDTH = 320
 
+// 카드 폭 320px 고정 그리드. 한 행의 카드는 grid 기본값(align-items: stretch)에 의해
+// 그 행에서 가장 높은 카드에 자동으로 맞춰진다(= masonry에서는 불가능했던 행 단위 정렬).
+const CARD_GRID_CLASS =
+  'grid grid-cols-[repeat(auto-fill,320px)] gap-6 justify-center md:justify-start'
+
+// 로딩 중 표시할 스켈레톤 개수(그리드가 폭에 맞춰 알아서 접는다)
+const SKELETON_COUNT = 8
+
 interface Category {
   id: string
   name: string
@@ -46,13 +54,11 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
 
   const [items, setItems] = useState<InsightPostDTO[]>([])
   const [loading, setLoading] = useState(true)
-  const [columns, setColumns] = useState<InsightPostDTO[][]>([])
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<InsightPostDTO | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   const fetchItems = useCallback(async () => {
     try {
@@ -80,37 +86,7 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
     fetchItems()
   }, [fetchItems])
 
-  const calculateColumns = useCallback(() => {
-    if (!containerRef.current) return
-    const w = containerRef.current.offsetWidth
-    const gap = 24
-    const numCols = Math.max(1, Math.floor((w + gap) / (CARD_WIDTH + gap)))
-    const cols: InsightPostDTO[][] = Array(numCols)
-      .fill(null)
-      .map(() => [])
-    items.forEach((it) => {
-      const idx = cols.reduce(
-        (min, col, i) => (col.length < cols[min].length ? i : min),
-        0
-      )
-      cols[idx].push(it)
-    })
-    setColumns(cols)
-  }, [items])
-
-  useEffect(() => {
-    calculateColumns()
-    const onResize = () => calculateColumns()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [calculateColumns])
-
-  const flipKey =
-    columns.length > 0
-      ? columns
-          .map((col, i) => `${i}:${col.map((it) => it.id).join(',')}`)
-          .join('|')
-      : 'empty'
+  const flipKey = items.length > 0 ? items.map((it) => it.id).join(',') : 'empty'
 
   const handleCardClick = useCallback(
     (id: string) => {
@@ -183,36 +159,14 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
         </div>
 
         {loading && items.length === 0 && (
-          <div
-            ref={containerRef}
-            className="masonry-container justify-center md:justify-start"
-          >
-            {Array.from({
-              length: Math.min(
-                4,
-                Math.max(
-                  1,
-                  Math.floor(
-                    (containerRef.current?.offsetWidth || 1200) /
-                      (CARD_WIDTH + 24)
-                  )
-                )
-              ),
-            }).map((_, i) => (
-              <div
+          <div className={CARD_GRID_CLASS}>
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <PostCardSkeleton
                 key={i}
-                className="masonry-column"
-                style={{ flex: `0 0 ${CARD_WIDTH}px`, width: CARD_WIDTH, gap: 24 }}
-              >
-                {[1, 2, 3].map((j) => (
-                  <PostCardSkeleton
-                    key={j}
-                    width={CARD_WIDTH}
-                    height={200}
-                    showButtons={false}
-                  />
-                ))}
-              </div>
+                width={CARD_WIDTH}
+                height={200}
+                showButtons={false}
+              />
             ))}
           </div>
         )}
@@ -233,36 +187,20 @@ export function InsightGuideListPage({ category }: InsightGuideListPageProps) {
 
         {!loading && items.length > 0 && (
           <Flipper flipKey={flipKey}>
-            <div
-              ref={containerRef}
-              className="masonry-container justify-center md:justify-start"
-            >
-              {columns.map((column, colIdx) => (
-                <div
-                  key={colIdx}
-                  className="masonry-column"
-                  style={{
-                    flex: `0 0 ${CARD_WIDTH}px`,
-                    width: CARD_WIDTH,
-                    gap: 24,
-                  }}
-                >
-                  {column.map((it) => (
-                    <Flipped key={it.id} flipId={it.id}>
-                      <div>
-                        <InsightGuideCard
-                          item={it}
-                          onClick={handleCardClick}
-                          onEdit={showCardActions ? handleEdit : undefined}
-                          onDelete={
-                            showCardActions ? handleDeleteClick : undefined
-                          }
-                          showActions={showCardActions}
-                        />
-                      </div>
-                    </Flipped>
-                  ))}
-                </div>
+            <div className={CARD_GRID_CLASS}>
+              {items.map((it) => (
+                <Flipped key={it.id} flipId={it.id}>
+                  {/* grid 아이템이므로 h-full로 행 높이를 그대로 카드에 전달한다 */}
+                  <div className="h-full">
+                    <InsightGuideCard
+                      item={it}
+                      onClick={handleCardClick}
+                      onEdit={showCardActions ? handleEdit : undefined}
+                      onDelete={showCardActions ? handleDeleteClick : undefined}
+                      showActions={showCardActions}
+                    />
+                  </div>
+                </Flipped>
               ))}
             </div>
           </Flipper>
