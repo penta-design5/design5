@@ -52,9 +52,24 @@ import {
   type AspectKey,
   type CropRect,
 } from '@/lib/toolbox/image-editor/crop'
+import {
+  TOOL_SHORTCUTS,
+  applyStyle,
+  defaultDrawStyle,
+  duplicateAnnotation,
+  removeAnnotation,
+  reorderAnnotation,
+  styleFromAnnotation,
+  updateAnnotation,
+  type Annotation,
+  type DrawStyle,
+  type EditorTool,
+} from '@/lib/toolbox/image-editor/annotations'
+import { renderComposite } from '@/lib/toolbox/image-editor/annotation-render'
+import { AnnotationPanel } from './AnnotationPanel'
 import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
-import { EditorToolbar } from './EditorToolbar'
+import { EditorToolbar, ZoomControls } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
 import { ImageUploadZone } from './ImageUploadZone'
 import { ResizePanel } from './ResizePanel'
@@ -109,10 +124,19 @@ export function ImageEditorPage() {
 
   const [rotationDraft, setRotationDraft] = useState<RotationDraft>(DEFAULT_ROTATION_DRAFT)
   const [crop, setCrop] = useState<CropState | null>(null)
+  const [tool, setTool] = useState<EditorTool>('select')
+  const [drawStyle, setDrawStyle] = useState<DrawStyle>(() => defaultDrawStyle(1000, 1000))
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const doc = history?.present ?? null
   const isDirty = history ? canUndo(history) : false
   const cropRatio = crop && doc ? aspectRatioOf(crop.aspect, doc) : null
+  const selected = (tool === 'select' && doc?.annotations.find((a) => a.id === selectedId)) || null
+
+  // 개체를 선택하면 패널 스타일을 그 개체 값으로 맞춘다(패널 조작 = 선택 개체 편집)
+  useEffect(() => {
+    if (selected) setDrawStyle((s) => styleFromAnnotation(selected, s))
+  }, [selected])
 
   // 문서가 바뀌면(편집 적용·실행취소·새 이미지) 미적용 자유 회전 각도·자르기 모드는 버린다
   useEffect(() => {
@@ -154,6 +178,9 @@ export function ImageEditorPage() {
           original,
         }))
         setHistory(createHistory(original))
+        setTool('select')
+        setSelectedId(null)
+        setDrawStyle(defaultDrawStyle(original.width, original.height))
         setExportSettings((prev) => ({
           ...prev,
           format: defaultFormatFor(file.type),
@@ -252,13 +279,60 @@ export function ImageEditorPage() {
     if (loaded && doc !== loaded.original) commit(loaded.original)
   }
 
-  /** 베이스 캔버스 변환을 적용하고 히스토리에 기록 (P4부터: 적용 전 주석 flatten) */
+  /**
+   * 베이스 캔버스 기하 변환(회전·반전·크기·자르기)을 적용하고 히스토리에 기록.
+   * 주석이 있으면 먼저 이미지에 합친(flatten) 뒤 변환한다 — docs/TOOLBOX_handoff.md 공통 설계 확정 규칙.
+   */
   const applyTransform = (transform: (source: HTMLCanvasElement) => HTMLCanvasElement) => {
     if (!doc) return
     try {
-      commit(createEditorDoc(transform(doc.canvas)))
+      const hadAnnotations = doc.annotations.length > 0
+      commit(createEditorDoc(transform(renderComposite(doc))))
+      setSelectedId(null)
+      if (hadAnnotations) toast.info('그리기·텍스트가 이미지에 합쳐졌습니다. 실행취소로 되돌릴 수 있습니다.')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '편집을 적용하지 못했습니다.')
+    }
+  }
+
+  // ---------- 주석(그리기·도형·텍스트) ----------
+  const commitAnnotations = (annotations: Annotation[]) => {
+    if (doc) commit({ ...doc, annotations })
+  }
+  const addAnnotation = (annotation: Annotation) => {
+    if (doc) commitAnnotations([...doc.annotations, annotation])
+  }
+  const replaceAnnotation = (annotation: Annotation) => {
+    if (doc) commitAnnotations(updateAnnotation(doc.annotations, annotation.id, () => annotation))
+  }
+  const deleteAnnotation = (id: string) => {
+    if (!doc) return
+    commitAnnotations(removeAnnotation(doc.annotations, id))
+    setSelectedId((current) => (current === id ? null : current))
+  }
+  const duplicateSelected = () => {
+    if (!doc || !selected) return
+    const copy = duplicateAnnotation(selected, Math.max(10, Math.round(Math.min(doc.width, doc.height) * 0.02)))
+    commitAnnotations([...doc.annotations, copy])
+    setSelectedId(copy.id)
+  }
+  const reorderSelected = (direction: 1 | -1) => {
+    if (!doc || !selected) return
+    const next = reorderAnnotation(doc.annotations, selected.id, direction)
+    if (next !== doc.annotations) commitAnnotations(next)
+  }
+
+  const changeTool = (next: EditorTool) => {
+    setTool(next)
+    if (next !== 'select') setSelectedId(null)
+  }
+
+  /** apply=true면 선택한 개체에도 반영(히스토리 기록), false면 패널 값만 갱신(슬라이더 드래그 중) */
+  const changeStyle = (patch: Partial<DrawStyle>, apply: boolean) => {
+    setDrawStyle((s) => ({ ...s, ...patch }))
+    if (apply && selected) {
+      const next = applyStyle(selected, patch)
+      if (JSON.stringify(next) !== JSON.stringify(selected)) replaceAnnotation(next)
     }
   }
 
@@ -279,6 +353,7 @@ export function ImageEditorPage() {
   const startCrop = () => {
     if (!doc) return
     setRotationDraft((d) => ({ ...d, angle: 0 }))
+    setSelectedId(null)
     setCrop({ rect: fullCropRect(doc), aspect: 'free' })
     setMobileSheetOpen(false) // 모바일: 캔버스에서 상자를 조작할 수 있게 옵션 시트를 닫음
   }
@@ -324,6 +399,41 @@ export function ImageEditorPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // 편집 단축키: 도구(V/P/H/L/A/R/O/T), 자르기(C), 삭제(Delete/Backspace), 복제(⌘/Ctrl+D), 선택 해제(Esc)
+  const editKeysRef = useRef({ hasDoc: false, crop: false, selected: null as Annotation | null, changeTool, toggleCrop, deleteAnnotation, duplicateSelected })
+  useEffect(() => {
+    editKeysRef.current = { hasDoc: !!doc, crop: !!crop, selected, changeTool, toggleCrop, deleteAnnotation, duplicateSelected }
+  })
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const k = editKeysRef.current
+      if (!k.hasDoc || isTypingTarget(e.target) || e.isComposing) return
+      const key = e.key.toLowerCase()
+      if ((e.metaKey || e.ctrlKey) && key === 'd') {
+        if (k.selected) {
+          e.preventDefault()
+          k.duplicateSelected()
+        }
+        return
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if ((e.key === 'Delete' || e.key === 'Backspace') && k.selected) {
+        e.preventDefault()
+        k.deleteAnnotation(k.selected.id)
+      } else if (e.key === 'Escape' && !k.crop && k.selected) {
+        e.preventDefault()
+        k.changeTool('select')
+        setSelectedId(null)
+      } else if (key === 'c') {
+        k.toggleCrop()
+      } else if (!k.crop && TOOL_SHORTCUTS[key]) {
+        k.changeTool(TOOL_SHORTCUTS[key])
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const applyResize = (size: Size) => {
     const error = validateOutputSize(size)
     if (error) {
@@ -337,8 +447,8 @@ export function ImageEditorPage() {
     if (!doc) return
     setExporting(true)
     try {
-      // P4·P5에서 주석·워터마크 합성 후 인코딩으로 확장
-      const blob = await encodeCanvas(doc.canvas, exportSettings.format, exportSettings.quality)
+      // P5에서 워터마크 합성 추가
+      const blob = await encodeCanvas(renderComposite(doc), exportSettings.format, exportSettings.quality)
       downloadBlob(blob, buildExportFileName(exportSettings.baseName, exportSettings.format))
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '이미지를 저장하지 못했습니다.')
@@ -368,8 +478,29 @@ export function ImageEditorPage() {
   )
 
   // 자르기 모드에서는 다른 편집 도구를 숨겨 충돌을 막는다
-  const toolSections = doc && (crop ? cropPanel : (
+  const flattenNotice = doc && doc.annotations.length > 0 && (
+    <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+      자르기·회전·반전·크기 변경을 적용하면 그리기·텍스트가 이미지에 합쳐져 더 이상 개별 수정할 수 없습니다(실행취소 가능).
+    </p>
+  )
+
+  const toolSections = doc && (crop ? (
     <>
+      {flattenNotice}
+      {cropPanel}
+    </>
+  ) : (
+    <>
+      <AnnotationPanel
+        tool={tool}
+        style={drawStyle}
+        selected={selected}
+        onStyleChange={changeStyle}
+        onDuplicate={duplicateSelected}
+        onReorder={reorderSelected}
+        onDelete={() => selected && deleteAnnotation(selected.id)}
+      />
+      {flattenNotice}
       {cropPanel}
       <TransformPanel
         size={doc}
@@ -409,13 +540,8 @@ export function ImageEditorPage() {
                 canUndo={canUndo(history)}
                 canRedo={canRedo(history)}
                 canRevert={doc !== loaded.original}
-                zoomPercent={Math.round(zoom * 100)}
                 onUndo={undo}
                 onRedo={redo}
-                onZoomIn={() => canvasRef.current?.zoomIn()}
-                onZoomOut={() => canvasRef.current?.zoomOut()}
-                onFit={() => canvasRef.current?.fit()}
-                onActualSize={() => canvasRef.current?.actualSize()}
                 onOpenNew={browse}
                 onRevert={revert}
                 onRotate90={rotate90}
@@ -423,6 +549,8 @@ export function ImageEditorPage() {
                 cropActive={!!crop}
                 onToggleCrop={toggleCrop}
                 onApplyCrop={applyCrop}
+                tool={tool}
+                onToolChange={changeTool}
               />
               <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100 dark:bg-neutral-800">
                 <EditorCanvas
@@ -432,9 +560,23 @@ export function ImageEditorPage() {
                   onZoomChange={setZoom}
                   rotationPreview={{ angle: rotationDraft.angle, fill: rotationFillColor(rotationDraft) }}
                   crop={crop ? { rect: crop.rect, ratio: cropRatio, onChange: changeCropRect } : null}
+                  tool={tool}
+                  drawStyle={drawStyle}
+                  selectedId={selected?.id ?? null}
+                  onSelect={setSelectedId}
+                  onAddAnnotation={addAnnotation}
+                  onUpdateAnnotation={replaceAnnotation}
+                  onRemoveAnnotation={deleteAnnotation}
+                />
+                <ZoomControls
+                  zoomPercent={Math.round(zoom * 100)}
+                  onZoomIn={() => canvasRef.current?.zoomIn()}
+                  onZoomOut={() => canvasRef.current?.zoomOut()}
+                  onFit={() => canvasRef.current?.fit()}
+                  onActualSize={() => canvasRef.current?.actualSize()}
                 />
                 {dragActive && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[var(--penta-indigo)]/10 text-sm font-medium">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[rgb(var(--penta-indigo-rgb)/0.1)] text-sm font-medium">
                     여기에 놓으면 새 이미지로 교체됩니다
                   </div>
                 )}

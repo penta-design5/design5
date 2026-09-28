@@ -20,8 +20,8 @@ export function ImageUploadZone({ dragActive, disabled, onBrowse, className }: I
       className={cn(
         'flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed bg-card p-8 text-center transition-colors',
         dragActive
-          ? 'border-[var(--penta-indigo)] bg-[var(--penta-indigo)]/5'
-          : 'border-border hover:border-[var(--penta-indigo)]/60',
+          ? 'border-[var(--penta-indigo)] bg-[rgb(var(--penta-indigo-rgb)/0.05)]'
+          : 'border-border hover:border-[rgb(var(--penta-indigo-rgb)/0.6)]',
         disabled && 'cursor-wait opacity-60',
         className
       )}

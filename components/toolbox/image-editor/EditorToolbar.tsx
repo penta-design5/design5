@@ -2,8 +2,16 @@
 
 import type { ReactNode } from 'react'
 import {
+  ArrowUpRight,
   Check,
+  Circle,
   Crop,
+  Highlighter,
+  MousePointer2,
+  Pencil,
+  Slash,
+  Square,
+  Type,
   X,
   FlipHorizontal2,
   FlipVertical2,
@@ -18,6 +26,21 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import type { FlipDirection } from '@/lib/toolbox/image-editor/transform'
+import { TOOL_LABELS, TOOL_SHORTCUTS, type EditorTool } from '@/lib/toolbox/image-editor/annotations'
+
+const TOOL_ICONS: Record<EditorTool, typeof Pencil> = {
+  select: MousePointer2,
+  pen: Pencil,
+  highlighter: Highlighter,
+  line: Slash,
+  arrow: ArrowUpRight,
+  rect: Square,
+  ellipse: Circle,
+  text: Type,
+}
+const TOOLS = Object.keys(TOOL_ICONS) as EditorTool[]
+const shortcutOf = (tool: EditorTool) =>
+  Object.entries(TOOL_SHORTCUTS).find(([, t]) => t === tool)?.[0].toUpperCase()
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -25,13 +48,8 @@ interface EditorToolbarProps {
   canUndo: boolean
   canRedo: boolean
   canRevert: boolean
-  zoomPercent: number
   onUndo: () => void
   onRedo: () => void
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onFit: () => void
-  onActualSize: () => void
   onOpenNew: () => void
   onRevert: () => void
   onRotate90: (direction: 1 | -1) => void
@@ -39,6 +57,8 @@ interface EditorToolbarProps {
   cropActive: boolean
   onToggleCrop: () => void
   onApplyCrop: () => void
+  tool: EditorTool
+  onToolChange: (tool: EditorTool) => void
 }
 
 function ToolButton({
@@ -62,7 +82,12 @@ function ToolButton({
           type="button"
           variant="ghost"
           size="icon"
-          className={pressed ? 'h-8 w-8 bg-[var(--penta-indigo)]/10 text-[var(--penta-indigo)]' : 'h-8 w-8'}
+          // 선택된 도구: 인디고 배경 + 흰 아이콘 (oklch 변수에는 /투명도가 적용되지 않아 단색 사용)
+          className={
+            pressed
+              ? 'h-8 w-8 bg-[var(--penta-indigo)] text-white shadow-sm hover:bg-[var(--penta-indigo)] hover:text-white'
+              : 'h-8 w-8'
+          }
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
@@ -78,18 +103,13 @@ function ToolButton({
 
 const Divider = () => <div className="mx-1 h-5 w-px bg-border" />
 
-/** 상단 툴바 — 실행취소/다시실행·자르기·회전/반전·줌·원본 복원·새 이미지. 그리기 도구는 P4에서 추가 */
+/** 상단 툴바 — 실행취소/다시실행·그리기 도구·자르기·회전/반전·원본 복원·새 이미지 (줌은 캔버스 위 `ZoomControls`) */
 export function EditorToolbar({
   canUndo,
   canRedo,
   canRevert,
-  zoomPercent,
   onUndo,
   onRedo,
-  onZoomIn,
-  onZoomOut,
-  onFit,
-  onActualSize,
   onOpenNew,
   onRevert,
   onRotate90,
@@ -97,10 +117,12 @@ export function EditorToolbar({
   cropActive,
   onToggleCrop,
   onApplyCrop,
+  tool,
+  onToolChange,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-0.5 overflow-x-auto rounded-lg border bg-card px-2 py-1">
+      <div className="flex flex-wrap items-center gap-0.5 rounded-lg border bg-card px-2 py-1">
         <ToolButton label="실행취소 (Ctrl/⌘+Z)" onClick={onUndo} disabled={!canUndo}>
           <Undo2 className="h-4 w-4" />
         </ToolButton>
@@ -110,7 +132,18 @@ export function EditorToolbar({
 
         <Divider />
 
-        <ToolButton label="자르기" onClick={onToggleCrop} pressed={cropActive}>
+        {TOOLS.map((t) => {
+          const Icon = TOOL_ICONS[t]
+          return (
+            <ToolButton key={t} label={`${TOOL_LABELS[t]} (${shortcutOf(t)})`} onClick={() => onToolChange(t)} pressed={!cropActive && tool === t} disabled={cropActive}>
+              <Icon className="h-4 w-4" />
+            </ToolButton>
+          )
+        })}
+
+        <Divider />
+
+        <ToolButton label="자르기 (C)" onClick={onToggleCrop} pressed={cropActive}>
           <Crop className="h-4 w-4" />
         </ToolButton>
         {cropActive && (
@@ -139,8 +172,32 @@ export function EditorToolbar({
           <FlipVertical2 className="h-4 w-4" />
         </ToolButton>
 
-        <Divider />
+        <div className="ml-auto flex items-center gap-0.5 pl-2">
+          <ToolButton label="원본으로 되돌리기" onClick={onRevert} disabled={!canRevert}>
+            <HistoryIcon className="h-4 w-4" />
+          </ToolButton>
+          <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
+            <FolderOpen className="h-4 w-4" />
+          </ToolButton>
+        </div>
+      </div>
+    </TooltipProvider>
+  )
+}
 
+interface ZoomControlsProps {
+  zoomPercent: number
+  onZoomIn: () => void
+  onZoomOut: () => void
+  onFit: () => void
+  onActualSize: () => void
+}
+
+/** 캔버스 오른쪽 아래에 떠 있는 줌 컨트롤 */
+export function ZoomControls({ zoomPercent, onZoomIn, onZoomOut, onFit, onActualSize }: ZoomControlsProps) {
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-lg border bg-card/95 px-1 py-0.5 shadow-sm">
         <ToolButton label="축소" onClick={onZoomOut}>
           <ZoomOut className="h-4 w-4" />
         </ToolButton>
@@ -149,7 +206,7 @@ export function EditorToolbar({
             <Button
               type="button"
               variant="ghost"
-              className="h-8 min-w-[56px] px-2 text-xs tabular-nums"
+              className="h-8 min-w-[52px] px-1.5 text-xs tabular-nums"
               onClick={onActualSize}
               aria-label="100%로 보기"
             >
@@ -164,15 +221,6 @@ export function EditorToolbar({
         <ToolButton label="화면에 맞추기" onClick={onFit}>
           <Maximize className="h-4 w-4" />
         </ToolButton>
-
-        <div className="ml-auto flex items-center gap-0.5 pl-2">
-          <ToolButton label="원본으로 되돌리기" onClick={onRevert} disabled={!canRevert}>
-            <HistoryIcon className="h-4 w-4" />
-          </ToolButton>
-          <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
-            <FolderOpen className="h-4 w-4" />
-          </ToolButton>
-        </div>
       </div>
     </TooltipProvider>
   )
