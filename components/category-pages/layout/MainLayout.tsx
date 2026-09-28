@@ -123,6 +123,11 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     !pathname.startsWith('/admin') &&
     pathname.startsWith('/chart-generator'))
 
+  // TOOLBOX 도구 페이지인지 확인 (Chart Generator와 동일한 좌측 작업 영역 + 우측 패널 레이아웃)
+  const isToolboxPage = Boolean(pathname &&
+    !pathname.startsWith('/admin') &&
+    pathname.startsWith('/toolbox'))
+
   // Penta Design System(정적 HTML iframe) 페이지인지 확인 — 전역 헤더 유지, 본문만 풀-블리드
   const isPentaDesignSystemPage = Boolean(pathname &&
     !pathname.startsWith('/admin') &&
@@ -133,13 +138,13 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     pathname.startsWith('/edm/') &&
     (pathname === '/edm/editor' || /^\/edm\/[^/]+$/.test(pathname)))
 
-  // CI/BI, 캐릭터, WAPPLES, D.AMO, iSIGN, Cloudbric, PPT, PDF Extractor, ICON, Chart Generator, eDM 편집 페이지인지 확인
+  // CI/BI, 캐릭터, WAPPLES, D.AMO, iSIGN, Cloudbric, PPT, PDF Extractor, ICON, Chart Generator, TOOLBOX, eDM 편집 페이지인지 확인
   // 웰컴보드는 에디터 모드일 때 자체 헤더를 사용하므로 제외
-  const isSpecialPage = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isEdmEditorPage
+  const isSpecialPage = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isToolboxPage || isEdmEditorPage
   const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage || isHwPage || isPentaDesignSystemPage
 
   // 헤더 너비 제한이 필요한 페이지 (우측 패널이 있는 페이지만)
-  const hasRightPanel = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage
+  const hasRightPanel = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isToolboxPage
 
   return (
     <div className="flex min-h-screen md:h-screen bg-background">

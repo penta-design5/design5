@@ -13,6 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeLogo } from '@/components/ThemeLogo'
 import { BRAND_KO } from '@/lib/brand'
+import { TOOLBOX_MENU, toolboxPath } from '@/lib/toolbox/menu'
+
+/** CategoryType enum에 없는 하드코딩 섹션(TOOLBOX) — categoryOrder에서 위치만 지정 */
+const TOOLBOX_SECTION = 'TOOLBOX' as const
 
 interface Category {
   id: string
@@ -238,11 +242,12 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     }
   }
 
-  const categoryOrder = [
+  const categoryOrder: (CategoryType | typeof TOOLBOX_SECTION)[] = [
     CategoryType.WORK,
     CategoryType.SOURCE,
     CategoryType.TEMPLATE,
     CategoryType.BROCHURE,
+    TOOLBOX_SECTION,
     CategoryType.ETC,
     CategoryType.INSIGHTS,
     CategoryType.ADMIN,
@@ -311,6 +316,20 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         <div className="p-4 pt-0">
           <nav className="space-y-6">
             {categoryOrder.map((type) => {
+              // TOOLBOX는 하드코딩 (메뉴 정의: lib/toolbox/menu.ts)
+              if (type === TOOLBOX_SECTION) {
+                return (
+                  <div key={type} className="space-y-1">
+                    <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      TOOLBOX
+                    </div>
+                    {TOOLBOX_MENU.map((menu) =>
+                      renderStaticLink(toolboxPath(menu.slug), menu.label)
+                    )}
+                  </div>
+                )
+              }
+
               const cats = groupedCategories[type] || []
               const displayCats =
                 type === CategoryType.TEMPLATE
