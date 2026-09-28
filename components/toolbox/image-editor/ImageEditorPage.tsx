@@ -34,6 +34,7 @@ import {
 } from '@/lib/toolbox/image-editor/export'
 import { createEditorDoc, type EditorDoc } from '@/lib/toolbox/image-editor/types'
 import {
+  cropCanvas,
   flipCanvas,
   resizeCanvas,
   rotateCanvas,
@@ -42,6 +43,16 @@ import {
   type FlipDirection,
   type Size,
 } from '@/lib/toolbox/image-editor/transform'
+import {
+  aspectRatioOf,
+  fitAspect,
+  fullCropRect,
+  isFullCrop,
+  setCropField,
+  type AspectKey,
+  type CropRect,
+} from '@/lib/toolbox/image-editor/crop'
+import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
 import { EditorToolbar } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
@@ -97,13 +108,16 @@ export function ImageEditorPage() {
   })
 
   const [rotationDraft, setRotationDraft] = useState<RotationDraft>(DEFAULT_ROTATION_DRAFT)
+  const [crop, setCrop] = useState<CropState | null>(null)
 
   const doc = history?.present ?? null
   const isDirty = history ? canUndo(history) : false
+  const cropRatio = crop && doc ? aspectRatioOf(crop.aspect, doc) : null
 
-  // 문서가 바뀌면(편집 적용·실행취소·새 이미지) 미적용 자유 회전 각도는 버린다
+  // 문서가 바뀌면(편집 적용·실행취소·새 이미지) 미적용 자유 회전 각도·자르기 모드는 버린다
   useEffect(() => {
     setRotationDraft((d) => (d.angle === 0 ? d : { ...d, angle: 0 }))
+    setCrop(null)
   }, [doc])
 
   useEffect(() => {
@@ -261,6 +275,55 @@ export function ImageEditorPage() {
     applyTransform((c) => rotateCanvas(c, rotationDraft.angle, rotationFillColor(rotationDraft)))
   }
 
+  // ---------- 자르기 ----------
+  const startCrop = () => {
+    if (!doc) return
+    setRotationDraft((d) => ({ ...d, angle: 0 }))
+    setCrop({ rect: fullCropRect(doc), aspect: 'free' })
+    setMobileSheetOpen(false) // 모바일: 캔버스에서 상자를 조작할 수 있게 옵션 시트를 닫음
+  }
+  const cancelCrop = () => setCrop(null)
+  const toggleCrop = () => (crop ? cancelCrop() : startCrop())
+
+  const changeCropAspect = (aspect: AspectKey) => {
+    if (!doc) return
+    setCrop((c) => (c ? { aspect, rect: fitAspect(c.rect, aspectRatioOf(aspect, doc), doc) } : c))
+  }
+  const changeCropField = (field: keyof CropRect, value: number) => {
+    if (!doc) return
+    setCrop((c) => (c ? { ...c, rect: setCropField(c.rect, field, value, aspectRatioOf(c.aspect, doc), doc) } : c))
+  }
+  const changeCropRect = useCallback((rect: CropRect) => setCrop((c) => (c ? { ...c, rect } : c)), [])
+
+  const applyCrop = () => {
+    if (!doc || !crop) return
+    if (isFullCrop(crop.rect, doc)) {
+      setCrop(null)
+      return
+    }
+    applyTransform((c) => cropCanvas(c, crop.rect))
+  }
+
+  // 자르기 모드 단축키 (Enter 적용 / Esc 취소) — window 리스너에서 최신 핸들러 사용
+  const cropKeysRef = useRef({ active: false, apply: applyCrop, cancel: cancelCrop })
+  useEffect(() => {
+    cropKeysRef.current = { active: !!crop, apply: applyCrop, cancel: cancelCrop }
+  })
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!cropKeysRef.current.active || isTypingTarget(e.target) || e.isComposing) return
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        cropKeysRef.current.apply()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        cropKeysRef.current.cancel()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const applyResize = (size: Size) => {
     const error = validateOutputSize(size)
     if (error) {
@@ -293,8 +356,21 @@ export function ImageEditorPage() {
     onExport: handleExport,
   }
 
-  const toolSections = doc && (
+  const cropPanel = (
+    <CropPanel
+      crop={crop}
+      onStart={startCrop}
+      onAspectChange={changeCropAspect}
+      onFieldChange={changeCropField}
+      onApply={applyCrop}
+      onCancel={cancelCrop}
+    />
+  )
+
+  // 자르기 모드에서는 다른 편집 도구를 숨겨 충돌을 막는다
+  const toolSections = doc && (crop ? cropPanel : (
     <>
+      {cropPanel}
       <TransformPanel
         size={doc}
         draft={rotationDraft}
@@ -305,7 +381,7 @@ export function ImageEditorPage() {
       />
       <ResizePanel size={doc} onApply={applyResize} />
     </>
-  )
+  ))
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900" {...dropHandlers}>
@@ -344,6 +420,9 @@ export function ImageEditorPage() {
                 onRevert={revert}
                 onRotate90={rotate90}
                 onFlip={flip}
+                cropActive={!!crop}
+                onToggleCrop={toggleCrop}
+                onApplyCrop={applyCrop}
               />
               <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100 dark:bg-neutral-800">
                 <EditorCanvas
@@ -352,6 +431,7 @@ export function ImageEditorPage() {
                   fitKey={loaded.sessionId}
                   onZoomChange={setZoom}
                   rotationPreview={{ angle: rotationDraft.angle, fill: rotationFillColor(rotationDraft) }}
+                  crop={crop ? { rect: crop.rect, ratio: cropRatio, onChange: changeCropRect } : null}
                 />
                 {dragActive && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[var(--penta-indigo)]/10 text-sm font-medium">

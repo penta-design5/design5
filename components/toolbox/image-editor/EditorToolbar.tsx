@@ -2,6 +2,9 @@
 
 import type { ReactNode } from 'react'
 import {
+  Check,
+  Crop,
+  X,
   FlipHorizontal2,
   FlipVertical2,
   FolderOpen,
@@ -33,23 +36,38 @@ interface EditorToolbarProps {
   onRevert: () => void
   onRotate90: (direction: 1 | -1) => void
   onFlip: (direction: FlipDirection) => void
+  cropActive: boolean
+  onToggleCrop: () => void
+  onApplyCrop: () => void
 }
 
 function ToolButton({
   label,
   onClick,
   disabled,
+  pressed,
   children,
 }: {
   label: string
   onClick: () => void
   disabled?: boolean
+  /** 토글 버튼이면 현재 상태 */
+  pressed?: boolean
   children: ReactNode
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onClick} disabled={disabled} aria-label={label}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={pressed ? 'h-8 w-8 bg-[var(--penta-indigo)]/10 text-[var(--penta-indigo)]' : 'h-8 w-8'}
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          aria-pressed={pressed}
+        >
           {children}
         </Button>
       </TooltipTrigger>
@@ -60,7 +78,7 @@ function ToolButton({
 
 const Divider = () => <div className="mx-1 h-5 w-px bg-border" />
 
-/** 상단 툴바 — 실행취소/다시실행·회전/반전·줌·원본 복원·새 이미지. 그리기 도구는 P3~P4에서 추가 */
+/** 상단 툴바 — 실행취소/다시실행·자르기·회전/반전·줌·원본 복원·새 이미지. 그리기 도구는 P4에서 추가 */
 export function EditorToolbar({
   canUndo,
   canRedo,
@@ -76,6 +94,9 @@ export function EditorToolbar({
   onRevert,
   onRotate90,
   onFlip,
+  cropActive,
+  onToggleCrop,
+  onApplyCrop,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
@@ -89,16 +110,32 @@ export function EditorToolbar({
 
         <Divider />
 
-        <ToolButton label="왼쪽으로 90° 회전" onClick={() => onRotate90(-1)}>
+        <ToolButton label="자르기" onClick={onToggleCrop} pressed={cropActive}>
+          <Crop className="h-4 w-4" />
+        </ToolButton>
+        {cropActive && (
+          <>
+            <ToolButton label="자르기 적용 (Enter)" onClick={onApplyCrop}>
+              <Check className="h-4 w-4" />
+            </ToolButton>
+            <ToolButton label="자르기 취소 (Esc)" onClick={onToggleCrop}>
+              <X className="h-4 w-4" />
+            </ToolButton>
+          </>
+        )}
+
+        <Divider />
+
+        <ToolButton label="왼쪽으로 90° 회전" onClick={() => onRotate90(-1)} disabled={cropActive}>
           <RotateCcwSquare className="h-4 w-4" />
         </ToolButton>
-        <ToolButton label="오른쪽으로 90° 회전" onClick={() => onRotate90(1)}>
+        <ToolButton label="오른쪽으로 90° 회전" onClick={() => onRotate90(1)} disabled={cropActive}>
           <RotateCwSquare className="h-4 w-4" />
         </ToolButton>
-        <ToolButton label="좌우 반전" onClick={() => onFlip('horizontal')}>
+        <ToolButton label="좌우 반전" onClick={() => onFlip('horizontal')} disabled={cropActive}>
           <FlipHorizontal2 className="h-4 w-4" />
         </ToolButton>
-        <ToolButton label="상하 반전" onClick={() => onFlip('vertical')}>
+        <ToolButton label="상하 반전" onClick={() => onFlip('vertical')} disabled={cropActive}>
           <FlipVertical2 className="h-4 w-4" />
         </ToolButton>
 

@@ -7,6 +7,8 @@ import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
 import { ZOOM_STEP } from '@/lib/toolbox/image-editor/constants'
 import { centerPosition, clampZoom, fitZoom, zoomAroundPoint } from '@/lib/toolbox/image-editor/view'
 import { rotatedBounds } from '@/lib/toolbox/image-editor/transform'
+import type { CropRect } from '@/lib/toolbox/image-editor/crop'
+import { CropOverlay } from './CropOverlay'
 
 export interface EditorCanvasHandle {
   fit: () => void
@@ -22,6 +24,8 @@ interface EditorCanvasProps {
   onZoomChange: (zoom: number) => void
   /** 자유 회전 미리보기(적용 전). angle 0이면 표시 안 함. fill null = 투명 */
   rotationPreview?: { angle: number; fill: string | null }
+  /** 자르기 모드 — 지정 시 자르기 상자 표시 */
+  crop?: { rect: CropRect; ratio: number | null; onChange: (rect: CropRect) => void } | null
 }
 
 interface ViewState {
@@ -51,10 +55,10 @@ function createCheckerPattern(): HTMLCanvasElement {
  * 레이어: 베이스(체크무늬 + 이미지) / 주석(P4) / 워터마크(P5)
  */
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
-  { doc, fitKey, onZoomChange, rotationPreview },
+  { doc, fitKey, onZoomChange, rotationPreview, crop },
   ref
 ) {
-  const previewAngle = rotationPreview?.angle ?? 0
+  const previewAngle = crop ? 0 : (rotationPreview?.angle ?? 0)
   const previewBounds = previewAngle !== 0 ? rotatedBounds(doc.width, doc.height, previewAngle) : null
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -179,6 +183,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           </Layer>
           {/* P4: 주석 레이어 */}
           <Layer />
+          {crop && <CropOverlay size={doc} rect={crop.rect} ratio={crop.ratio} zoom={view.zoom} onChange={crop.onChange} />}
           {/* P5: 워터마크 레이어 */}
           <Layer listening={false} />
         </Stage>

@@ -123,6 +123,16 @@ export function flipCanvas(source: HTMLCanvasElement, direction: FlipDirection):
   return canvas
 }
 
+/** 자르기. rect는 원본 px 좌표(정수, 이미지 안) — `clampCropRect`를 거친 값을 넘긴다 */
+export function cropCanvas(
+  source: HTMLCanvasElement,
+  rect: { x: number; y: number; width: number; height: number }
+): HTMLCanvasElement {
+  const { canvas, ctx } = createCanvas(rect.width, rect.height)
+  ctx.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height)
+  return canvas
+}
+
 /**
  * 고품질 리사이즈. 크게 줄일 때는 절반씩 단계적으로 줄여 계단 현상·뭉개짐을 줄인다.
  */
