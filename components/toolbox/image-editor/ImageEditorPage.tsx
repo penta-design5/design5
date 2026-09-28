@@ -33,10 +33,26 @@ import {
   type ExportFormat,
 } from '@/lib/toolbox/image-editor/export'
 import { createEditorDoc, type EditorDoc } from '@/lib/toolbox/image-editor/types'
+import {
+  flipCanvas,
+  resizeCanvas,
+  rotateCanvas,
+  rotatedBounds,
+  validateOutputSize,
+  type FlipDirection,
+  type Size,
+} from '@/lib/toolbox/image-editor/transform'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
 import { EditorToolbar } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
 import { ImageUploadZone } from './ImageUploadZone'
+import { ResizePanel } from './ResizePanel'
+import {
+  DEFAULT_ROTATION_DRAFT,
+  TransformPanel,
+  rotationFillColor,
+  type RotationDraft,
+} from './TransformPanel'
 
 interface LoadedImage extends LoadedImageInfo {
   /** 새 이미지를 열 때마다 증가 — 캔버스 화면 맞춤 트리거 */
@@ -80,8 +96,15 @@ export function ImageEditorPage() {
     baseName: '',
   })
 
+  const [rotationDraft, setRotationDraft] = useState<RotationDraft>(DEFAULT_ROTATION_DRAFT)
+
   const doc = history?.present ?? null
   const isDirty = history ? canUndo(history) : false
+
+  // 문서가 바뀌면(편집 적용·실행취소·새 이미지) 미적용 자유 회전 각도는 버린다
+  useEffect(() => {
+    setRotationDraft((d) => (d.angle === 0 ? d : { ...d, angle: 0 }))
+  }, [doc])
 
   useEffect(() => {
     if (!isMobileViewport) setMobileSheetOpen(false)
@@ -215,6 +238,38 @@ export function ImageEditorPage() {
     if (loaded && doc !== loaded.original) commit(loaded.original)
   }
 
+  /** 베이스 캔버스 변환을 적용하고 히스토리에 기록 (P4부터: 적용 전 주석 flatten) */
+  const applyTransform = (transform: (source: HTMLCanvasElement) => HTMLCanvasElement) => {
+    if (!doc) return
+    try {
+      commit(createEditorDoc(transform(doc.canvas)))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '편집을 적용하지 못했습니다.')
+    }
+  }
+
+  const rotate90 = (direction: 1 | -1) => applyTransform((c) => rotateCanvas(c, 90 * direction))
+  const flip = (direction: FlipDirection) => applyTransform((c) => flipCanvas(c, direction))
+
+  const applyRotation = () => {
+    if (!doc || rotationDraft.angle === 0) return
+    const error = validateOutputSize(rotatedBounds(doc.width, doc.height, rotationDraft.angle))
+    if (error) {
+      toast.error(error)
+      return
+    }
+    applyTransform((c) => rotateCanvas(c, rotationDraft.angle, rotationFillColor(rotationDraft)))
+  }
+
+  const applyResize = (size: Size) => {
+    const error = validateOutputSize(size)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    applyTransform((c) => resizeCanvas(c, size.width, size.height))
+  }
+
   const handleExport = async () => {
     if (!doc) return
     setExporting(true)
@@ -237,6 +292,20 @@ export function ImageEditorPage() {
     onExportSettingsChange: setExportSettings,
     onExport: handleExport,
   }
+
+  const toolSections = doc && (
+    <>
+      <TransformPanel
+        size={doc}
+        draft={rotationDraft}
+        onDraftChange={setRotationDraft}
+        onRotate90={rotate90}
+        onFlip={flip}
+        onApplyRotation={applyRotation}
+      />
+      <ResizePanel size={doc} onApply={applyResize} />
+    </>
+  )
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900" {...dropHandlers}>
@@ -273,9 +342,17 @@ export function ImageEditorPage() {
                 onActualSize={() => canvasRef.current?.actualSize()}
                 onOpenNew={browse}
                 onRevert={revert}
+                onRotate90={rotate90}
+                onFlip={flip}
               />
               <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100 dark:bg-neutral-800">
-                <EditorCanvas ref={canvasRef} doc={doc} fitKey={loaded.sessionId} onZoomChange={setZoom} />
+                <EditorCanvas
+                  ref={canvasRef}
+                  doc={doc}
+                  fitKey={loaded.sessionId}
+                  onZoomChange={setZoom}
+                  rotationPreview={{ angle: rotationDraft.angle, fill: rotationFillColor(rotationDraft) }}
+                />
                 {dragActive && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[var(--penta-indigo)]/10 text-sm font-medium">
                     여기에 놓으면 새 이미지로 교체됩니다
@@ -297,13 +374,15 @@ export function ImageEditorPage() {
 
       {/* 우측: 옵션 패널 (데스크톱) */}
       <div className="hidden md:block fixed right-0 top-0 bottom-0">
-        <EditorSidePanel {...panelProps} />
+        <EditorSidePanel {...panelProps}>{toolSections}</EditorSidePanel>
       </div>
 
       <Sheet open={Boolean(isMobileViewport && mobileSheetOpen)} onOpenChange={setMobileSheetOpen}>
         <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
           <SheetTitle className="sr-only">편집 옵션</SheetTitle>
-          <EditorSidePanel variant="sheet" {...panelProps} />
+          <EditorSidePanel variant="sheet" {...panelProps}>
+            {toolSections}
+          </EditorSidePanel>
         </SheetContent>
       </Sheet>
 

@@ -6,6 +6,7 @@ import type Konva from 'konva'
 import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
 import { ZOOM_STEP } from '@/lib/toolbox/image-editor/constants'
 import { centerPosition, clampZoom, fitZoom, zoomAroundPoint } from '@/lib/toolbox/image-editor/view'
+import { rotatedBounds } from '@/lib/toolbox/image-editor/transform'
 
 export interface EditorCanvasHandle {
   fit: () => void
@@ -19,6 +20,8 @@ interface EditorCanvasProps {
   /** 값이 바뀌면 화면 맞춤을 다시 수행(새 이미지 로드 등) */
   fitKey: number
   onZoomChange: (zoom: number) => void
+  /** 자유 회전 미리보기(적용 전). angle 0이면 표시 안 함. fill null = 투명 */
+  rotationPreview?: { angle: number; fill: string | null }
 }
 
 interface ViewState {
@@ -48,9 +51,11 @@ function createCheckerPattern(): HTMLCanvasElement {
  * 레이어: 베이스(체크무늬 + 이미지) / 주석(P4) / 워터마크(P5)
  */
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
-  { doc, fitKey, onZoomChange },
+  { doc, fitKey, onZoomChange, rotationPreview },
   ref
 ) {
+  const previewAngle = rotationPreview?.angle ?? 0
+  const previewBounds = previewAngle !== 0 ? rotatedBounds(doc.width, doc.height, previewAngle) : null
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<ViewState>({ zoom: 1, x: 0, y: 0 })
@@ -133,14 +138,44 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
           onDragEnd={handleDragEnd}
         >
           {/* 확대 시(200% 이상) 픽셀이 뭉개지지 않도록 스무딩 끔 */}
-          <Layer listening={false} imageSmoothingEnabled={view.zoom < 2}>
-            <Rect
-              width={doc.width}
-              height={doc.height}
-              fillPatternImage={checker as unknown as HTMLImageElement}
-              fillPatternScale={{ x: 1 / view.zoom, y: 1 / view.zoom }}
-            />
-            <KonvaImage image={doc.canvas} width={doc.width} height={doc.height} />
+          <Layer listening={false} imageSmoothingEnabled={view.zoom < 2 || previewAngle !== 0}>
+            {previewBounds ? (
+              // 자유 회전 미리보기: 결과 캔버스(bounding box) 영역 + 이미지 중심 기준 회전
+              <>
+                <Rect
+                  x={(doc.width - previewBounds.width) / 2}
+                  y={(doc.height - previewBounds.height) / 2}
+                  width={previewBounds.width}
+                  height={previewBounds.height}
+                  {...(rotationPreview?.fill
+                    ? { fill: rotationPreview.fill }
+                    : {
+                        fillPatternImage: checker as unknown as HTMLImageElement,
+                        fillPatternScale: { x: 1 / view.zoom, y: 1 / view.zoom },
+                      })}
+                />
+                <KonvaImage
+                  image={doc.canvas}
+                  x={doc.width / 2}
+                  y={doc.height / 2}
+                  offsetX={doc.width / 2}
+                  offsetY={doc.height / 2}
+                  width={doc.width}
+                  height={doc.height}
+                  rotation={previewAngle}
+                />
+              </>
+            ) : (
+              <>
+                <Rect
+                  width={doc.width}
+                  height={doc.height}
+                  fillPatternImage={checker as unknown as HTMLImageElement}
+                  fillPatternScale={{ x: 1 / view.zoom, y: 1 / view.zoom }}
+                />
+                <KonvaImage image={doc.canvas} width={doc.width} height={doc.height} />
+              </>
+            )}
           </Layer>
           {/* P4: 주석 레이어 */}
           <Layer />

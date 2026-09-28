@@ -1,7 +1,20 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { FolderOpen, Maximize, Redo2, RotateCcw, Undo2, ZoomIn, ZoomOut } from 'lucide-react'
+import {
+  FlipHorizontal2,
+  FlipVertical2,
+  FolderOpen,
+  History as HistoryIcon,
+  Maximize,
+  Redo2,
+  RotateCcwSquare,
+  RotateCwSquare,
+  Undo2,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react'
+import type { FlipDirection } from '@/lib/toolbox/image-editor/transform'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -18,6 +31,8 @@ interface EditorToolbarProps {
   onActualSize: () => void
   onOpenNew: () => void
   onRevert: () => void
+  onRotate90: (direction: 1 | -1) => void
+  onFlip: (direction: FlipDirection) => void
 }
 
 function ToolButton({
@@ -45,7 +60,7 @@ function ToolButton({
 
 const Divider = () => <div className="mx-1 h-5 w-px bg-border" />
 
-/** 상단 툴바 — P1: 실행취소/다시실행·줌·새 이미지·원본 복원. 편집 도구는 P2~P5에서 추가 */
+/** 상단 툴바 — 실행취소/다시실행·회전/반전·줌·원본 복원·새 이미지. 그리기 도구는 P3~P4에서 추가 */
 export function EditorToolbar({
   canUndo,
   canRedo,
@@ -59,6 +74,8 @@ export function EditorToolbar({
   onActualSize,
   onOpenNew,
   onRevert,
+  onRotate90,
+  onFlip,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
@@ -68,6 +85,21 @@ export function EditorToolbar({
         </ToolButton>
         <ToolButton label="다시실행 (Ctrl/⌘+Shift+Z)" onClick={onRedo} disabled={!canRedo}>
           <Redo2 className="h-4 w-4" />
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton label="왼쪽으로 90° 회전" onClick={() => onRotate90(-1)}>
+          <RotateCcwSquare className="h-4 w-4" />
+        </ToolButton>
+        <ToolButton label="오른쪽으로 90° 회전" onClick={() => onRotate90(1)}>
+          <RotateCwSquare className="h-4 w-4" />
+        </ToolButton>
+        <ToolButton label="좌우 반전" onClick={() => onFlip('horizontal')}>
+          <FlipHorizontal2 className="h-4 w-4" />
+        </ToolButton>
+        <ToolButton label="상하 반전" onClick={() => onFlip('vertical')}>
+          <FlipVertical2 className="h-4 w-4" />
         </ToolButton>
 
         <Divider />
@@ -98,7 +130,7 @@ export function EditorToolbar({
 
         <div className="ml-auto flex items-center gap-0.5 pl-2">
           <ToolButton label="원본으로 되돌리기" onClick={onRevert} disabled={!canRevert}>
-            <RotateCcw className="h-4 w-4" />
+            <HistoryIcon className="h-4 w-4" />
           </ToolButton>
           <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
             <FolderOpen className="h-4 w-4" />

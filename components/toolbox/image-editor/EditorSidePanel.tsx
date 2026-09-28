@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,8 @@ interface EditorSidePanelProps {
   exporting: boolean
   onExportSettingsChange: (settings: ExportSettings) => void
   onExport: () => void
+  /** 편집 도구 섹션(회전·크기 등) — 이미지 정보 위에 표시 */
+  children?: ReactNode
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -43,7 +46,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** 우측 옵션 패널 — P1: 이미지 정보·내보내기. 도구별 옵션은 P2~P5에서 상단에 추가 */
+/** 우측 옵션 패널 — 편집 도구 섹션(children) + 이미지 정보 + 내보내기 */
 export function EditorSidePanel({
   variant = 'sidebar',
   image,
@@ -52,6 +55,7 @@ export function EditorSidePanel({
   exporting,
   onExportSettingsChange,
   onExport,
+  children,
 }: EditorSidePanelProps) {
   const isSheet = variant === 'sheet'
   const format = getExportFormat(exportSettings.format)
@@ -70,6 +74,8 @@ export function EditorSidePanel({
         <p className="text-sm text-muted-foreground">이미지를 불러오면 옵션이 표시됩니다.</p>
       ) : (
         <>
+          {children}
+
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">이미지 정보</h3>
             <div className="space-y-1.5 rounded-lg border bg-card p-3">
