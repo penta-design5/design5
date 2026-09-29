@@ -1,7 +1,7 @@
 'use client'
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Stage, Layer, Group, Image as KonvaImage, Rect, Transformer } from 'react-konva'
+import { Stage, Layer, Group, Image as KonvaImage, Rect, Shape, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { cn } from '@/lib/utils'
 import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
@@ -24,6 +24,8 @@ import {
   type TextFont,
 } from '@/lib/toolbox/image-editor/annotations'
 import { TEXT_FONT_STACKS } from '@/lib/toolbox/image-editor/annotation-render'
+import type { WatermarkLogo, WatermarkSettings } from '@/lib/toolbox/image-editor/watermark'
+import { drawWatermark } from '@/lib/toolbox/image-editor/watermark-render'
 import { AnnotationShape } from './AnnotationShape'
 import { CropOverlay } from './CropOverlay'
 
@@ -50,6 +52,8 @@ interface EditorCanvasProps {
   onAddAnnotation: (annotation: Annotation) => void
   onUpdateAnnotation: (annotation: Annotation) => void
   onRemoveAnnotation: (id: string) => void
+  /** 워터마크 미리보기(설정값 기반, 히스토리 밖) — 자르기·회전 미리보기 중에는 숨김 */
+  watermark?: { settings: WatermarkSettings; logo: WatermarkLogo | null }
 }
 
 interface ViewState {
@@ -94,7 +98,7 @@ const HIT_SCREEN_PX = 12
 /**
  * 편집 캔버스 뷰. Stage 전체에 줌/이동 변환을 걸어 모든 노드가 "원본 이미지 좌표"를 공유한다.
  * 콘텐츠 레이어 = 베이스 이미지 + 주석(형광펜 multiply가 이미지와 섞이도록 같은 레이어) + Transformer.
- * 그 위에 자르기 레이어, 워터마크 레이어(P5).
+ * 그 위에 자르기 레이어, 워터마크 레이어(내보내기와 같은 drawWatermark로 그림).
  */
 export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(function EditorCanvas(
   {
@@ -110,6 +114,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     onAddAnnotation,
     onUpdateAnnotation,
     onRemoveAnnotation,
+    watermark,
   },
   ref
 ) {
@@ -472,8 +477,17 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
             />
           </Layer>
           {crop && <CropOverlay size={doc} rect={crop.rect} ratio={crop.ratio} zoom={view.zoom} onChange={crop.onChange} />}
-          {/* P5: 워터마크 레이어 */}
-          <Layer listening={false} />
+          {/* 워터마크 — 내보내기와 같은 함수로 그리고 이미지 영역 밖은 잘라낸다. 자르기·회전 미리보기 중에는 숨김 */}
+          <Layer listening={false} visible={interactive && !!watermark}>
+            {watermark && (
+              <Group clipX={0} clipY={0} clipWidth={doc.width} clipHeight={doc.height}>
+                <Shape
+                  perfectDrawEnabled={false}
+                  sceneFunc={(context) => drawWatermark(context._context, doc, watermark.settings, watermark.logo)}
+                />
+              </Group>
+            )}
+          </Layer>
         </Stage>
       )}
 

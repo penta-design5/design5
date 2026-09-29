@@ -66,6 +66,15 @@ import {
   type EditorTool,
 } from '@/lib/toolbox/image-editor/annotations'
 import { renderComposite } from '@/lib/toolbox/image-editor/annotation-render'
+import {
+  isWatermarkActive,
+  loadWatermarkSettings,
+  saveWatermarkSettings,
+  DEFAULT_WATERMARK_SETTINGS,
+  type WatermarkLogo,
+  type WatermarkSettings,
+} from '@/lib/toolbox/image-editor/watermark'
+import { renderWatermarked } from '@/lib/toolbox/image-editor/watermark-render'
 import { AnnotationPanel } from './AnnotationPanel'
 import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
@@ -79,6 +88,7 @@ import {
   rotationFillColor,
   type RotationDraft,
 } from './TransformPanel'
+import { WatermarkPanel } from './WatermarkPanel'
 
 interface LoadedImage extends LoadedImageInfo {
   /** 새 이미지를 열 때마다 증가 — 캔버스 화면 맞춤 트리거 */
@@ -91,6 +101,19 @@ function defaultFormatFor(mime: string): ExportFormat {
   if (mime === 'image/jpeg') return 'jpeg'
   if (mime === 'image/webp') return 'webp'
   return 'png'
+}
+
+/** 로고 썸네일(패널 표시용) — 큰 로고도 가볍게 */
+function createThumbnailUrl(source: HTMLCanvasElement, maxSide = 96): string {
+  const scale = Math.min(1, maxSide / Math.max(source.width, source.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(source.width * scale))
+  canvas.height = Math.max(1, Math.round(source.height * scale))
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return ''
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+  return canvas.toDataURL('image/png')
 }
 
 const isTypingTarget = (target: EventTarget | null) =>
@@ -127,6 +150,10 @@ export function ImageEditorPage() {
   const [tool, setTool] = useState<EditorTool>('select')
   const [drawStyle, setDrawStyle] = useState<DrawStyle>(() => defaultDrawStyle(1000, 1000))
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // 워터마크 — 히스토리 밖 설정값(실행취소 대상 아님). 텍스트 설정은 localStorage에 저장(로고·켜짐 제외)
+  const [watermark, setWatermark] = useState<WatermarkSettings>(DEFAULT_WATERMARK_SETTINGS)
+  const [watermarkLogo, setWatermarkLogo] = useState<WatermarkLogo | null>(null)
+  const watermarkRestored = useRef(false)
 
   const doc = history?.present ?? null
   const isDirty = history ? canUndo(history) : false
@@ -147,6 +174,17 @@ export function ImageEditorPage() {
   useEffect(() => {
     if (!isMobileViewport) setMobileSheetOpen(false)
   }, [isMobileViewport])
+
+  // 저장된 워터마크 설정 복원(마운트 1회) → 이후 변경 시 저장(슬라이더 드래그 중 과도한 쓰기 방지로 지연)
+  useEffect(() => {
+    setWatermark(loadWatermarkSettings())
+    watermarkRestored.current = true
+  }, [])
+  useEffect(() => {
+    if (!watermarkRestored.current) return
+    const timer = window.setTimeout(() => saveWatermarkSettings(watermark), 300)
+    return () => window.clearTimeout(timer)
+  }, [watermark])
 
   const commit = useCallback((next: EditorDoc) => {
     setHistory((h) => (h ? pushHistory(h, next, historyLimitFor(next.width, next.height)) : createHistory(next)))
@@ -443,12 +481,37 @@ export function ImageEditorPage() {
     applyTransform((c) => resizeCanvas(c, size.width, size.height))
   }
 
+  // ---------- 워터마크 ----------
+  const changeWatermark = (patch: Partial<WatermarkSettings>) => setWatermark((w) => ({ ...w, ...patch }))
+
+  const openWatermarkLogo = async (file: File) => {
+    const error = validateImageFile(file)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    try {
+      const canvas = await decodeImageFile(file)
+      setWatermarkLogo({
+        canvas,
+        width: canvas.width,
+        height: canvas.height,
+        name: file.name || 'logo.png',
+        previewUrl: createThumbnailUrl(canvas),
+      })
+      changeWatermark({ kind: 'image' })
+    } catch (e) {
+      toast.error(e instanceof ImageLoadError ? e.message : '로고 이미지를 불러오지 못했습니다.')
+    }
+  }
+
   const handleExport = async () => {
     if (!doc) return
     setExporting(true)
     try {
-      // P5에서 워터마크 합성 추가
-      const blob = await encodeCanvas(renderComposite(doc), exportSettings.format, exportSettings.quality)
+      // 베이스 + 주석 → 워터마크(현재 크기 기준) 순서로 원본 해상도 합성
+      const composed = renderWatermarked(renderComposite(doc), watermark, watermarkLogo)
+      const blob = await encodeCanvas(composed, exportSettings.format, exportSettings.quality)
       downloadBlob(blob, buildExportFileName(exportSettings.baseName, exportSettings.format))
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '이미지를 저장하지 못했습니다.')
@@ -511,6 +574,13 @@ export function ImageEditorPage() {
         onApplyRotation={applyRotation}
       />
       <ResizePanel size={doc} onApply={applyResize} />
+      <WatermarkPanel
+        settings={watermark}
+        logo={watermarkLogo}
+        onChange={changeWatermark}
+        onLogoFile={(file) => void openWatermarkLogo(file)}
+        onLogoRemove={() => setWatermarkLogo(null)}
+      />
     </>
   ))
 
@@ -567,6 +637,7 @@ export function ImageEditorPage() {
                   onAddAnnotation={addAnnotation}
                   onUpdateAnnotation={replaceAnnotation}
                   onRemoveAnnotation={deleteAnnotation}
+                  watermark={isWatermarkActive(watermark, watermarkLogo) ? { settings: watermark, logo: watermarkLogo } : undefined}
                 />
                 <ZoomControls
                   zoomPercent={Math.round(zoom * 100)}
