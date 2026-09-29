@@ -13,6 +13,8 @@ interface CropOverlayProps {
   ratio: number | null
   zoom: number
   onChange: (rect: CropRect) => void
+  /** 터치 기기(pointer: coarse) — 핸들을 손가락으로 잡기 쉽게 키움 */
+  coarse?: boolean
 }
 
 type TransformerBox = Parameters<NonNullable<Konva.TransformerConfig['boundBoxFunc']>>[0]
@@ -21,14 +23,16 @@ const SHADE = 'rgba(0, 0, 0, 0.5)'
 const GUIDE = 'rgba(255, 255, 255, 0.7)'
 const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']
 const CORNER_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-/** 화면상 최소 크기(px) — 핸들이 겹쳐 조작할 수 없게 되는 것 방지 */
+/** 화면상 최소 크기(px) — 핸들이 겹쳐 조작할 수 없게 되는 것 방지 (터치는 핸들이 커서 더 크게) */
 const MIN_SCREEN_SIZE = 8
+const MIN_SCREEN_SIZE_COARSE = 48
 
 /**
  * 자르기 상자 (Stage 좌표 = 원본 이미지 px 좌표).
  * 바깥 어둡게 + 삼분할 가이드 + 이동/8방향 크기 조절(비율 고정 시 모서리 4개만).
  */
-export function CropOverlay({ size, rect, ratio, zoom, onChange }: CropOverlayProps) {
+export function CropOverlay({ size, rect, ratio, zoom, onChange, coarse = false }: CropOverlayProps) {
+  const minScreenSize = coarse ? MIN_SCREEN_SIZE_COARSE : MIN_SCREEN_SIZE
   const rectRef = useRef<Konva.Rect>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
 
@@ -81,8 +85,8 @@ export function CropOverlay({ size, rect, ratio, zoom, onChange }: CropOverlayPr
     const bottomRight = transform.point({ x: size.width, y: size.height })
     const tolerance = 0.5
     if (
-      newBox.width < MIN_SCREEN_SIZE ||
-      newBox.height < MIN_SCREEN_SIZE ||
+      newBox.width < minScreenSize ||
+      newBox.height < minScreenSize ||
       newBox.x < topLeft.x - tolerance ||
       newBox.y < topLeft.y - tolerance ||
       newBox.x + newBox.width > bottomRight.x + tolerance ||
@@ -150,7 +154,7 @@ export function CropOverlay({ size, rect, ratio, zoom, onChange }: CropOverlayPr
         boundBoxFunc={boundBoxFunc}
         borderStroke="#ffffff"
         borderStrokeWidth={1.5}
-        anchorSize={10}
+        anchorSize={coarse ? 22 : 10}
         anchorStroke="#4f46e5"
         anchorFill="#ffffff"
         anchorCornerRadius={2}

@@ -42,6 +42,7 @@ const TOOLS = Object.keys(TOOL_ICONS) as EditorTool[]
 const shortcutOf = (tool: EditorTool) =>
   Object.entries(TOOL_SHORTCUTS).find(([, t]) => t === tool)?.[0].toUpperCase()
 import { Button } from '@/components/ui/button'
+import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface EditorToolbarProps {
@@ -101,9 +102,12 @@ function ToolButton({
   )
 }
 
-const Divider = () => <div className="mx-1 h-5 w-px bg-border" />
+const Divider = () => <div className="mx-1 h-5 w-px shrink-0 bg-border" />
 
-/** 상단 툴바 — 실행취소/다시실행·그리기 도구·자르기·회전/반전·원본 복원·새 이미지 (줌은 캔버스 위 `ZoomControls`) */
+/**
+ * 상단 툴바 — 실행취소/다시실행·그리기 도구·자르기·회전/반전·원본 복원·새 이미지 (줌은 캔버스 위 `ZoomControls`).
+ * 폭이 좁으면 줄바꿈 대신 한 줄 가로 스크롤(양 끝 페이드) — 캔버스 높이 확보.
+ */
 export function EditorToolbar({
   canUndo,
   canRedo,
@@ -122,65 +126,67 @@ export function EditorToolbar({
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex flex-wrap items-center gap-0.5 rounded-lg border bg-card px-2 py-1">
-        <ToolButton label="실행취소 (Ctrl/⌘+Z)" onClick={onUndo} disabled={!canUndo}>
-          <Undo2 className="h-4 w-4" />
-        </ToolButton>
-        <ToolButton label="다시실행 (Ctrl/⌘+Shift+Z)" onClick={onRedo} disabled={!canRedo}>
-          <Redo2 className="h-4 w-4" />
-        </ToolButton>
-
-        <Divider />
-
-        {TOOLS.map((t) => {
-          const Icon = TOOL_ICONS[t]
-          return (
-            <ToolButton key={t} label={`${TOOL_LABELS[t]} (${shortcutOf(t)})`} onClick={() => onToolChange(t)} pressed={!cropActive && tool === t} disabled={cropActive}>
-              <Icon className="h-4 w-4" />
-            </ToolButton>
-          )
-        })}
-
-        <Divider />
-
-        <ToolButton label="자르기 (C)" onClick={onToggleCrop} pressed={cropActive}>
-          <Crop className="h-4 w-4" />
-        </ToolButton>
-        {cropActive && (
-          <>
-            <ToolButton label="자르기 적용 (Enter)" onClick={onApplyCrop}>
-              <Check className="h-4 w-4" />
-            </ToolButton>
-            <ToolButton label="자르기 취소 (Esc)" onClick={onToggleCrop}>
-              <X className="h-4 w-4" />
-            </ToolButton>
-          </>
-        )}
-
-        <Divider />
-
-        <ToolButton label="왼쪽으로 90° 회전" onClick={() => onRotate90(-1)} disabled={cropActive}>
-          <RotateCcwSquare className="h-4 w-4" />
-        </ToolButton>
-        <ToolButton label="오른쪽으로 90° 회전" onClick={() => onRotate90(1)} disabled={cropActive}>
-          <RotateCwSquare className="h-4 w-4" />
-        </ToolButton>
-        <ToolButton label="좌우 반전" onClick={() => onFlip('horizontal')} disabled={cropActive}>
-          <FlipHorizontal2 className="h-4 w-4" />
-        </ToolButton>
-        <ToolButton label="상하 반전" onClick={() => onFlip('vertical')} disabled={cropActive}>
-          <FlipVertical2 className="h-4 w-4" />
-        </ToolButton>
-
-        <div className="ml-auto flex items-center gap-0.5 pl-2">
-          <ToolButton label="원본으로 되돌리기" onClick={onRevert} disabled={!canRevert}>
-            <HistoryIcon className="h-4 w-4" />
+      <HorizontalScrollEdgeFades edgeFadeVariant="background" className="overflow-hidden rounded-lg border bg-card">
+        <div role="toolbar" aria-label="이미지 편집 도구" className="flex w-max min-w-full items-center gap-0.5 px-2 py-1">
+          <ToolButton label="실행취소 (Ctrl/⌘+Z)" onClick={onUndo} disabled={!canUndo}>
+            <Undo2 className="h-4 w-4" />
           </ToolButton>
-          <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
-            <FolderOpen className="h-4 w-4" />
+          <ToolButton label="다시실행 (Ctrl/⌘+Shift+Z)" onClick={onRedo} disabled={!canRedo}>
+            <Redo2 className="h-4 w-4" />
           </ToolButton>
+
+          <Divider />
+
+          {TOOLS.map((t) => {
+            const Icon = TOOL_ICONS[t]
+            return (
+              <ToolButton key={t} label={`${TOOL_LABELS[t]} (${shortcutOf(t)})`} onClick={() => onToolChange(t)} pressed={!cropActive && tool === t} disabled={cropActive}>
+                <Icon className="h-4 w-4" />
+              </ToolButton>
+            )
+          })}
+
+          <Divider />
+
+          <ToolButton label="자르기 (C)" onClick={onToggleCrop} pressed={cropActive}>
+            <Crop className="h-4 w-4" />
+          </ToolButton>
+          {cropActive && (
+            <>
+              <ToolButton label="자르기 적용 (Enter)" onClick={onApplyCrop}>
+                <Check className="h-4 w-4" />
+              </ToolButton>
+              <ToolButton label="자르기 취소 (Esc)" onClick={onToggleCrop}>
+                <X className="h-4 w-4" />
+              </ToolButton>
+            </>
+          )}
+
+          <Divider />
+
+          <ToolButton label="왼쪽으로 90° 회전" onClick={() => onRotate90(-1)} disabled={cropActive}>
+            <RotateCcwSquare className="h-4 w-4" />
+          </ToolButton>
+          <ToolButton label="오른쪽으로 90° 회전" onClick={() => onRotate90(1)} disabled={cropActive}>
+            <RotateCwSquare className="h-4 w-4" />
+          </ToolButton>
+          <ToolButton label="좌우 반전" onClick={() => onFlip('horizontal')} disabled={cropActive}>
+            <FlipHorizontal2 className="h-4 w-4" />
+          </ToolButton>
+          <ToolButton label="상하 반전" onClick={() => onFlip('vertical')} disabled={cropActive}>
+            <FlipVertical2 className="h-4 w-4" />
+          </ToolButton>
+
+          <div className="ml-auto flex items-center gap-0.5 pl-2">
+            <ToolButton label="원본으로 되돌리기" onClick={onRevert} disabled={!canRevert}>
+              <HistoryIcon className="h-4 w-4" />
+            </ToolButton>
+            <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
+              <FolderOpen className="h-4 w-4" />
+            </ToolButton>
+          </div>
         </div>
-      </div>
+      </HorizontalScrollEdgeFades>
     </TooltipProvider>
   )
 }

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/image-editor/constants'
 import {
   ImageLoadError,
@@ -122,12 +123,14 @@ const isTypingTarget = (target: EventTarget | null) =>
 
 /**
  * TOOLBOX「이미지 편집」 — 모든 처리는 브라우저에서만 수행(서버 전송 없음).
- * 레이아웃은 Chart Generator와 동일: 좌측 작업 영역 + 우측 410px 옵션 패널(모바일은 하단 Sheet).
+ * 레이아웃: 좌측 작업 영역 + 우측 410px 옵션 패널(xl 이상). xl 미만은 「편집 옵션」 Sheet(모바일 하단 / 태블릿 오른쪽).
  * 진행 상태: docs/TOOLBOX_handoff.md
  */
 export function ImageEditorPage() {
   const { confirm } = useConfirmDialog()
   const isMobileViewport = useIsMobileViewport()
+  // 우측 패널은 xl(1280px) 이상에서만 고정 — 그 미만(태블릿·작은 노트북)은 「편집 옵션」 Sheet (모바일 하단 / 태블릿 오른쪽)
+  const isCompactViewport = useMediaQuery('(max-width: 1279px)')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<EditorCanvasHandle>(null)
   const dragDepth = useRef(0)
@@ -172,8 +175,8 @@ export function ImageEditorPage() {
   }, [doc])
 
   useEffect(() => {
-    if (!isMobileViewport) setMobileSheetOpen(false)
-  }, [isMobileViewport])
+    if (!isCompactViewport) setMobileSheetOpen(false)
+  }, [isCompactViewport])
 
   // 저장된 워터마크 설정 복원(마운트 1회) → 이후 변경 시 저장(슬라이더 드래그 중 과도한 쓰기 방지로 지연)
   useEffect(() => {
@@ -586,8 +589,8 @@ export function ImageEditorPage() {
 
   return (
     <div className="w-full h-full flex absolute inset-0 bg-neutral-50 dark:bg-neutral-900" {...dropHandlers}>
-      {/* 좌측: 편집 영역 (모바일에서는 우측 패널 없음 → pr-0) */}
-      <div className="flex-1 min-w-0 pr-0 md:pr-[410px]">
+      {/* 좌측: 편집 영역 (xl 미만은 우측 패널 없음 → pr-0) */}
+      <div className="flex-1 min-w-0 pr-0 xl:pr-[410px]">
         <div className="flex h-full flex-col px-8 pt-16 pb-8">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -597,7 +600,7 @@ export function ImageEditorPage() {
               </p>
             </div>
             {doc && (
-              <Button type="button" variant="outline" className="shrink-0 md:hidden" onClick={() => setMobileSheetOpen(true)}>
+              <Button type="button" variant="outline" className="shrink-0 xl:hidden" onClick={() => setMobileSheetOpen(true)}>
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
                 편집 옵션
               </Button>
@@ -660,18 +663,21 @@ export function ImageEditorPage() {
       </div>
 
       {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 md:right-[410px]">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 xl:right-[410px]">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {/* 우측: 옵션 패널 (데스크톱) */}
-      <div className="hidden md:block fixed right-0 top-0 bottom-0">
+      {/* 우측: 옵션 패널 (xl 이상) */}
+      <div className="hidden xl:block fixed right-0 top-0 bottom-0">
         <EditorSidePanel {...panelProps}>{toolSections}</EditorSidePanel>
       </div>
 
-      <Sheet open={Boolean(isMobileViewport && mobileSheetOpen)} onOpenChange={setMobileSheetOpen}>
-        <SheetContent side="bottom" className="h-[70vh] overflow-y-auto p-0">
+      <Sheet open={Boolean(isCompactViewport && mobileSheetOpen)} onOpenChange={setMobileSheetOpen}>
+        <SheetContent
+          side={isMobileViewport ? 'bottom' : 'right'}
+          className={isMobileViewport ? 'h-[70vh] overflow-y-auto p-0' : 'w-[410px] max-w-[90vw] overflow-y-auto p-0 sm:max-w-[410px]'}
+        >
           <SheetTitle className="sr-only">편집 옵션</SheetTitle>
           <EditorSidePanel variant="sheet" {...panelProps}>
             {toolSections}

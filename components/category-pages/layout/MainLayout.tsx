@@ -170,6 +170,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
           <Header 
             onMenuClick={() => setMobileMenuOpen(true)} 
             isCiBiPage={hasRightPanel}
+            rightPanelFrom={isToolboxPage ? 'xl' : 'md'}
             categories={categories}
           />
         )}

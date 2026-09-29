@@ -32,6 +32,8 @@ interface Category {
 interface HeaderProps {
   onMenuClick?: () => void
   isCiBiPage?: boolean
+  /** 우측 패널이 고정 표시되기 시작하는 구간 (기본 md). TOOLBOX는 xl — 그 미만은 패널이 Sheet로 바뀜 */
+  rightPanelFrom?: 'md' | 'xl'
   categories?: Category[]
 }
 
@@ -63,7 +65,7 @@ function buildSearchCategoryOptions(categories: Category[] = []): SearchCategory
   return flattened.map((c) => ({ slug: c.slug, name: c.name }))
 }
 
-export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: HeaderProps) {
+export function Header({ onMenuClick, isCiBiPage = false, rightPanelFrom = 'md', categories = [] }: HeaderProps) {
   const { theme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -138,7 +140,7 @@ export function Header({ onMenuClick, isCiBiPage = false, categories = [] }: Hea
   return (
     <header
       className={`fixed md:absolute top-0 left-0 md:left-56 z-50 right-0 ${
-        isCiBiPage ? 'md:right-[410px]' : ''
+        isCiBiPage ? (rightPanelFrom === 'xl' ? 'xl:right-[410px]' : 'md:right-[410px]') : ''
       }`}
       style={{
         backgroundColor: isCiBiPage

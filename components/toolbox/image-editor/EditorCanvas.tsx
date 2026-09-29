@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { Stage, Layer, Group, Image as KonvaImage, Rect, Shape, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
 import { ZOOM_STEP } from '@/lib/toolbox/image-editor/constants'
 import { centerPosition, clampZoom, fitZoom, zoomAroundPoint } from '@/lib/toolbox/image-editor/view'
@@ -92,8 +93,17 @@ function createCheckerPattern(): HTMLCanvasElement {
 
 const TEXT_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const ALL_ANCHORS = ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right']
-/** 화면상 선택 히트 영역 최소 폭(px) */
+/** 화면상 선택 히트 영역 최소 폭(px) — 터치는 손가락 크기를 고려해 더 넓게 */
 const HIT_SCREEN_PX = 12
+const HIT_SCREEN_PX_COARSE = 28
+
+/** 두 손가락 핀치 시작 시점 상태 */
+interface PinchState {
+  distance: number
+  /** 시작 중심점 아래의 이미지 좌표 — 손가락 중심을 따라 이 점이 움직이도록 */
+  imagePoint: { x: number; y: number }
+  zoom: number
+}
 
 /**
  * 편집 캔버스 뷰. Stage 전체에 줌/이동 변환을 걸어 모든 노드가 "원본 이미지 좌표"를 공유한다.
@@ -123,7 +133,9 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   const interactive = !crop && previewAngle === 0
   const drawing = interactive && tool !== 'select'
 
+  const coarse = useMediaQuery('(pointer: coarse)')
   const containerRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<Konva.Stage>(null)
   const contentRef = useRef<Konva.Group>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
@@ -187,6 +199,64 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     }),
     [fit, zoomTo, view.zoom, doc.width, doc.height, size.width, size.height]
   )
+
+  // ---------- 터치: 두 손가락 핀치 줌·이동 ----------
+  // 첫 손가락으로 시작한 그리기·드래그는 두 번째 손가락이 닿는 순간 취소하고 핀치로 전환한다.
+  // Konva 포인터 핸들러와 독립적으로 컨테이너의 네이티브 touch 이벤트로 처리(passive: false로 브라우저 확대 차단).
+  const pinchRef = useRef<PinchState | null>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const measure = (touches: TouchList) => {
+      const rect = el.getBoundingClientRect()
+      const [a, b] = [touches[0], touches[1]]
+      return {
+        distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        center: { x: (a.clientX + b.clientX) / 2 - rect.left, y: (a.clientY + b.clientY) / 2 - rect.top },
+      }
+    }
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return
+      if (e.cancelable) e.preventDefault()
+      const stage = stageRef.current
+      // 진행 중인 드래그(화면 이동·개체 이동·자르기 상자) 중단, 그리던 선은 버림
+      stage?.find((node: Konva.Node) => node.isDragging()).forEach((node) => node.stopDrag())
+      if (stage?.isDragging()) stage.stopDrag()
+      dragStart.current = null
+      setDraft(null)
+      const { distance, center } = measure(e.touches)
+      const v = viewRef.current
+      pinchRef.current = {
+        distance: Math.max(1, distance),
+        imagePoint: { x: (center.x - v.x) / v.zoom, y: (center.y - v.y) / v.zoom },
+        zoom: v.zoom,
+      }
+    }
+    const handleTouchMove = (e: TouchEvent) => {
+      const pinch = pinchRef.current
+      if (!pinch || e.touches.length !== 2) return
+      if (e.cancelable) e.preventDefault()
+      const { distance, center } = measure(e.touches)
+      const zoom = clampZoom(pinch.zoom * (distance / pinch.distance))
+      setView({ zoom, x: center.x - pinch.imagePoint.x * zoom, y: center.y - pinch.imagePoint.y * zoom })
+    }
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = null
+    }
+    el.addEventListener('touchstart', handleTouchStart, { passive: false })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd)
+    el.addEventListener('touchcancel', handleTouchEnd)
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchEnd)
+    }
+  }, [])
 
   // ---------- 선택(Transformer) ----------
   const selected = interactive && tool === 'select' ? doc.annotations.find((a) => a.id === selectedId) ?? null : null
@@ -266,6 +336,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
 
   const handlePointerDown = (e: Konva.KonvaEventObject<PointerEvent>) => {
     if (e.evt.button !== undefined && e.evt.button !== 0) return
+    // 두 번째 손가락(핀치)은 그리기·선택을 시작하지 않음
+    if (!e.evt.isPrimary || pinchRef.current) return
     if (textEditRef.current) {
       commitTextEdit()
       return
@@ -312,6 +384,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   }
 
   const handlePointerMove = (e: Konva.KonvaEventObject<PointerEvent>) => {
+    if (!e.evt.isPrimary || pinchRef.current) return
     const start = dragStart.current
     if (!start || !draft) return
     const point = pointerInImage()
@@ -370,7 +443,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     setView((prev) => ({ ...prev, x: stage.x(), y: stage.y() }))
   }
 
-  const hitStrokeWidth = HIT_SCREEN_PX / view.zoom
+  const hitStrokeWidth = (coarse ? HIT_SCREEN_PX_COARSE : HIT_SCREEN_PX) / view.zoom
   const annotationsListening = interactive && (tool === 'select' || tool === 'text')
 
   return (
@@ -383,6 +456,7 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
     >
       {size.width > 0 && size.height > 0 && (
         <Stage
+          ref={stageRef}
           width={size.width}
           height={size.height}
           x={view.x}
@@ -471,12 +545,12 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
               borderStroke="#4f46e5"
               anchorStroke="#4f46e5"
               anchorFill="#ffffff"
-              anchorSize={9}
+              anchorSize={coarse ? 20 : 9}
               anchorCornerRadius={2}
               boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 4 || Math.abs(newBox.height) < 4 ? oldBox : newBox)}
             />
           </Layer>
-          {crop && <CropOverlay size={doc} rect={crop.rect} ratio={crop.ratio} zoom={view.zoom} onChange={crop.onChange} />}
+          {crop && <CropOverlay size={doc} rect={crop.rect} ratio={crop.ratio} zoom={view.zoom} onChange={crop.onChange} coarse={coarse} />}
           {/* 워터마크 — 내보내기와 같은 함수로 그리고 이미지 영역 밖은 잘라낸다. 자르기·회전 미리보기 중에는 숨김 */}
           <Layer listening={false} visible={interactive && !!watermark}>
             {watermark && (
