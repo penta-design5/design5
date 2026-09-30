@@ -7,8 +7,9 @@
 - 최초 작성: 2026-09-28 · 허브/메뉴 문서 분리: 2026-09-30
 - **현재 상태**
   - ✅ 이미지 편집 완료 (2026-09-30, 개발망 확인)
-  - 🟡 **이미지 분할 P0~P3 ✅ · P4 푸시 완료(사이드바 노출) — 개발망 확인 대기** → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
-- **다음 세션 시작점**: 이미지 분할 P4 개발망 QA → 완료 시 다음 메뉴(§2 로드맵 #3 배경 제거 — §2-1 검토부터, 또는 사용자가 정한 순서) — [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) 기준
+  - ✅ 이미지 분할 완료 (2026-09-30, 개발망 확인) → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
+  - ⬜ **배경 제거 및 변경 — 착수 전 결정 논의 중**(§2-1)
+- **다음 세션 시작점**: 배경 제거 및 변경 — §2-1 결정 사항 확정 → `docs/TOOLBOX_background-remover_handoff.md` 작성 → 모델 PoC
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -40,7 +41,7 @@
 | # | 메뉴 | slug(안) | 주요 기능 | 처리 방식 | 상태 · 문서 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | **이미지 편집** | `image-editor` | 회전/반전(각도 조정), 사이즈 변경(비율 유지), 자르기, 텍스트·도형(펜, 형광펜, 직선, 화살표, 사각형, 원), 워터마크 삽입 | 브라우저 (Canvas/Konva) | ✅ 완료 · [TOOLBOX_image-editor_handoff.md](TOOLBOX_image-editor_handoff.md) |
-| 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | 🟡 P4 개발망 확인 대기 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
+| 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | ✅ 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
 | 3 | 배경 제거 및 변경 | `background-remover` | 배경 제거, 단색/이미지 배경 교체 | ⚠️ **AI 모델 필요 — §2-1 검토 후 결정** | ⬜ 로드맵 |
 | 4 | 이미지 모자이크 | `mosaic` | 격자형, 육각·삼각형, 원형, 블러, 픽셀아트 등 | 브라우저 (픽셀 연산, **AI 불필요** — §2-2) | ⬜ 로드맵 |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·크기·로고, PNG/SVG 다운로드 | 브라우저 (QR 라이브러리, 예: `qrcode`) | ⬜ 로드맵 |
@@ -61,6 +62,25 @@
 - [ ] **성능**: WebGPU 지원 브라우저는 빠르고, 미지원 시 WASM으로 대체되어 느려짐(저사양 PC·모바일에서 수 초 이상). 처리 중 UI 멈춤 방지를 위해 Web Worker 실행 검토
 - [ ] **대안 — 서버 처리**: 사내 서버에 모델(예: Python `rembg`)을 두고 **저장 없이 처리 후 즉시 반환**. 품질·속도 안정적이고 사용자 기기와 무관하지만, 서버 자원·운영 부담이 생기고 이미지가 서버를 거침
 - **진행 방안**: 브라우저 방식으로 모델 후보 2~3개를 **품질·속도·라이선스 기준으로 PoC 비교** → 결과에 따라 브라우저/서버 방식 결정
+
+**다음 세션에서 사용자와 정할 항목** (2026-09-30 논의 — 착수 시 이 목록부터 확정)
+1. **주 대상 이미지**: 인물 / 제품·장비 / 로고·일러스트 중 무엇이 중심인지 → 모델 후보가 달라진다.
+   - 후보(라이선스는 알려진 바, 선택 전 원문 재확인)
+     - 제외 권장: `@imgly/background-removal`(AGPL 계열), BRIA RMBG 1.4/2.0(비상업)
+     - 범용: ISNet·U²-Net(Apache-2.0 계열), BiRefNet(MIT, 고품질·대용량)
+     - 인물 전용: MODNet·MediaPipe Selfie(Apache-2.0)
+   - 실행기 `onnxruntime-web`(MIT) 또는 `Transformers.js`(Apache-2.0) → **프로젝트 의존성 추가**가 생긴다.
+2. **모델·wasm 파일 위치**: 외부 CDN(Hugging Face·jsDelivr) 허용 여부, 개발망 브라우저의 외부 인터넷 접속 가능 여부
+   - 자체 호스팅 시 추천: **MinIO `models` 버킷 + nginx `/models/`**(기존 `/avatars/` 패턴, 두 서버 nginx 설정 추가)
+   - git 커밋(`public/`)은 용량 때문에 비추천. 로컬 개발은 git에 올리지 않는 로컬 폴더에 둔다.
+3. **기능 범위(MVP 제안)**
+   - 포함: 제거 → 투명 PNG, 배경 교체(단색·이미지·투명), 경계 부드럽게·강도, 전/후 비교, 원본 해상도 유지, PNG/JPG/WebP(공용)
+   - 후속 검토: **수동 보정 브러시**(지우기/복원), 일괄 처리, 배경 흐림
+   - 참고 화면이 있는지
+4. **성능 기준**: 첫 모델 내려받기 허용 용량(예: 50MB 이하 / 200MB까지), 처리 시간 목표(예: 일반 PC 5초 이내)
+5. **메뉴 이름**: 「배경 제거 및 변경」은 사이드바에서 길다 → 「배경 제거」 / 「배경 편집」 등. slug는 `background-remover` 안.
+6. **PoC용 샘플 이미지**: 실제로 쓸 인물·제품·복잡한 배경 사진 몇 장을 받아 후보를 비교한다.
+- 진행 순서(안): 위 항목 확정 → `docs/TOOLBOX_background-remover_handoff.md` 작성 → **P0 모델 PoC**(품질·속도·용량·라이선스 비교 보고 후 선택) → P1 제거·투명 PNG → P2 배경 교체 → P3 경계 다듬기·비교 → P4 반응형·QA·메뉴 노출
 
 ### 2-2. 이미지 모자이크 — AI 불필요
 
