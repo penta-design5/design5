@@ -197,6 +197,26 @@ export function EditorToolbar({
   )
 }
 
+/**
+ * 캔버스 왼쪽 아래 단축키 안내 칩 — `?` 키로 도움말을 열 수 있다는 것을 항상 보이게 안내(클릭해도 열림).
+ * 키보드가 없는 터치 기기(pointer: coarse)에서는 숨긴다.
+ */
+export function ShortcutHint({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="단축키 도움말 열기 (?)"
+      className="absolute bottom-3 left-3 z-10 flex h-9 items-center gap-1.5 rounded-lg border bg-card/95 px-2.5 text-xs text-muted-foreground shadow-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [@media(pointer:coarse)]:hidden"
+    >
+      <kbd className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border bg-muted px-1 font-sans text-[11px] font-medium text-foreground">
+        ?
+      </kbd>
+      단축키
+    </button>
+  )
+}
+
 interface ZoomControlsProps {
   zoomPercent: number
   onZoomIn: () => void

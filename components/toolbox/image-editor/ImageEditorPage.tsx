@@ -81,7 +81,7 @@ import { nudgeDelta } from '@/lib/toolbox/image-editor/shortcuts'
 import { AnnotationPanel } from './AnnotationPanel'
 import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
-import { EditorToolbar, ZoomControls } from './EditorToolbar'
+import { EditorToolbar, ShortcutHint, ZoomControls } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
 import { ImageUploadZone } from './ImageUploadZone'
 import { ResizePanel } from './ResizePanel'
@@ -699,6 +699,7 @@ export function ImageEditorPage() {
                   onRemoveAnnotation={deleteAnnotation}
                   watermark={isWatermarkActive(watermark, watermarkLogo) ? { settings: watermark, logo: watermarkLogo } : undefined}
                 />
+                <ShortcutHint onClick={() => setShortcutsOpen(true)} />
                 <ZoomControls
                   zoomPercent={Math.round(zoom * 100)}
                   onZoomIn={() => canvasRef.current?.zoomIn()}
