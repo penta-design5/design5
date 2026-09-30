@@ -2,7 +2,7 @@
  * 이미지 분할 격자 계산(순수 로직) — docs/TOOLBOX_image-splitter_handoff.md §1 D2
  * - 격자 모양은 조각 수로 고정(항상 가로 기준): 2 = 2×1, 4 = 2×2, 8 = 4×2, 16 = 4×4
  * - 「배치」는 번호(저장) 순서: 가로 우선(왼쪽 위 → 오른쪽 → 다음 줄) / 세로 우선(왼쪽 위 → 아래 → 다음 열)
- * - 분할선 위치는 비율(0~1)로 보관 → 사진 크기가 바뀌어도 같은 상대 위치. 조각 좌표는 정수 px(빈틈·겹침 없음)
+ * - 분할선 위치는 비율(0~1)로 보관 → 이미지 크기가 바뀌어도 같은 상대 위치. 조각 좌표는 정수 px(빈틈·겹침 없음)
  */
 
 import type { Size } from '../common/canvas'
@@ -63,7 +63,7 @@ export function edgesOf(fractions: number[], length: number): number[] {
   return edges
 }
 
-/** 조각 최소 크기(px, 현재 사진 기준) — 선끼리·가장자리에 붙어 조각이 사라지거나 잡을 수 없게 되는 것 방지 */
+/** 조각 최소 크기(px, 현재 이미지 기준) — 선끼리·가장자리에 붙어 조각이 사라지거나 잡을 수 없게 되는 것 방지 */
 export const MIN_PIECE_PX = 8
 
 /** 실제 적용할 최소 간격(px). 작은 이미지라 균등 분할도 8px이 안 되면 균등 간격을 상한으로 한다(최소 1px) */
@@ -92,7 +92,7 @@ export function moveLine(fractions: number[], index: number, value: number, leng
 }
 
 /**
- * 사진 크기가 바뀐 뒤 최소 간격을 어기는 선만 밀어서 맞춘다(앞→뒤, 뒤→앞 두 번).
+ * 이미지 크기가 바뀐 뒤 최소 간격을 어기는 선만 밀어서 맞춘다(앞→뒤, 뒤→앞 두 번).
  * 간격을 지키는 선은 원래 비율을 그대로 둔다(크기를 여러 번 바꿔도 비율이 흐트러지지 않게).
  * 모두 지키면 같은 배열을 돌려준다.
  */
@@ -111,7 +111,7 @@ export function fitLines(fractions: number[], length: number): number[] {
   return changed ? result : fractions
 }
 
-/** 현재 선이 균등 분할과 같은지(현재 사진 px 기준) — 「균등 분할로 초기화」 비활성 판별 */
+/** 현재 선이 균등 분할과 같은지(현재 이미지 px 기준) — 「균등 분할로 초기화」 비활성 판별 */
 export function isEqualLines(lines: SplitLines, count: PieceCount, size: Size): boolean {
   const equal = equalLines(count)
   const same = (a: number[], b: number[], length: number) => {
@@ -122,7 +122,7 @@ export function isEqualLines(lines: SplitLines, count: PieceCount, size: Size): 
   return same(lines.xs, equal.xs, size.width) && same(lines.ys, equal.ys, size.height)
 }
 
-/** 분할선 + 사진 크기 → 조각 목록(저장 순서대로, index 1부터) */
+/** 분할선 + 이미지 크기 → 조각 목록(저장 순서대로, index 1부터) */
 export function computePieces(size: Size, lines: SplitLines, order: SplitOrder): Piece[] {
   const xEdges = edgesOf(lines.xs, size.width)
   const yEdges = edgesOf(lines.ys, size.height)

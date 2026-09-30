@@ -149,7 +149,7 @@ describe('fitLines — 크기 변경 후 최소 간격 맞춤', () => {
 })
 
 describe('isEqualLines', () => {
-  it('균등이면 true, 선을 옮기면 false, 사진 px 기준 반올림 차이는 무시', () => {
+  it('균등이면 true, 선을 옮기면 false, 이미지 px 기준 반올림 차이는 무시', () => {
     const size = { width: 409, height: 416 }
     expect(isEqualLines(equalLines(4), 4, size)).toBe(true)
     expect(isEqualLines({ xs: [205 / 409], ys: [0.5] }, 4, size)).toBe(true)

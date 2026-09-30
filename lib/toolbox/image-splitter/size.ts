@@ -1,5 +1,5 @@
 /**
- * 이미지 분할「사진 크기」(분할 전 전체 리사이즈) 순수 로직 — docs/TOOLBOX_image-splitter_handoff.md §1 D1·§2
+ * 이미지 분할「이미지 크기」(분할 전 전체 리사이즈) 순수 로직 — docs/TOOLBOX_image-splitter_handoff.md §1 D1·§2
  * - 적용할 때마다 항상 원본에서 다시 리사이즈한다(누적 리사이즈 화질 저하 방지). 「원본 크기」 = 되돌리기
  * - 결과 크기 상한은 이미지 편집과 같다(validateOutputSize: 한 변 16,384px · 약 1,670만 px)
  */

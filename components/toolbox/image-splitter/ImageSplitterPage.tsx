@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, SlidersHorizontal } from 'lucide-react'
+import { FolderOpen, Loader2, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
@@ -37,7 +38,7 @@ interface LoadedImage extends SplitImageInfo {
 /**
  * TOOLBOX「이미지 분할」 — 모든 처리는 브라우저에서만 수행(서버 전송 없음).
  * 레이아웃: 좌측 작업 영역 + 우측 410px 옵션 패널(xl 이상), xl 미만은 「편집 옵션」 Sheet(모바일 하단 / 태블릿 오른쪽) — 이미지 편집과 동일.
- * 개발 중에는 사이드바(TOOLBOX_MENU)에 노출하지 않는다(P4에서 등록).
+ * 사이드바 메뉴: lib/toolbox/menu.ts의 TOOLBOX_MENU(P4에서 등록).
  * 구현 기록: docs/TOOLBOX_image-splitter_handoff.md
  */
 export function ImageSplitterPage() {
@@ -89,7 +90,7 @@ export function ImageSplitterPage() {
         fileSize: file.size,
       })
       setBaseName(baseNameOf(fileName))
-      // 조각 수·배치는 유지하고, 이전 사진에 맞춰 옮긴 분할선은 균등으로 되돌린다
+      // 조각 수·배치는 유지하고, 이전 이미지에 맞춰 옮긴 분할선은 균등으로 되돌린다
       setLines(equalLines(count))
     } catch (e) {
       toast.error(e instanceof ImageLoadError ? e.message : '이미지를 불러오지 못했습니다.')
@@ -146,7 +147,7 @@ export function ImageSplitterPage() {
   const resetLines = () => setLines(equalLines(count))
 
   /**
-   * 사진 크기 적용 — 항상 원본에서 다시 리사이즈(누적 화질 저하 없음), 원본 크기면 원본 그대로.
+   * 이미지 크기 적용 — 항상 원본에서 다시 리사이즈(누적 화질 저하 없음), 원본 크기면 원본 그대로.
    * 분할선은 비율을 유지하고, 새 크기에서 최소 간격을 어기는 선만 맞춘다(fitLines).
    */
   const resize = async (next: Size) => {
@@ -170,7 +171,7 @@ export function ImageSplitterPage() {
         const ys = fitLines(prev.ys, next.height)
         return xs === prev.xs && ys === prev.ys ? prev : { xs, ys }
       })
-      toast.success(`사진 크기를 ${next.width} × ${next.height}px로 바꿨습니다.`)
+      toast.success(`이미지 크기를 ${next.width} × ${next.height}px로 바꿨습니다.`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '크기를 바꾸지 못했습니다.')
     } finally {
@@ -228,7 +229,6 @@ export function ImageSplitterPage() {
     onResetLines: resetLines,
     onBaseNameChange: setBaseName,
     onSave: save,
-    onOpenNew: browse,
   }
 
   return (
@@ -262,6 +262,27 @@ export function ImageSplitterPage() {
                   pieces={pieces}
                   onLineChange={changeLine}
                 />
+                {/* 새 이미지 열기 — 이미지 편집 툴바와 같은 아이콘·이름. 분할은 툴바가 없어 줌 컨트롤처럼 떠 있는 버튼으로 둔다 */}
+                <TooltipProvider delayDuration={300}>
+                  <div className="absolute right-3 top-3 z-10 rounded-lg border bg-card/95 px-1 py-0.5 shadow-sm">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={browse}
+                          disabled={loading || resizing || saving}
+                          aria-label="새 이미지 열기"
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>새 이미지 열기</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
                 {dragActive && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[rgb(var(--penta-indigo-rgb)/0.1)] text-sm font-medium">
                     여기에 놓으면 새 이미지로 교체됩니다

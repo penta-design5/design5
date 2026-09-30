@@ -1,6 +1,6 @@
 'use client'
 
-import { FolderOpen, Loader2, PackageOpen, RotateCcw } from 'lucide-react'
+import { Loader2, PackageOpen, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +60,6 @@ interface SplitSidePanelProps {
   onResetLines: () => void
   onBaseNameChange: (name: string) => void
   onSave: () => void
-  onOpenNew: () => void
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -72,7 +71,10 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** 우측 옵션 패널 — 사진 크기 · 사진 분할 · 저장 · 이미지 정보 (데스크톱 패널과 모바일·태블릿 Sheet 공용) */
+/**
+ * 우측 옵션 패널 — 이미지 크기 · 이미지 분할 · 이미지 정보 · 저장 (데스크톱 패널과 모바일·태블릿 Sheet 공용).
+ * 순서는 이미지 편집(편집 도구 → 이미지 정보 → 내보내기)과 같다. 새 이미지 열기는 미리보기 오른쪽 위 버튼.
+ */
 export function SplitSidePanel({
   variant = 'sidebar',
   image,
@@ -93,7 +95,6 @@ export function SplitSidePanel({
   onResetLines,
   onBaseNameChange,
   onSave,
-  onOpenNew,
 }: SplitSidePanelProps) {
   const isSheet = variant === 'sheet'
   const orderOption = SPLIT_ORDER_OPTIONS.find((o) => o.value === order) ?? SPLIT_ORDER_OPTIONS[0]
@@ -136,7 +137,7 @@ export function SplitSidePanel({
           />
 
           <section className="space-y-4">
-            <h3 className="text-sm font-semibold">사진 분할</h3>
+            <h3 className="text-sm font-semibold">이미지 분할</h3>
             <div className="space-y-2">
               <Label htmlFor={`${variant}-split-count`}>조각 수</Label>
               <Select value={String(count)} onValueChange={(v) => onCountChange(Number(v) as PieceCount)}>
@@ -197,6 +198,16 @@ export function SplitSidePanel({
             </p>
           </section>
 
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold">이미지 정보</h3>
+            <div className="space-y-1.5 rounded-lg border bg-card p-3">
+              <InfoRow label="파일명" value={image.fileName} />
+              <InfoRow label="원본 크기" value={`${image.originalWidth} × ${image.originalHeight}px`} />
+              <InfoRow label="현재 크기" value={`${image.width} × ${image.height}px`} />
+              <InfoRow label="원본 용량" value={formatFileSize(image.fileSize)} />
+            </div>
+          </section>
+
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">저장</h3>
             <div className="space-y-2">
@@ -248,20 +259,6 @@ export function SplitSidePanel({
             <p className="text-xs text-muted-foreground">
               번호·분할선은 저장되지 않습니다. JPG의 투명 영역은 흰색으로 저장합니다. GIF는 정지 이미지로 분할합니다.
             </p>
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="text-sm font-semibold">이미지 정보</h3>
-            <div className="space-y-1.5 rounded-lg border bg-card p-3">
-              <InfoRow label="파일명" value={image.fileName} />
-              <InfoRow label="원본 크기" value={`${image.originalWidth} × ${image.originalHeight}px`} />
-              <InfoRow label="현재 크기" value={`${image.width} × ${image.height}px`} />
-              <InfoRow label="용량" value={formatFileSize(image.fileSize)} />
-            </div>
-            <Button type="button" variant="outline" className="w-full" onClick={onOpenNew}>
-              <FolderOpen className="mr-2 h-4 w-4" />
-              다른 이미지 열기
-            </Button>
           </section>
         </>
       )}

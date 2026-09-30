@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { matchingPreset, parsePx, presetError, scaledSize } from './size'
 
-describe('사진 크기 프리셋', () => {
+describe('이미지 크기 프리셋', () => {
   it('배율 크기(반올림)', () => {
     expect(scaledSize({ width: 409, height: 416 }, 2)).toEqual({ width: 818, height: 832 })
     expect(scaledSize({ width: 333, height: 101 }, 3)).toEqual({ width: 999, height: 303 })

@@ -22,7 +22,7 @@ interface SplitSizeSectionProps {
 const toValues = (size: Size) => ({ width: String(size.width), height: String(size.height) })
 
 /**
- * 「사진 크기」 — 분할 전에 전체 사진 크기를 바꾼다. 항상 원본에서 다시 리사이즈한다(호출하는 쪽).
+ * 「이미지 크기」 — 분할 전에 전체 이미지 크기를 바꾼다. 항상 원본에서 다시 리사이즈한다(호출하는 쪽).
  * 프리셋(원본 크기·2배·3배)은 입력칸만 채우고, 적용은 직접 입력과 같이 「크기 적용」으로 한다(이미지 편집과 동일).
  * 비율 유지는 원본 비율 기준(여러 번 바꿔도 비율 오차가 쌓이지 않게).
  */
@@ -64,7 +64,7 @@ export function SplitSizeSection({ idPrefix, original, current, busy, onApply }:
   return (
     <section className="space-y-4" aria-busy={busy}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">사진 크기</h3>
+        <h3 className="text-sm font-semibold">이미지 크기</h3>
         {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="크기 적용 중" />}
       </div>
 
@@ -132,7 +132,7 @@ export function SplitSizeSection({ idPrefix, original, current, busy, onApply }:
         크기 적용
       </Button>
       <p className="text-xs text-muted-foreground">
-        전체 사진 크기를 적용한 뒤 분할합니다. 항상 원본에서 다시 계산하므로 여러 번 바꿔도 화질이 떨어지지 않습니다.
+        전체 이미지 크기를 적용한 뒤 분할합니다. 항상 원본에서 다시 계산하므로 여러 번 바꿔도 화질이 떨어지지 않습니다.
         최대 한 변 {MAX_SIDE.toLocaleString()}px · 약 1,670만 px(4096×4096).
         {blocked.length > 0 && ` ${blocked.map((b) => b.preset.label).join('·')}는 상한을 넘어 쓸 수 없습니다.`}
       </p>

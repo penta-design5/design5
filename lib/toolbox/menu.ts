@@ -7,6 +7,7 @@ export const TOOLBOX_BASE_PATH = '/toolbox'
 
 export const TOOLBOX_MENU = [
   { slug: 'image-editor', label: '이미지 편집' },
+  { slug: 'image-splitter', label: '이미지 분할' },
 ] as const
 
 export type ToolboxSlug = (typeof TOOLBOX_MENU)[number]['slug']

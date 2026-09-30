@@ -8,6 +8,7 @@ import { createCheckerPattern } from '@/lib/toolbox/common/canvas'
 import { centerPosition, clampZoom, fitZoom, zoomAroundPoint, type Point } from '@/lib/toolbox/common/view'
 import { edgesOf, type Piece, type SplitLines } from '@/lib/toolbox/image-splitter/grid'
 import { ZoomControls } from '@/components/toolbox/common/ZoomControls'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 
 export type LineAxis = keyof SplitLines
 
@@ -15,11 +16,11 @@ interface SplitCanvasProps {
   canvas: HTMLCanvasElement
   width: number
   height: number
-  /** 이 값이 바뀌면(새 이미지) 화면 맞춤. 사진 크기만 바뀌면 배율을 유지한다 */
+  /** 이 값이 바뀌면(새 이미지) 화면 맞춤. 이미지 크기만 바뀌면 배율을 유지한다 */
   fitKey: unknown
   lines: SplitLines
   pieces: Piece[]
-  /** 선 이동 요청(fraction = 사진 기준 비율). 최소 간격 제한은 호출하는 쪽(moveLine)에서 처리 */
+  /** 선 이동 요청(fraction = 이미지 기준 비율). 최소 간격 제한은 호출하는 쪽(moveLine)에서 처리 */
   onLineChange: (axis: LineAxis, index: number, fraction: number) => void
 }
 
@@ -32,8 +33,11 @@ interface View extends Point {
   zoom: number
 }
 
-/** 누르고 있는 동안의 조작 — 분할선 이동 또는 화면 이동 */
-type Gesture = ({ kind: 'line' } & LineRef) | { kind: 'pan'; start: Point; origin: Point }
+/**
+ * 누르고 있는 동안의 조작 — 분할선 이동 또는 화면 이동.
+ * grabOffset = 누른 지점 - 선 위치(화면 px). 선 옆을 잡아도 선이 포인터로 튀지 않게 유지한다.
+ */
+type Gesture = ({ kind: 'line'; grabOffset: number } & LineRef) | { kind: 'pan'; start: Point; origin: Point }
 
 interface PinchState {
   distance: number
@@ -43,8 +47,9 @@ interface PinchState {
 
 const INDIGO = '#4f46e5'
 const BADGE_RADIUS = 15
-/** 선을 잡을 수 있는 폭(화면 px) */
+/** 선을 잡을 수 있는 폭(화면 px) — 터치 기기(pointer: coarse)는 손가락에 맞게 넓힌다(이미지 편집과 같은 값) */
 const HIT_WIDTH = 12
+const HIT_WIDTH_COARSE = 28
 const CURSOR: Record<LineAxis, string> = { xs: 'col-resize', ys: 'row-resize' }
 
 const sameLine = (a: LineRef | null, b: LineRef | null) => a?.axis === b?.axis && a?.index === b?.index
@@ -57,6 +62,7 @@ const sameLine = (a: LineRef | null, b: LineRef | null) => a?.axis === b?.axis &
  * 누른 뒤에는 window 포인터 이벤트로 따라가 캔버스 밖으로 나가도 끊기지 않는다.
  */
 export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLineChange }: SplitCanvasProps) {
+  const coarse = useMediaQuery('(pointer: coarse)')
   const containerRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<View>({ zoom: 1, x: 0, y: 0 })
@@ -93,7 +99,7 @@ export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLi
   )
 
   // 새 이미지·작업 영역 크기 변경 → 화면 맞춤
-  // 사진 크기만 변경 → 배율 유지(3배면 화면에서도 3배), 화면 가운데에 있던 지점을 그대로 가운데에 둔다
+  // 이미지 크기만 변경 → 배율 유지(3배면 화면에서도 3배), 화면 가운데에 있던 지점을 그대로 가운데에 둔다
   const prevLayout = useRef<{ fitKey: unknown; width: number; height: number; vw: number; vh: number } | null>(null)
   useLayoutEffect(() => {
     if (!size.width || !size.height) return
@@ -133,7 +139,10 @@ export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLi
         setView((prev) => ({ ...prev, x: gesture.origin.x + px - gesture.start.x, y: gesture.origin.y + py - gesture.start.y }))
         return
       }
-      const fraction = gesture.axis === 'xs' ? (px - v.x) / v.zoom / w : (py - v.y) / v.zoom / h
+      const fraction =
+        gesture.axis === 'xs'
+          ? (px - gesture.grabOffset - v.x) / v.zoom / w
+          : (py - gesture.grabOffset - v.y) / v.zoom / h
       change(gesture.axis, gesture.index, fraction)
     }
     const end = () => setGesture(null)
@@ -235,17 +244,17 @@ export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLi
 
   /**
    * 축소 상태에서는 최소 간격(8px)인 선들이 화면에서 몇 px 차이라 잡는 영역이 겹친다.
-   * 위에 그려진 선이 아니라 누른 위치에서 가장 가까운 같은 방향 선을 잡는다.
+   * 위에 그려진 선이 아니라 누른 위치에서 가장 가까운 같은 방향 선을 잡는다(누른 지점과 선의 거리는 유지).
    */
-  const nearestLine = (hit: LineRef, pointer: Point | null | undefined): LineRef => {
-    if (!pointer) return hit
+  const grabLine = (hit: LineRef, pointer: Point | null | undefined): Gesture => {
+    if (!pointer) return { kind: 'line', ...hit, grabOffset: 0 }
     const screen = hit.axis === 'xs' ? xEdges.map(sx) : yEdges.map(sy)
     const at = hit.axis === 'xs' ? pointer.x : pointer.y
     let index = hit.index
     screen.forEach((pos, i) => {
       if (Math.abs(pos - at) < Math.abs(screen[index] - at)) index = i
     })
-    return { axis: hit.axis, index }
+    return { kind: 'line', axis: hit.axis, index, grabOffset: at - screen[index] }
   }
 
   // hover(커서·강조)는 마우스 전용. Konva는 stage를 벗어날 때 도형에 mouseleave를 보낸다(pointerleave 아님)
@@ -255,7 +264,7 @@ export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLi
     onPointerDown: (e: Konva.KonvaEventObject<PointerEvent>) => {
       e.cancelBubble = true
       if (!acceptPointer(e)) return
-      setGesture({ kind: 'line', ...nearestLine(ref, e.target.getStage()?.getPointerPosition()) })
+      setGesture(grabLine(ref, e.target.getStage()?.getPointerPosition()))
     },
   })
 
@@ -270,7 +279,7 @@ export function SplitCanvas({ canvas, width, height, fitKey, lines, pieces, onLi
           points={points}
           stroke="transparent"
           strokeWidth={1}
-          hitStrokeWidth={HIT_WIDTH}
+          hitStrokeWidth={coarse ? HIT_WIDTH_COARSE : HIT_WIDTH}
           name={`split-line-${ref.axis}-${ref.index}`}
           {...lineHandlers(ref)}
         />
