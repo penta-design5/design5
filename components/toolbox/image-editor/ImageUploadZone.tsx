@@ -18,7 +18,7 @@ export function ImageUploadZone({ dragActive, disabled, onBrowse, className }: I
       onClick={onBrowse}
       disabled={disabled}
       className={cn(
-        'flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed bg-card p-8 text-center transition-colors',
+        'flex w-full flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed bg-card p-8 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         dragActive
           ? 'border-[var(--penta-indigo)] bg-[rgb(var(--penta-indigo-rgb)/0.05)]'
           : 'border-border hover:border-[rgb(var(--penta-indigo-rgb)/0.6)]',

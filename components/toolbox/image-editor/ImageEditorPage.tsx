@@ -22,6 +22,7 @@ import {
   historyLimitFor,
   pushHistory,
   redoHistory,
+  replacePresent,
   undoHistory,
   type History,
 } from '@/lib/toolbox/image-editor/history'
@@ -76,6 +77,7 @@ import {
   type WatermarkSettings,
 } from '@/lib/toolbox/image-editor/watermark'
 import { renderWatermarked } from '@/lib/toolbox/image-editor/watermark-render'
+import { nudgeDelta } from '@/lib/toolbox/image-editor/shortcuts'
 import { AnnotationPanel } from './AnnotationPanel'
 import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
@@ -83,6 +85,7 @@ import { EditorToolbar, ZoomControls } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
 import { ImageUploadZone } from './ImageUploadZone'
 import { ResizePanel } from './ResizePanel'
+import { ShortcutHelpDialog } from './ShortcutHelpDialog'
 import {
   DEFAULT_ROTATION_DRAFT,
   TransformPanel,
@@ -121,6 +124,14 @@ const isTypingTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 
+/** 다이얼로그·Sheet 안에 포커스가 있으면 편집 단축키를 쓰지 않음 */
+const isInDialog = (target: EventTarget | null) => target instanceof HTMLElement && !!target.closest('[role=dialog]')
+
+/** 방향키를 자체적으로 쓰는 위젯(슬라이더·목록 등)에 포커스가 있으면 방향키 이동을 하지 않음 */
+const usesArrowKeys = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  !!target.closest('[role=slider],[role=listbox],[role=menu],[role=radiogroup],[role=tablist],[role=combobox]')
+
 /**
  * TOOLBOX「이미지 편집」 — 모든 처리는 브라우저에서만 수행(서버 전송 없음).
  * 레이아웃: 좌측 작업 영역 + 우측 410px 옵션 패널(xl 이상). xl 미만은 「편집 옵션」 Sheet(모바일 하단 / 태블릿 오른쪽).
@@ -157,6 +168,9 @@ export function ImageEditorPage() {
   const [watermark, setWatermark] = useState<WatermarkSettings>(DEFAULT_WATERMARK_SETTINGS)
   const [watermarkLogo, setWatermarkLogo] = useState<WatermarkLogo | null>(null)
   const watermarkRestored = useRef(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  // 방향키를 누르고 있는 동안의 이동은 실행취소 1단계로 묶는다(첫 이동만 기록 추가, 이후는 현재 상태 교체 — 키를 떼면 종료)
+  const nudgingRef = useRef(false)
 
   const doc = history?.present ?? null
   const isDirty = history ? canUndo(history) : false
@@ -363,6 +377,34 @@ export function ImageEditorPage() {
     if (next !== doc.annotations) commitAnnotations(next)
   }
 
+  /** 선택 개체 방향키 이동 — 최신 히스토리 기준으로 계산(키 반복이 렌더보다 빨라도 누락 없음) */
+  const nudgeSelected = (id: string, dx: number, dy: number) => {
+    const continuing = nudgingRef.current
+    nudgingRef.current = true
+    setHistory((h) => {
+      if (!h) return h
+      const current = h.present
+      const next = {
+        ...current,
+        annotations: updateAnnotation(current.annotations, id, (a) => ({ ...a, x: a.x + dx, y: a.y + dy })),
+      }
+      return continuing ? replacePresent(h, next) : pushHistory(h, next, historyLimitFor(next.width, next.height))
+    })
+  }
+
+  useEffect(() => {
+    const endNudge = (e?: KeyboardEvent) => {
+      if (!e || e.key.startsWith('Arrow')) nudgingRef.current = false
+    }
+    const handleBlur = () => endNudge()
+    window.addEventListener('keyup', endNudge)
+    window.addEventListener('blur', handleBlur)
+    return () => {
+      window.removeEventListener('keyup', endNudge)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [])
+
   const changeTool = (next: EditorTool) => {
     setTool(next)
     if (next !== 'select') setSelectedId(null)
@@ -440,16 +482,30 @@ export function ImageEditorPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // 편집 단축키: 도구(V/P/H/L/A/R/O/T), 자르기(C), 삭제(Delete/Backspace), 복제(⌘/Ctrl+D), 선택 해제(Esc)
-  const editKeysRef = useRef({ hasDoc: false, crop: false, selected: null as Annotation | null, changeTool, toggleCrop, deleteAnnotation, duplicateSelected })
+  // 편집 단축키: 도구(V/P/H/L/A/R/O/T), 자르기(C), 삭제(Delete/Backspace), 복제(⌘/Ctrl+D), 선택 해제(Esc),
+  // 방향키 이동(Shift 10px), 도움말(?) — 목록: lib/toolbox/image-editor/shortcuts.ts
+  const editKeysRef = useRef({ hasDoc: false, crop: false, selected: null as Annotation | null, changeTool, toggleCrop, deleteAnnotation, duplicateSelected, nudgeSelected })
   useEffect(() => {
-    editKeysRef.current = { hasDoc: !!doc, crop: !!crop, selected, changeTool, toggleCrop, deleteAnnotation, duplicateSelected }
+    editKeysRef.current = { hasDoc: !!doc, crop: !!crop, selected, changeTool, toggleCrop, deleteAnnotation, duplicateSelected, nudgeSelected }
   })
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = editKeysRef.current
-      if (!k.hasDoc || isTypingTarget(e.target) || e.isComposing) return
+      if (!k.hasDoc || isTypingTarget(e.target) || isInDialog(e.target) || e.isComposing) return
       const key = e.key.toLowerCase()
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        setShortcutsOpen(true)
+        return
+      }
+      const delta = nudgeDelta(e.key, e.shiftKey)
+      if (delta && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (k.selected && !k.crop && !usesArrowKeys(e.target)) {
+          e.preventDefault()
+          k.nudgeSelected(k.selected.id, delta.dx, delta.dy)
+        }
+        return
+      }
       if ((e.metaKey || e.ctrlKey) && key === 'd') {
         if (k.selected) {
           e.preventDefault()
@@ -624,6 +680,7 @@ export function ImageEditorPage() {
                 onApplyCrop={applyCrop}
                 tool={tool}
                 onToolChange={changeTool}
+                onShowShortcuts={() => setShortcutsOpen(true)}
               />
               <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100 dark:bg-neutral-800">
                 <EditorCanvas
@@ -684,6 +741,8 @@ export function ImageEditorPage() {
           </EditorSidePanel>
         </SheetContent>
       </Sheet>
+
+      <ShortcutHelpDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       <input ref={fileInputRef} type="file" accept={FILE_INPUT_ACCEPT} className="hidden" onChange={handleFileInputChange} />
     </div>

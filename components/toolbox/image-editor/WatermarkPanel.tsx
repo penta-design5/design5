@@ -155,7 +155,7 @@ export function WatermarkPanel({ settings, logo, onChange, onLogoFile, onLogoRem
                       aria-pressed={settings.color === color}
                       onClick={() => onChange({ color })}
                       className={cn(
-                        'h-6 w-6 rounded-full border shadow-sm transition-transform hover:scale-110',
+                        'h-6 w-6 rounded-full border shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                         settings.color === color && 'ring-2 ring-[var(--penta-indigo)] ring-offset-1'
                       )}
                       style={{ backgroundColor: color }}
@@ -310,7 +310,7 @@ export function WatermarkPanel({ settings, logo, onChange, onLogoFile, onLogoRem
                       title={WATERMARK_POSITION_LABELS[position]}
                       onClick={() => onChange({ position })}
                       className={cn(
-                        'flex h-8 w-10 items-center justify-center rounded transition-colors hover:bg-muted',
+                        'flex h-8 w-10 items-center justify-center rounded transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                         settings.position === position && 'bg-[var(--penta-indigo)] hover:bg-[var(--penta-indigo)]'
                       )}
                     >

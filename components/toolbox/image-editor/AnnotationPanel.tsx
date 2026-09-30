@@ -69,7 +69,7 @@ export function AnnotationPanel({ tool, style, selected, onStyleChange, onDuplic
                   aria-pressed={style.color === color}
                   onClick={() => onStyleChange({ color }, true)}
                   className={cn(
-                    'h-6 w-6 rounded-full border shadow-sm transition-transform hover:scale-110',
+                    'h-6 w-6 rounded-full border shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                     style.color === color && 'ring-2 ring-[var(--penta-indigo)] ring-offset-1'
                   )}
                   style={{ backgroundColor: color }}

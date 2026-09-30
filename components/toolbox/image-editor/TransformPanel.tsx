@@ -93,7 +93,7 @@ export function TransformPanel({ size, draft, onDraftChange, onRotate90, onFlip,
             <span className="text-sm text-muted-foreground">°</span>
           </div>
         </div>
-        <Slider value={[draft.angle]} min={-180} max={180} step={1} onValueChange={([value]) => setAngle(value)} />
+        <Slider aria-label="자유 회전 각도" value={[draft.angle]} min={-180} max={180} step={1} onValueChange={([value]) => setAngle(value)} />
 
         <div className="space-y-2">
           <Label>빈 영역</Label>

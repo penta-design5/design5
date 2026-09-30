@@ -449,6 +449,8 @@ export const EditorCanvas = forwardRef<EditorCanvasHandle, EditorCanvasProps>(fu
   return (
     <div
       ref={containerRef}
+      role="region"
+      aria-label="편집 캔버스 (단축키 도움말: ? 키)"
       className={cn(
         'absolute inset-0 touch-none',
         drawing ? (tool === 'text' ? 'cursor-text' : 'cursor-crosshair') : 'cursor-grab active:cursor-grabbing'

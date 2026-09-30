@@ -27,6 +27,14 @@ export function pushHistory<T>(history: History<T>, next: T, limit: number = HIS
   }
 }
 
+/**
+ * 현재 상태만 교체(기록 추가 없음) — 연속 동작(방향키를 누르고 있는 동안의 이동 등)을 실행취소 1단계로 묶을 때,
+ * 첫 동작은 pushHistory, 이어지는 동작은 replacePresent를 쓴다. 다시실행 목록은 비운다.
+ */
+export function replacePresent<T>(history: History<T>, next: T): History<T> {
+  return { past: history.past, present: next, future: [] }
+}
+
 export function undoHistory<T>(history: History<T>): History<T> {
   if (history.past.length === 0) return history
   const previous = history.past[history.past.length - 1]

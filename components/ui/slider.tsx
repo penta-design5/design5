@@ -12,7 +12,7 @@ interface SliderProps extends React.ComponentPropsWithoutRef<typeof SliderPrimit
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
   SliderProps
->(({ className, variant = 'default', ...props }, ref) => (
+>(({ className, variant = 'default', 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledby, ...props }, ref) => (
   <SliderPrimitive.Root
     ref={ref}
     className={cn(
@@ -27,7 +27,8 @@ const Slider = React.forwardRef<
     )}>
       <SliderPrimitive.Range className="absolute h-full bg-primary" />
     </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className={cn(
+    {/* 접근성 이름은 실제 조작 대상(role=slider)인 Thumb에 붙인다 */}
+    <SliderPrimitive.Thumb aria-label={ariaLabel} aria-labelledby={ariaLabelledby} className={cn(
       "block rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
       variant === 'small' ? 'h-3.5 w-3.5' : 'h-5 w-5'
     )} />

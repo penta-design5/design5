@@ -77,7 +77,7 @@ export function ResizePanel({ size, onApply }: ResizePanelProps) {
               aria-pressed={unit === u}
               onClick={() => changeUnit(u)}
               className={cn(
-                'rounded px-2.5 py-0.5 text-xs transition-colors',
+                'rounded px-2.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 unit === u ? 'bg-[var(--penta-indigo)] text-white' : 'text-muted-foreground hover:text-foreground'
               )}
             >

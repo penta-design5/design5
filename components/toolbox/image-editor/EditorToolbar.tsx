@@ -17,6 +17,7 @@ import {
   FlipVertical2,
   FolderOpen,
   History as HistoryIcon,
+  Keyboard,
   Maximize,
   Redo2,
   RotateCcwSquare,
@@ -60,6 +61,7 @@ interface EditorToolbarProps {
   onApplyCrop: () => void
   tool: EditorTool
   onToolChange: (tool: EditorTool) => void
+  onShowShortcuts: () => void
 }
 
 function ToolButton({
@@ -123,6 +125,7 @@ export function EditorToolbar({
   onApplyCrop,
   tool,
   onToolChange,
+  onShowShortcuts,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={300}>
@@ -183,6 +186,9 @@ export function EditorToolbar({
             </ToolButton>
             <ToolButton label="새 이미지 열기" onClick={onOpenNew}>
               <FolderOpen className="h-4 w-4" />
+            </ToolButton>
+            <ToolButton label="단축키 (?)" onClick={onShowShortcuts}>
+              <Keyboard className="h-4 w-4" />
             </ToolButton>
           </div>
         </div>
