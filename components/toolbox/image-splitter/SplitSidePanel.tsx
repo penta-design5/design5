@@ -1,18 +1,23 @@
 'use client'
 
-import { FolderOpen, Loader2, PackageOpen } from 'lucide-react'
+import { FolderOpen, Loader2, PackageOpen, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { formatFileSize } from '@/lib/design-request-attachments'
 import { sanitizeFileName } from '@/lib/toolbox/common/export'
 import {
+  MIN_PIECE_PX,
   PIECE_COUNTS,
   SPLIT_ORDER_OPTIONS,
+  edgesOf,
+  isEqualLines,
   pieceFileName,
   type PieceCount,
+  type SplitLines,
   type SplitOrder,
 } from '@/lib/toolbox/image-splitter/grid'
 
@@ -28,10 +33,13 @@ interface SplitSidePanelProps {
   image: SplitImageInfo | null
   count: PieceCount
   order: SplitOrder
+  lines: SplitLines
   baseName: string
   saving: boolean
   onCountChange: (count: PieceCount) => void
   onOrderChange: (order: SplitOrder) => void
+  onLineChange: (axis: keyof SplitLines, index: number, fraction: number) => void
+  onResetLines: () => void
   onBaseNameChange: (name: string) => void
   onSave: () => void
   onOpenNew: () => void
@@ -52,10 +60,13 @@ export function SplitSidePanel({
   image,
   count,
   order,
+  lines,
   baseName,
   saving,
   onCountChange,
   onOrderChange,
+  onLineChange,
+  onResetLines,
   onBaseNameChange,
   onSave,
   onOpenNew,
@@ -63,6 +74,20 @@ export function SplitSidePanel({
   const isSheet = variant === 'sheet'
   const orderOption = SPLIT_ORDER_OPTIONS.find((o) => o.value === order) ?? SPLIT_ORDER_OPTIONS[0]
   const safeBase = sanitizeFileName(baseName)
+  const size = image ? { width: image.width, height: image.height } : null
+  const linesEqual = size ? isEqualLines(lines, count, size) : true
+
+  // 선별 슬라이더 — 표시 px = 실제 저장 경계(edgesOf)와 동일
+  const lineSliders = size
+    ? [
+        ...edgesOf(lines.xs, size.width)
+          .slice(1, -1)
+          .map((px, index) => ({ axis: 'xs' as const, index, px, length: size.width, label: `세로선 ${index + 1}`, coord: 'X' })),
+        ...edgesOf(lines.ys, size.height)
+          .slice(1, -1)
+          .map((px, index) => ({ axis: 'ys' as const, index, px, length: size.height, label: `가로선 ${index + 1}`, coord: 'Y' })),
+      ].map((s) => ({ ...s, key: `${s.axis}${s.index}` }))
+    : []
 
   return (
     <div
@@ -110,6 +135,33 @@ export function SplitSidePanel({
               </Select>
               <p className="text-xs text-muted-foreground">{orderOption.hint}</p>
             </div>
+            <Button type="button" variant="outline" className="w-full" onClick={onResetLines} disabled={linesEqual}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              균등 분할로 초기화
+            </Button>
+            <div className="space-y-4">
+              {lineSliders.map((s) => (
+                <div key={s.key} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>{s.label}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {s.coord} {s.px}px
+                    </span>
+                  </div>
+                  <Slider
+                    aria-label={`${s.label} 위치`}
+                    value={[s.px]}
+                    min={0}
+                    max={s.length}
+                    step={1}
+                    onValueChange={([value]) => onLineChange(s.axis, s.index, value / s.length)}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              분할선을 드래그하거나 선 위치 슬라이더로 조각 크기를 조절하세요. 조각은 최소 {MIN_PIECE_PX}px입니다.
+            </p>
           </section>
 
           <section className="space-y-4">

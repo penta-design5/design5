@@ -63,6 +63,45 @@ export function edgesOf(fractions: number[], length: number): number[] {
   return edges
 }
 
+/** 조각 최소 크기(px, 현재 사진 기준) — 선끼리·가장자리에 붙어 조각이 사라지거나 잡을 수 없게 되는 것 방지 */
+export const MIN_PIECE_PX = 8
+
+/** 실제 적용할 최소 간격(px). 작은 이미지라 균등 분할도 8px이 안 되면 균등 간격을 상한으로 한다(최소 1px) */
+export function minPiecePx(length: number, lineCount: number): number {
+  return Math.max(1, Math.min(MIN_PIECE_PX, Math.floor(length / (lineCount + 1))))
+}
+
+/**
+ * 선 하나를 옮긴다(value = 비율). 정수 px로 맞춘 뒤 이웃 선·가장자리와 최소 간격을 지키도록 제한한다.
+ * 결과는 비율 배열 — 바뀐 게 없으면 같은 배열을 그대로 돌려준다(불필요한 리렌더 방지).
+ */
+export function moveLine(fractions: number[], index: number, value: number, length: number): number[] {
+  if (index < 0 || index >= fractions.length || length <= 0 || !Number.isFinite(value)) return fractions
+  const gap = minPiecePx(length, fractions.length)
+  const prevEdge = index === 0 ? 0 : Math.round(fractions[index - 1] * length)
+  const nextEdge = index === fractions.length - 1 ? length : Math.round(fractions[index + 1] * length)
+  const lo = prevEdge + gap
+  const hi = nextEdge - gap
+  if (lo > hi) return fractions
+  const px = Math.min(hi, Math.max(lo, Math.round(value * length)))
+  const next = px / length
+  if (next === fractions[index]) return fractions
+  const result = [...fractions]
+  result[index] = next
+  return result
+}
+
+/** 현재 선이 균등 분할과 같은지(현재 사진 px 기준) — 「균등 분할로 초기화」 비활성 판별 */
+export function isEqualLines(lines: SplitLines, count: PieceCount, size: Size): boolean {
+  const equal = equalLines(count)
+  const same = (a: number[], b: number[], length: number) => {
+    if (a.length !== b.length) return false
+    const target = edgesOf(b, length)
+    return edgesOf(a, length).every((e, i) => e === target[i])
+  }
+  return same(lines.xs, equal.xs, size.width) && same(lines.ys, equal.ys, size.height)
+}
+
 /** 분할선 + 사진 크기 → 조각 목록(저장 순서대로, index 1부터) */
 export function computePieces(size: Size, lines: SplitLines, order: SplitOrder): Piece[] {
   const xEdges = edgesOf(lines.xs, size.width)

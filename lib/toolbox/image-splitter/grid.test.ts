@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { GRID_SHAPES, PIECE_COUNTS, computePieces, edgesOf, equalLines, gridSummary, pieceFileName } from './grid'
+import {
+  GRID_SHAPES,
+  MIN_PIECE_PX,
+  PIECE_COUNTS,
+  computePieces,
+  edgesOf,
+  equalLines,
+  gridSummary,
+  isEqualLines,
+  minPiecePx,
+  moveLine,
+  pieceFileName,
+} from './grid'
 
 describe('격자 모양 — 항상 가로 기준 고정', () => {
   it('2 = 2×1, 4 = 2×2, 8 = 4×2, 16 = 4×4', () => {
@@ -63,6 +75,57 @@ describe('edgesOf — 반올림 후에도 오름차순·최소 1px', () => {
     expect(edgesOf([0.5, 0.5, 0.5], 10)).toEqual([0, 5, 6, 7, 10])
     expect(edgesOf([0, 1], 5)).toEqual([0, 1, 4, 5])
     expect(edgesOf([0.5], 2)).toEqual([0, 1, 2])
+  })
+})
+
+describe('moveLine — 정수 px·최소 조각 크기', () => {
+  it('정수 px로 맞춰 비율로 저장한다', () => {
+    const next = moveLine([0.5], 0, 0.3004, 1000)
+    expect(next).toEqual([0.3])
+  })
+
+  it('가장자리에서 최소 8px을 남긴다', () => {
+    expect(moveLine([0.5], 0, 0, 400)).toEqual([8 / 400])
+    expect(moveLine([0.5], 0, 1.2, 400)).toEqual([392 / 400])
+  })
+
+  it('이웃 선을 넘거나 붙지 않는다', () => {
+    const xs = equalLines(8).xs // 0.25 0.5 0.75
+    expect(moveLine(xs, 1, 0.1, 400)).toEqual([0.25, 108 / 400, 0.75])
+    expect(moveLine(xs, 1, 0.9, 400)).toEqual([0.25, 292 / 400, 0.75])
+  })
+
+  it('옮긴 뒤 조각은 모두 최소 크기 이상이고 전체를 덮는다', () => {
+    let xs = equalLines(16).xs
+    // 오른쪽 선부터 끝까지 밀기 → 오른쪽 세 조각이 최소 크기
+    xs = moveLine(xs, 2, 1, 409)
+    xs = moveLine(xs, 1, 1, 409)
+    xs = moveLine(xs, 0, 1, 409)
+    const pieces = computePieces({ width: 409, height: 100 }, { xs, ys: [] }, 'row')
+    expect(pieces.map((p) => p.width)).toEqual([385, 8, 8, 8])
+    expect(pieces.reduce((s, p) => s + p.width, 0)).toBe(409)
+  })
+
+  it('작은 이미지는 균등 간격이 최소 간격의 상한', () => {
+    expect(minPiecePx(20, 3)).toBe(5)
+    expect(minPiecePx(3, 3)).toBe(1)
+    expect(minPiecePx(1000, 1)).toBe(MIN_PIECE_PX)
+  })
+
+  it('바뀐 게 없거나 잘못된 입력이면 같은 배열을 돌려준다', () => {
+    const xs = [0.5]
+    expect(moveLine(xs, 0, 0.5, 400)).toBe(xs)
+    expect(moveLine(xs, 3, 0.2, 400)).toBe(xs)
+    expect(moveLine(xs, 0, Number.NaN, 400)).toBe(xs)
+  })
+})
+
+describe('isEqualLines', () => {
+  it('균등이면 true, 선을 옮기면 false, 사진 px 기준 반올림 차이는 무시', () => {
+    const size = { width: 409, height: 416 }
+    expect(isEqualLines(equalLines(4), 4, size)).toBe(true)
+    expect(isEqualLines({ xs: [205 / 409], ys: [0.5] }, 4, size)).toBe(true)
+    expect(isEqualLines({ xs: [0.3], ys: [0.5] }, 4, size)).toBe(false)
   })
 })
 

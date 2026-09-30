@@ -16,12 +16,13 @@ import {
   computePieces,
   equalLines,
   gridSummary,
+  moveLine,
   type PieceCount,
   type SplitOrder,
 } from '@/lib/toolbox/image-splitter/grid'
 import { buildSplitZip } from '@/lib/toolbox/image-splitter/split'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
-import { SplitCanvas } from './SplitCanvas'
+import { SplitCanvas, type LineAxis } from './SplitCanvas'
 import { SplitSidePanel, type SplitImageInfo } from './SplitSidePanel'
 
 interface LoadedImage extends SplitImageInfo {
@@ -71,12 +72,14 @@ export function ImageSplitterPage() {
       const fileName = file.name || 'image.png'
       setImage({ canvas, width: canvas.width, height: canvas.height, fileName, fileSize: file.size })
       setBaseName(baseNameOf(fileName))
+      // 조각 수·배치는 유지하고, 이전 사진에 맞춰 옮긴 분할선은 균등으로 되돌린다
+      setLines(equalLines(count))
     } catch (e) {
       toast.error(e instanceof ImageLoadError ? e.message : '이미지를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [count])
 
   // 클립보드 붙여넣기 (이미지가 있을 때만 가로챔 — 입력창 텍스트 붙여넣기는 그대로)
   useEffect(() => {
@@ -123,6 +126,21 @@ export function ImageSplitterPage() {
     setLines(equalLines(next))
   }
 
+  const resetLines = () => setLines(equalLines(count))
+
+  /** 캔버스 드래그·슬라이더 공용 — 최소 조각 크기·이웃 선 제한은 moveLine이 처리 */
+  const changeLine = useCallback(
+    (axis: LineAxis, index: number, fraction: number) => {
+      if (!image) return
+      const length = axis === 'xs' ? image.width : image.height
+      setLines((prev) => {
+        const next = moveLine(prev[axis], index, fraction, length)
+        return next === prev[axis] ? prev : { ...prev, [axis]: next }
+      })
+    },
+    [image]
+  )
+
   const save = async () => {
     if (!image) return
     setSaving(true)
@@ -145,10 +163,13 @@ export function ImageSplitterPage() {
     image,
     count,
     order,
+    lines,
     baseName,
     saving,
     onCountChange: changeCount,
     onOrderChange: setOrder,
+    onLineChange: changeLine,
+    onResetLines: resetLines,
     onBaseNameChange: setBaseName,
     onSave: save,
     onOpenNew: browse,
@@ -176,7 +197,14 @@ export function ImageSplitterPage() {
           {image ? (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100">
-                <SplitCanvas canvas={image.canvas} width={image.width} height={image.height} pieces={pieces} />
+                <SplitCanvas
+                  canvas={image.canvas}
+                  width={image.width}
+                  height={image.height}
+                  lines={lines}
+                  pieces={pieces}
+                  onLineChange={changeLine}
+                />
                 {dragActive && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--penta-indigo)] bg-[rgb(var(--penta-indigo-rgb)/0.1)] text-sm font-medium">
                     여기에 놓으면 새 이미지로 교체됩니다
