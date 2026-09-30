@@ -8,6 +8,7 @@ import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
 import { ZOOM_STEP } from '@/lib/toolbox/common/constants'
 import { centerPosition, clampZoom, fitZoom, zoomAroundPoint } from '@/lib/toolbox/common/view'
+import { createCheckerPattern } from '@/lib/toolbox/common/canvas'
 import { rotatedBounds } from '@/lib/toolbox/image-editor/transform'
 import type { CropRect } from '@/lib/toolbox/image-editor/crop'
 import {
@@ -73,22 +74,6 @@ interface TextEditState {
   font: TextFont
   color: string
   bold: boolean
-}
-
-/** 투명 영역 표시용 체크무늬 패턴 (8px 칸) */
-function createCheckerPattern(): HTMLCanvasElement {
-  const canvas = document.createElement('canvas')
-  canvas.width = 16
-  canvas.height = 16
-  const ctx = canvas.getContext('2d')
-  if (ctx) {
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, 16, 16)
-    ctx.fillStyle = '#e5e7eb'
-    ctx.fillRect(0, 0, 8, 8)
-    ctx.fillRect(8, 8, 8, 8)
-  }
-  return canvas
 }
 
 const TEXT_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']

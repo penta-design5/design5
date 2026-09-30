@@ -81,3 +81,19 @@ export function resizeCanvas(source: HTMLCanvasElement, width: number, height: n
   ctx.drawImage(current, 0, 0, width, height)
   return canvas
 }
+
+/** 투명 영역 표시용 체크무늬 패턴 (8px 칸) */
+export function createCheckerPattern(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = 16
+  canvas.height = 16
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, 16, 16)
+    ctx.fillStyle = '#e5e7eb'
+    ctx.fillRect(0, 0, 8, 8)
+    ctx.fillRect(8, 8, 8, 8)
+  }
+  return canvas
+}

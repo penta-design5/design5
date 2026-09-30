@@ -75,7 +75,7 @@ import { CropPanel, type CropState } from './CropPanel'
 import { EditorCanvas, type EditorCanvasHandle } from './EditorCanvas'
 import { EditorToolbar, ShortcutHint, ZoomControls } from './EditorToolbar'
 import { EditorSidePanel, type ExportSettings, type LoadedImageInfo } from './EditorSidePanel'
-import { ImageUploadZone } from './ImageUploadZone'
+import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
 import { ResizePanel } from './ResizePanel'
 import { ShortcutHelpDialog } from './ShortcutHelpDialog'
 import {

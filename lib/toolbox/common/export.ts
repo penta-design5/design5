@@ -11,10 +11,19 @@ export const DEFAULT_EXPORT_QUALITY = 0.92
 export const getExportFormat = (format: ExportFormat) =>
   EXPORT_FORMATS.find((f) => f.value === format) ?? EXPORT_FORMATS[0]
 
+/** 원본 파일명에서 확장자를 뗀 이름 (비면 `image`) */
+export function baseNameOf(originalName: string): string {
+  return originalName.replace(/\.[^./\\]+$/, '').trim() || 'image'
+}
+
 /** 원본 파일명에서 확장자를 뗀 기본 이름 + `_edited` */
 export function defaultExportBaseName(originalName: string): string {
-  const base = originalName.replace(/\.[^./\\]+$/, '').trim()
-  return `${base || 'image'}_edited`
+  return `${baseNameOf(originalName)}_edited`
+}
+
+/** 파일명에 쓸 수 없는 문자 치환 (비면 fallback) */
+export function sanitizeFileName(name: string, fallback = 'image'): string {
+  return name.replace(/[\\/:*?"<>|]/g, '_').trim() || fallback
 }
 
 /** 파일명에 쓸 수 없는 문자 제거 + 확장자 부착 */

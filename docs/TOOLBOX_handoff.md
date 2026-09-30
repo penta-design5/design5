@@ -7,8 +7,8 @@
 - 최초 작성: 2026-09-28 · 허브/메뉴 문서 분리: 2026-09-30
 - **현재 상태**
   - ✅ 이미지 편집 완료 (2026-09-30, 개발망 확인)
-  - 🟡 **이미지 분할 P0 ✅ (공용 모듈 이동 + 라우트 골격), P1 착수 대기** → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
-- **다음 세션 시작점**: 이미지 분할 P1(불러오기 + 균등 분할 + 배치 번호 + ZIP 저장)
+  - 🟡 **이미지 분할 P0·P1 ✅ · P2 착수 대기** → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
+- **다음 세션 시작점**: 이미지 분할 P2(분할선 드래그·슬라이더) — [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) 기준
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -40,7 +40,7 @@
 | # | 메뉴 | slug(안) | 주요 기능 | 처리 방식 | 상태 · 문서 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | **이미지 편집** | `image-editor` | 회전/반전(각도 조정), 사이즈 변경(비율 유지), 자르기, 텍스트·도형(펜, 형광펜, 직선, 화살표, 사각형, 원), 워터마크 삽입 | 브라우저 (Canvas/Konva) | ✅ 완료 · [TOOLBOX_image-editor_handoff.md](TOOLBOX_image-editor_handoff.md) |
-| 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | 🟡 P0 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
+| 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | 🟡 P1 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
 | 3 | 배경 제거 및 변경 | `background-remover` | 배경 제거, 단색/이미지 배경 교체 | ⚠️ **AI 모델 필요 — §2-1 검토 후 결정** | ⬜ 로드맵 |
 | 4 | 이미지 모자이크 | `mosaic` | 격자형, 육각·삼각형, 원형, 블러, 픽셀아트 등 | 브라우저 (픽셀 연산, **AI 불필요** — §2-2) | ⬜ 로드맵 |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·크기·로고, PNG/SVG 다운로드 | 브라우저 (QR 라이브러리, 예: `qrcode`) | ⬜ 로드맵 |
@@ -112,14 +112,14 @@
 | --- | --- |
 | `constants.ts` | 입력 20MB · 캔버스 16,777,216px(4096², Safari 한계) · 지원 형식 · 줌 상수 |
 | `load.ts` | 형식·용량·픽셀 검증(HEIC 안내, MIME 없으면 확장자), **EXIF 방향 보정 디코딩**(`decodeImageFile` → canvas), 클립보드 이미지 추출 |
-| `export.ts` | 형식(PNG/JPG/WebP)·품질·파일명 정리·인코딩(JPG 투명 → 흰색, 미지원 형식 안내)·다운로드 |
-| `canvas.ts` | `Size`·`MAX_SIDE`·`validateOutputSize`(결과 크기 상한)·`resolveResize`·`linkedDimension`(비율 유지 입력)·`createCanvas`·`resizeCanvas`(고품질 단계적 축소) — 새 캔버스 반환 |
+| `export.ts` | 형식(PNG/JPG/WebP)·품질·파일명(`baseNameOf`·`sanitizeFileName`)·인코딩(JPG 투명 → 흰색, 미지원 형식 안내)·다운로드 |
+| `canvas.ts` | `Size`·`MAX_SIDE`·`validateOutputSize`(결과 크기 상한)·`resolveResize`·`linkedDimension`(비율 유지 입력)·`createCanvas`·`resizeCanvas`(고품질 단계적 축소)·`createCheckerPattern`(투명 표시) — 새 캔버스 반환 |
 | `view.ts` | 화면 맞춤·중앙 정렬·기준점 줌 |
 | (이미지 편집 전용) `image-editor/history.ts` | 불변 스냅샷 undo/redo(`pushHistory`·`replacePresent`), 이미지 크기별 단계 상한 — 필요한 메뉴가 생기면 common으로 옮긴다 |
 | `lib/hooks/use-media-query.ts` | 범용 미디어 쿼리 훅(xl 기준·`pointer: coarse`) |
 
 UI 패턴 참고(`components/toolbox/image-editor/`):
-- `ImageUploadZone`(클릭·드롭·붙여넣기 안내)
+- **`components/toolbox/common/ImageUploadZone`**(클릭·드롭·붙여넣기 안내 — 공용, 이미지 분할 P1에서 이동)
 - `EditorSidePanel`(우측 패널 + Sheet 공용)
 - `ZoomControls`·`ShortcutHint`(캔버스 위에 떠 있는 컨트롤)
 - 핀치 줌 처리(`EditorCanvas`)
