@@ -18,13 +18,10 @@ import {
   FolderOpen,
   History as HistoryIcon,
   Keyboard,
-  Maximize,
   Redo2,
   RotateCcwSquare,
   RotateCwSquare,
   Undo2,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react'
 import type { FlipDirection } from '@/lib/toolbox/image-editor/transform'
 import { TOOL_LABELS, TOOL_SHORTCUTS, type EditorTool } from '@/lib/toolbox/image-editor/annotations'
@@ -107,7 +104,7 @@ function ToolButton({
 const Divider = () => <div className="mx-1 h-5 w-px shrink-0 bg-border" />
 
 /**
- * 상단 툴바 — 실행취소/다시실행·그리기 도구·자르기·회전/반전·원본 복원·새 이미지 (줌은 캔버스 위 `ZoomControls`).
+ * 상단 툴바 — 실행취소/다시실행·그리기 도구·자르기·회전/반전·원본 복원·새 이미지 (줌은 캔버스 위 공용 `components/toolbox/common/ZoomControls`).
  * 폭이 좁으면 줄바꿈 대신 한 줄 가로 스크롤(양 끝 페이드) — 캔버스 높이 확보.
  */
 export function EditorToolbar({
@@ -214,46 +211,5 @@ export function ShortcutHint({ onClick }: { onClick: () => void }) {
       </kbd>
       단축키
     </button>
-  )
-}
-
-interface ZoomControlsProps {
-  zoomPercent: number
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onFit: () => void
-  onActualSize: () => void
-}
-
-/** 캔버스 오른쪽 아래에 떠 있는 줌 컨트롤 */
-export function ZoomControls({ zoomPercent, onZoomIn, onZoomOut, onFit, onActualSize }: ZoomControlsProps) {
-  return (
-    <TooltipProvider delayDuration={300}>
-      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-lg border bg-card/95 px-1 py-0.5 shadow-sm">
-        <ToolButton label="축소" onClick={onZoomOut}>
-          <ZoomOut className="h-4 w-4" />
-        </ToolButton>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-8 min-w-[52px] px-1.5 text-xs tabular-nums"
-              onClick={onActualSize}
-              aria-label="100%로 보기"
-            >
-              {zoomPercent}%
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>100%로 보기</TooltipContent>
-        </Tooltip>
-        <ToolButton label="확대" onClick={onZoomIn}>
-          <ZoomIn className="h-4 w-4" />
-        </ToolButton>
-        <ToolButton label="화면에 맞추기" onClick={onFit}>
-          <Maximize className="h-4 w-4" />
-        </ToolButton>
-      </div>
-    </TooltipProvider>
   )
 }

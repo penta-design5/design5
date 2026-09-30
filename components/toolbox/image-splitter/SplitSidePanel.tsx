@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { formatFileSize } from '@/lib/design-request-attachments'
-import { sanitizeFileName } from '@/lib/toolbox/common/export'
+import type { Size } from '@/lib/toolbox/common/canvas'
+import { EXPORT_FORMATS, getExportFormat, sanitizeFileName, type ExportFormat } from '@/lib/toolbox/common/export'
 import {
   MIN_PIECE_PX,
   PIECE_COUNTS,
@@ -20,12 +21,23 @@ import {
   type SplitLines,
   type SplitOrder,
 } from '@/lib/toolbox/image-splitter/grid'
+import { SplitSizeSection } from './SplitSizeSection'
 
 export interface SplitImageInfo {
   fileName: string
   fileSize: number
+  /** 현재(분할할) 크기 */
   width: number
   height: number
+  originalWidth: number
+  originalHeight: number
+}
+
+/** 저장 형식 선택지 라벨 — 참고 화면 기준 */
+const FORMAT_LABELS: Record<ExportFormat, string> = {
+  png: 'PNG · 투명 유지',
+  jpeg: 'JPG · 투명 → 흰색',
+  webp: 'WebP',
 }
 
 interface SplitSidePanelProps {
@@ -35,7 +47,13 @@ interface SplitSidePanelProps {
   order: SplitOrder
   lines: SplitLines
   baseName: string
+  format: ExportFormat
+  quality: number
   saving: boolean
+  resizing: boolean
+  onResize: (size: Size) => void
+  onFormatChange: (format: ExportFormat) => void
+  onQualityChange: (quality: number) => void
   onCountChange: (count: PieceCount) => void
   onOrderChange: (order: SplitOrder) => void
   onLineChange: (axis: keyof SplitLines, index: number, fraction: number) => void
@@ -54,7 +72,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** 우측 옵션 패널 — 사진 분할 · 저장 · 이미지 정보 (데스크톱 패널과 모바일·태블릿 Sheet 공용) */
+/** 우측 옵션 패널 — 사진 크기 · 사진 분할 · 저장 · 이미지 정보 (데스크톱 패널과 모바일·태블릿 Sheet 공용) */
 export function SplitSidePanel({
   variant = 'sidebar',
   image,
@@ -62,7 +80,13 @@ export function SplitSidePanel({
   order,
   lines,
   baseName,
+  format,
+  quality,
   saving,
+  resizing,
+  onResize,
+  onFormatChange,
+  onQualityChange,
   onCountChange,
   onOrderChange,
   onLineChange,
@@ -74,6 +98,7 @@ export function SplitSidePanel({
   const isSheet = variant === 'sheet'
   const orderOption = SPLIT_ORDER_OPTIONS.find((o) => o.value === order) ?? SPLIT_ORDER_OPTIONS[0]
   const safeBase = sanitizeFileName(baseName)
+  const { ext, lossy } = getExportFormat(format)
   const size = image ? { width: image.width, height: image.height } : null
   const linesEqual = size ? isEqualLines(lines, count, size) : true
 
@@ -102,6 +127,14 @@ export function SplitSidePanel({
         <p className="text-sm text-muted-foreground">이미지를 불러오면 옵션이 표시됩니다.</p>
       ) : (
         <>
+          <SplitSizeSection
+            idPrefix={variant}
+            original={{ width: image.originalWidth, height: image.originalHeight }}
+            current={{ width: image.width, height: image.height }}
+            busy={resizing}
+            onApply={onResize}
+          />
+
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">사진 분할</h3>
             <div className="space-y-2">
@@ -160,15 +193,43 @@ export function SplitSidePanel({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              분할선을 드래그하거나 선 위치 슬라이더로 조각 크기를 조절하세요. 조각은 최소 {MIN_PIECE_PX}px입니다.
+              분할선을 드래그하거나 선 위치 슬라이더로 조각 크기를 조절하세요. 조각은 최소 {MIN_PIECE_PX}px입니다. 미리보기는 휠(또는 두 손가락)로 확대/축소하고, 빈 곳을 끌어 옮길 수 있습니다.
             </p>
           </section>
 
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">저장</h3>
-            <div className="space-y-1.5 rounded-lg border bg-card p-3">
-              <InfoRow label="저장 형식" value="PNG · 투명 유지" />
+            <div className="space-y-2">
+              <Label htmlFor={`${variant}-split-format`}>저장 형식</Label>
+              <Select value={format} onValueChange={(v) => onFormatChange(v as ExportFormat)}>
+                <SelectTrigger id={`${variant}-split-format`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPORT_FORMATS.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>
+                      {FORMAT_LABELS[f.value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {lossy && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>품질</Label>
+                  <span className="text-sm tabular-nums text-muted-foreground">{Math.round(quality * 100)}%</span>
+                </div>
+                <Slider
+                  aria-label="저장 품질"
+                  value={[quality]}
+                  min={0.5}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([value]) => onQualityChange(value)}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor={`${variant}-split-name`}>파일명</Label>
               <Input
@@ -177,21 +238,24 @@ export function SplitSidePanel({
                 onChange={(e) => onBaseNameChange(e.target.value)}
               />
               <p className="break-all text-xs text-muted-foreground">
-                {pieceFileName(safeBase, 1, count, 'png')} ~ {pieceFileName(safeBase, count, count, 'png')} · {safeBase}_split.zip
+                {pieceFileName(safeBase, 1, count, ext)} ~ {pieceFileName(safeBase, count, count, ext)} · {safeBase}_split.zip
               </p>
             </div>
-            <Button type="button" className="w-full" onClick={onSave} disabled={saving}>
+            <Button type="button" className="w-full" onClick={onSave} disabled={saving || resizing}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackageOpen className="mr-2 h-4 w-4" />}
               ZIP으로 저장 ({count}조각)
             </Button>
-            <p className="text-xs text-muted-foreground">번호·분할선은 저장되지 않습니다. GIF는 첫 프레임(정지 이미지)으로 분할합니다.</p>
+            <p className="text-xs text-muted-foreground">
+              번호·분할선은 저장되지 않습니다. JPG의 투명 영역은 흰색으로 저장합니다. GIF는 정지 이미지로 분할합니다.
+            </p>
           </section>
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">이미지 정보</h3>
             <div className="space-y-1.5 rounded-lg border bg-card p-3">
               <InfoRow label="파일명" value={image.fileName} />
-              <InfoRow label="크기" value={`${image.width} × ${image.height}px`} />
+              <InfoRow label="원본 크기" value={`${image.originalWidth} × ${image.originalHeight}px`} />
+              <InfoRow label="현재 크기" value={`${image.width} × ${image.height}px`} />
               <InfoRow label="용량" value={formatFileSize(image.fileSize)} />
             </div>
             <Button type="button" variant="outline" className="w-full" onClick={onOpenNew}>

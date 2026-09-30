@@ -91,6 +91,26 @@ export function moveLine(fractions: number[], index: number, value: number, leng
   return result
 }
 
+/**
+ * 사진 크기가 바뀐 뒤 최소 간격을 어기는 선만 밀어서 맞춘다(앞→뒤, 뒤→앞 두 번).
+ * 간격을 지키는 선은 원래 비율을 그대로 둔다(크기를 여러 번 바꿔도 비율이 흐트러지지 않게).
+ * 모두 지키면 같은 배열을 돌려준다.
+ */
+export function fitLines(fractions: number[], length: number): number[] {
+  if (fractions.length === 0 || length <= 0) return fractions
+  const gap = minPiecePx(length, fractions.length)
+  const px = fractions.map((f) => Math.round(f * length))
+  for (let i = 0; i < px.length; i++) px[i] = Math.max(px[i], (i === 0 ? 0 : px[i - 1]) + gap)
+  for (let i = px.length - 1; i >= 0; i--) px[i] = Math.min(px[i], (i === px.length - 1 ? length : px[i + 1]) - gap)
+  let changed = false
+  const result = fractions.map((f, i) => {
+    if (px[i] === Math.round(f * length)) return f
+    changed = true
+    return px[i] / length
+  })
+  return changed ? result : fractions
+}
+
 /** 현재 선이 균등 분할과 같은지(현재 사진 px 기준) — 「균등 분할로 초기화」 비활성 판별 */
 export function isEqualLines(lines: SplitLines, count: PieceCount, size: Size): boolean {
   const equal = equalLines(count)

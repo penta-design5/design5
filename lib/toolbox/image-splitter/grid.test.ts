@@ -6,6 +6,7 @@ import {
   computePieces,
   edgesOf,
   equalLines,
+  fitLines,
   gridSummary,
   isEqualLines,
   minPiecePx,
@@ -117,6 +118,33 @@ describe('moveLine — 정수 px·최소 조각 크기', () => {
     expect(moveLine(xs, 0, 0.5, 400)).toBe(xs)
     expect(moveLine(xs, 3, 0.2, 400)).toBe(xs)
     expect(moveLine(xs, 0, Number.NaN, 400)).toBe(xs)
+  })
+})
+
+describe('fitLines — 크기 변경 후 최소 간격 맞춤', () => {
+  it('간격을 지키면 같은 배열(비율 그대로)', () => {
+    const xs = [205 / 409]
+    expect(fitLines(xs, 818)).toBe(xs)
+  })
+
+  it('줄였을 때 8px 미만이 된 선만 민다 — 나머지 비율은 유지', () => {
+    // 1600px에서 8px 간격(0.005)으로 붙인 선 → 400px로 줄이면 2px 간격
+    const xs = [0.25, 0.255, 0.75]
+    const fitted = fitLines(xs, 400)
+    expect(fitted[0]).toBe(0.25)
+    expect(fitted[2]).toBe(0.75)
+    expect(edgesOf(fitted, 400)).toEqual([0, 100, 108, 300, 400])
+  })
+
+  it('가장자리 쪽으로 몰린 선은 뒤에서부터 밀어 모두 최소 간격 이상', () => {
+    const xs = [0.99, 0.995, 0.999]
+    const edges = edgesOf(fitLines(xs, 400), 400)
+    expect(edges).toEqual([0, 376, 384, 392, 400])
+  })
+
+  it('선이 없으면 그대로', () => {
+    const ys: number[] = []
+    expect(fitLines(ys, 100)).toBe(ys)
   })
 })
 

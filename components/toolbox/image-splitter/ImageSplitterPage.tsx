@@ -8,13 +8,15 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
-import { DEFAULT_EXPORT_QUALITY, baseNameOf, downloadBlob } from '@/lib/toolbox/common/export'
+import { resizeCanvas, validateOutputSize, type Size } from '@/lib/toolbox/common/canvas'
+import { DEFAULT_EXPORT_QUALITY, baseNameOf, downloadBlob, type ExportFormat } from '@/lib/toolbox/common/export'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import {
   DEFAULT_PIECE_COUNT,
   DEFAULT_SPLIT_ORDER,
   computePieces,
   equalLines,
+  fitLines,
   gridSummary,
   moveLine,
   type PieceCount,
@@ -26,6 +28,9 @@ import { SplitCanvas, type LineAxis } from './SplitCanvas'
 import { SplitSidePanel, type SplitImageInfo } from './SplitSidePanel'
 
 interface LoadedImage extends SplitImageInfo {
+  /** 불러온 원본(EXIF 보정 후) — 크기 변경은 항상 여기서 다시 계산 */
+  original: HTMLCanvasElement
+  /** 현재 크기의 캔버스(원본 크기면 original과 같은 객체) — 미리보기·분할 대상 */
   canvas: HTMLCanvasElement
 }
 
@@ -50,6 +55,9 @@ export function ImageSplitterPage() {
   const [lines, setLines] = useState(() => equalLines(DEFAULT_PIECE_COUNT))
   const [baseName, setBaseName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const [format, setFormat] = useState<ExportFormat>('png')
+  const [quality, setQuality] = useState(DEFAULT_EXPORT_QUALITY)
 
   const pieces = useMemo(
     () => (image ? computePieces({ width: image.width, height: image.height }, lines, order) : []),
@@ -70,7 +78,16 @@ export function ImageSplitterPage() {
     try {
       const canvas = await decodeImageFile(file)
       const fileName = file.name || 'image.png'
-      setImage({ canvas, width: canvas.width, height: canvas.height, fileName, fileSize: file.size })
+      setImage({
+        original: canvas,
+        canvas,
+        width: canvas.width,
+        height: canvas.height,
+        originalWidth: canvas.width,
+        originalHeight: canvas.height,
+        fileName,
+        fileSize: file.size,
+      })
       setBaseName(baseNameOf(fileName))
       // 조각 수·배치는 유지하고, 이전 사진에 맞춰 옮긴 분할선은 균등으로 되돌린다
       setLines(equalLines(count))
@@ -128,6 +145,39 @@ export function ImageSplitterPage() {
 
   const resetLines = () => setLines(equalLines(count))
 
+  /**
+   * 사진 크기 적용 — 항상 원본에서 다시 리사이즈(누적 화질 저하 없음), 원본 크기면 원본 그대로.
+   * 분할선은 비율을 유지하고, 새 크기에서 최소 간격을 어기는 선만 맞춘다(fitLines).
+   */
+  const resize = async (next: Size) => {
+    if (!image || resizing) return
+    const error = validateOutputSize(next)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    setResizing(true)
+    // 큰 이미지는 리사이즈가 수백 ms 걸릴 수 있어, 진행 표시가 먼저 그려지도록 한 틱 양보
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    try {
+      const source = image.original
+      const isOriginal = next.width === image.originalWidth && next.height === image.originalHeight
+      const canvas = isOriginal ? source : resizeCanvas(source, next.width, next.height)
+      // 그 사이 다른 이미지를 열었으면 무시
+      setImage((prev) => (prev && prev.original === source ? { ...prev, canvas, width: next.width, height: next.height } : prev))
+      setLines((prev) => {
+        const xs = fitLines(prev.xs, next.width)
+        const ys = fitLines(prev.ys, next.height)
+        return xs === prev.xs && ys === prev.ys ? prev : { xs, ys }
+      })
+      toast.success(`사진 크기를 ${next.width} × ${next.height}px로 바꿨습니다.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '크기를 바꾸지 못했습니다.')
+    } finally {
+      setResizing(false)
+    }
+  }
+
   /** 캔버스 드래그·슬라이더 공용 — 최소 조각 크기·이웃 선 제한은 moveLine이 처리 */
   const changeLine = useCallback(
     (axis: LineAxis, index: number, fraction: number) => {
@@ -147,8 +197,8 @@ export function ImageSplitterPage() {
     try {
       const { blob, zipName, fileNames } = await buildSplitZip(image.canvas, pieces, {
         baseName,
-        format: 'png',
-        quality: DEFAULT_EXPORT_QUALITY,
+        format,
+        quality,
       })
       downloadBlob(blob, zipName)
       toast.success(`${fileNames.length}개 조각을 ZIP으로 저장했습니다.`)
@@ -165,7 +215,13 @@ export function ImageSplitterPage() {
     order,
     lines,
     baseName,
+    format,
+    quality,
     saving,
+    resizing,
+    onResize: resize,
+    onFormatChange: setFormat,
+    onQualityChange: setQuality,
     onCountChange: changeCount,
     onOrderChange: setOrder,
     onLineChange: changeLine,
@@ -201,6 +257,7 @@ export function ImageSplitterPage() {
                   canvas={image.canvas}
                   width={image.width}
                   height={image.height}
+                  fitKey={image.original}
                   lines={lines}
                   pieces={pieces}
                   onLineChange={changeLine}
