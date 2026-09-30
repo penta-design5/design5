@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { Layer, Line, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import { clampCropRect, setCropField, type CropRect } from '@/lib/toolbox/image-editor/crop'
-import type { Size } from '@/lib/toolbox/image-editor/transform'
+import type { Size } from '@/lib/toolbox/common/canvas'
 
 interface CropOverlayProps {
   size: Size

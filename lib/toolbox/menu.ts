@@ -1,7 +1,7 @@
 /**
  * TOOLBOX 사이드바 메뉴 정의 (DB 카테고리가 아닌 하드코딩 섹션).
  * 구현 완료된 도구만 등록한다 — 새 도구는 이 배열에 1줄 + `app/(dashboard)/toolbox/<slug>/` 페이지 추가.
- * 로드맵·진행 상태: docs/TOOLBOX_handoff.md
+ * 로드맵·공통 규칙: docs/TOOLBOX_handoff.md (메뉴별 기록은 docs/TOOLBOX_<slug>_handoff.md)
  */
 export const TOOLBOX_BASE_PATH = '/toolbox'
 

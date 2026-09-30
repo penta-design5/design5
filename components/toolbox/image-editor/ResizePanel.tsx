@@ -6,13 +6,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  linkedDimension,
-  resolveResize,
-  validateOutputSize,
-  type ResizeUnit,
-  type Size,
-} from '@/lib/toolbox/image-editor/transform'
+import { linkedDimension, resolveResize, validateOutputSize, type ResizeUnit, type Size } from '@/lib/toolbox/common/canvas'
 
 interface ResizePanelProps {
   size: Size

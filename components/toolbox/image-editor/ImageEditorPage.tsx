@@ -8,13 +8,13 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useConfirmDialog } from '@/components/ui/confirm-dialog-provider'
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
-import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/image-editor/constants'
+import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
 import {
   ImageLoadError,
   decodeImageFile,
   getImageFileFromClipboard,
   validateImageFile,
-} from '@/lib/toolbox/image-editor/load'
+} from '@/lib/toolbox/common/load'
 import {
   canRedo,
   canUndo,
@@ -33,18 +33,10 @@ import {
   downloadBlob,
   encodeCanvas,
   type ExportFormat,
-} from '@/lib/toolbox/image-editor/export'
+} from '@/lib/toolbox/common/export'
 import { createEditorDoc, type EditorDoc } from '@/lib/toolbox/image-editor/types'
-import {
-  cropCanvas,
-  flipCanvas,
-  resizeCanvas,
-  rotateCanvas,
-  rotatedBounds,
-  validateOutputSize,
-  type FlipDirection,
-  type Size,
-} from '@/lib/toolbox/image-editor/transform'
+import { cropCanvas, flipCanvas, rotateCanvas, rotatedBounds, type FlipDirection } from '@/lib/toolbox/image-editor/transform'
+import { resizeCanvas, validateOutputSize, type Size } from '@/lib/toolbox/common/canvas'
 import {
   aspectRatioOf,
   fitAspect,
@@ -135,7 +127,7 @@ const usesArrowKeys = (target: EventTarget | null) =>
 /**
  * TOOLBOX「이미지 편집」 — 모든 처리는 브라우저에서만 수행(서버 전송 없음).
  * 레이아웃: 좌측 작업 영역 + 우측 410px 옵션 패널(xl 이상). xl 미만은 「편집 옵션」 Sheet(모바일 하단 / 태블릿 오른쪽).
- * 진행 상태: docs/TOOLBOX_handoff.md
+ * 구현 기록: docs/TOOLBOX_image-editor_handoff.md
  */
 export function ImageEditorPage() {
   const { confirm } = useConfirmDialog()
@@ -336,7 +328,7 @@ export function ImageEditorPage() {
 
   /**
    * 베이스 캔버스 기하 변환(회전·반전·크기·자르기)을 적용하고 히스토리에 기록.
-   * 주석이 있으면 먼저 이미지에 합친(flatten) 뒤 변환한다 — docs/TOOLBOX_handoff.md 공통 설계 확정 규칙.
+   * 주석이 있으면 먼저 이미지에 합친(flatten) 뒤 변환한다 — docs/TOOLBOX_image-editor_handoff.md 공통 설계 확정 규칙.
    */
   const applyTransform = (transform: (source: HTMLCanvasElement) => HTMLCanvasElement) => {
     if (!doc) return

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { rotatedBounds, validateOutputSize, type FlipDirection, type Size } from '@/lib/toolbox/image-editor/transform'
+import { rotatedBounds, type FlipDirection } from '@/lib/toolbox/image-editor/transform'
+import { validateOutputSize, type Size } from '@/lib/toolbox/common/canvas'
 
 export type RotationFillMode = 'transparent' | 'white' | 'custom'
 

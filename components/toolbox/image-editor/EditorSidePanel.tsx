@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatFileSize } from '@/lib/design-request-attachments'
-import { EXPORT_FORMATS, getExportFormat, type ExportFormat } from '@/lib/toolbox/image-editor/export'
+import { EXPORT_FORMATS, getExportFormat, type ExportFormat } from '@/lib/toolbox/common/export'
 import type { EditorDoc } from '@/lib/toolbox/image-editor/types'
 
 export interface ExportSettings {

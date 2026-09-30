@@ -1,5 +1,6 @@
 /**
- * TOOLBOX「이미지 편집」 공용 제한값 (docs/TOOLBOX_handoff.md §5 확정 사항)
+ * TOOLBOX 이미지 도구 공용 제한값 — 입력 형식·용량·캔버스 픽셀 상한·화면 줌.
+ * (확정: docs/TOOLBOX_image-editor_handoff.md §3 · 이미지 분할도 같은 상한 사용 — docs/TOOLBOX_image-splitter_handoff.md §1 D1)
  */
 
 /** 입력 파일 최대 용량: 20MB */
@@ -24,15 +25,6 @@ export const FILE_INPUT_ACCEPT = [
   ...ACCEPTED_MIME_TYPES,
   ...ACCEPTED_EXTENSIONS.map((ext) => `.${ext}`),
 ].join(',')
-
-/** 히스토리 최대 단계 */
-export const HISTORY_MAX_STEPS = 30
-
-/** 히스토리 최소 보장 단계 (큰 이미지라도 이만큼은 되돌릴 수 있게) */
-export const HISTORY_MIN_STEPS = 5
-
-/** 히스토리 스냅샷 전체 메모리 예산(바이트) — 스냅샷 1개 = 가로×세로×4바이트 */
-export const HISTORY_MEMORY_BUDGET_BYTES = 512 * 1024 * 1024
 
 /** 줌 범위 (1 = 100%) */
 export const MIN_ZOOM = 0.05

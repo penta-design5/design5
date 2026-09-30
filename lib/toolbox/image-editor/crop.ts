@@ -1,4 +1,4 @@
-import type { Size } from './transform'
+import type { Size } from '../common/canvas'
 
 /** 자르기 영역 (원본 이미지 px 좌표, 정수) */
 export interface CropRect {

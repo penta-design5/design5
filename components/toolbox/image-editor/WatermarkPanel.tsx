@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/image-editor/constants'
+import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
 import { TEXT_FONT_STACKS } from '@/lib/toolbox/image-editor/annotation-render'
 import { COLOR_PRESETS, TEXT_FONTS } from '@/lib/toolbox/image-editor/annotations'
 import {
