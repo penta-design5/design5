@@ -53,8 +53,18 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
     })
   }, [bump])
 
+  /** 수정 레이어(원본 크기 캔버스)를 만들지 못함 — 메모리 부족. 이때 수동 보정은 쓸 수 없고 결과는 AI 결과 그대로다 */
+  const [layersFailed, setLayersFailed] = useState(false)
+
   useLayoutEffect(() => {
-    const layers = original ? new EditLayers(original) : null
+    let layers: EditLayers | null = null
+    try {
+      layers = original ? new EditLayers(original) : null
+      setLayersFailed(false)
+    } catch (e) {
+      console.error('[background-editor] edit layers failed', e)
+      setLayersFailed(true)
+    }
     layersRef.current = layers
     renderedRef.current = EMPTY
     liveRef.current = null
@@ -215,10 +225,11 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
       hasEdits: history.present.some((op) => op.kind !== 'ai'),
       /** 인식 보정으로 다시 제거한 지금의 AI 결과(없으면 처음 결과를 쓴다) */
       aiResult: lastAiOp(history.present),
+      layersFailed,
       /** 마지막 작업이 스포이드면 그 작업(기준색 표시·설정 반영용) */
       lastPick: lastOp?.kind === 'pick' ? lastOp : null,
     }),
-    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, addPick, updateLastPick, addAiResult, undo, redo, clearAll, history, lastOp]
+    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, addPick, updateLastPick, addAiResult, undo, redo, clearAll, history, lastOp, layersFailed]
   )
 }
 

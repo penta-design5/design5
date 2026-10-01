@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { BRUSH_SIZE_MAX, BRUSH_SIZE_MIN, type RectMode } from '@/lib/toolbox/background-editor/edits'
 import type { PickOptions, PickRange, RGB } from '@/lib/toolbox/background-editor/picker'
 import type { EditTool } from './BgPreview'
@@ -89,6 +90,8 @@ export function BgManualSection({
   onPickChange,
   onClear,
 }: BgManualSectionProps) {
+  // 터치 기기에는 Space 키가 없다 — 두 손가락 조작으로 안내
+  const coarse = useMediaQuery('(pointer: coarse)')
   return (
     <section className="space-y-4" data-testid="bg-manual-section">
       <div className="flex items-center justify-between">
@@ -179,7 +182,11 @@ export function BgManualSection({
             </div>
           </div>
           <ToleranceSlider value={pick.tolerance} onCommit={(tolerance) => onPickChange({ tolerance })} />
-          <p className="text-xs text-muted-foreground">Space를 누른 채 끌면 어떤 도구에서도 화면을 옮길 수 있습니다.</p>
+          <p className="text-xs text-muted-foreground" data-testid="bg-pan-hint">
+            {coarse
+              ? '두 손가락으로 화면을 옮기고 확대/축소합니다. 한 손가락은 고른 도구로 작업합니다.'
+              : 'Space를 누른 채 끌면 어떤 도구에서도 화면을 옮길 수 있습니다.'}
+          </p>
         </>
       )}
     </section>

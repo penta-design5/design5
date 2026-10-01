@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { prepareModelInput } from '@/lib/toolbox/background-editor/cutout'
 import { BackgroundEngine, type EngineReady } from '@/lib/toolbox/background-editor/engine'
 import { toAlphaMask } from '@/lib/toolbox/background-editor/mask'
-import { EXPECTED_CEIL_MODE_COUNT, MODEL, loadModelBytes, patchCeilMode } from '@/lib/toolbox/background-editor/model'
+import { EXPECTED_CEIL_MODE_COUNT, MODEL, ModelLoadError, loadModelBytes, patchCeilMode } from '@/lib/toolbox/background-editor/model'
 import type { InferenceBackend } from '@/lib/toolbox/background-editor/protocol'
 import type { RecognitionSettings } from '@/lib/toolbox/background-editor/recognition'
 
@@ -27,6 +27,9 @@ export type RemovalStatus =
   | { kind: 'error'; message: string }
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
+
+/** 내려받기 오류(ModelLoadError)는 그대로, 그 밖(세션 생성 실패 등 실행기 원문)은 쉬운 안내로 바꾼다 — 원문은 콘솔에 남긴다 */
+const PREPARE_ERROR = 'AI 모델을 준비하지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.'
 const nextFrame = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 /**
@@ -76,7 +79,12 @@ export function useBackgroundRemoval() {
     (forceWasm: boolean) => {
       const promise = prepare(forceWasm).catch((e) => {
         if (readyRef.current === promise) readyRef.current = null
-        setModel(isAbort(e) ? { kind: 'canceled' } : { kind: 'error', message: e instanceof Error ? e.message : String(e) })
+        if (isAbort(e)) {
+          setModel({ kind: 'canceled' })
+        } else {
+          if (!(e instanceof ModelLoadError)) console.error('[background-editor] model prepare failed', e)
+          setModel({ kind: 'error', message: e instanceof ModelLoadError ? e.message : PREPARE_ERROR })
+        }
         throw e
       })
       readyRef.current = promise

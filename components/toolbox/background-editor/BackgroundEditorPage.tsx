@@ -50,6 +50,9 @@ const VIEW_MODES: { value: PreviewMode; label: string }[] = [
   { value: 'result', label: '결과' },
 ]
 
+/** 결과 만들기(경계 다듬기·수동 보정·배경 합성)·저장 중 캔버스를 만들지 못했을 때 — 모바일 Safari 등 캔버스 메모리 한도가 작은 환경 */
+const MEMORY_ERROR = '메모리가 부족해 결과를 만들지 못했습니다. 더 작은 이미지로 시도해 주세요.'
+
 const isTypingTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
@@ -105,8 +108,39 @@ export function BackgroundEditorPage() {
   // 지금 AI 결과 = 다시 제거한 결과(작업 기록) 또는 처음 결과
   const currentMask = edits.aiResult?.mask ?? mask
   const currentRecognition = edits.aiResult?.recognition ?? appliedRecognition
+  /**
+   * 메모리 부족 대비 — 결과 만들기는 화면을 그리는 중에 계산하므로, 실패하면 페이지 전체가 멈추지 않게 잡아서
+   * 같은 이미지의 직전 결과를 유지하고 그린 뒤에 한 번 안내한다.
+   */
+  const buildFailedRef = useRef(false)
+  /** 지금 화면 결과가 직전 결과로 대신 보이는 중인 단계 — 있으면 저장을 막는다(바뀐 설정이 빠진 이미지가 저장되지 않게) */
+  const staleStagesRef = useRef(new Set<string>())
+  const lastGoodRef = useRef<{
+    source: HTMLCanvasElement | null
+    result: HTMLCanvasElement | null
+    edited: HTMLCanvasElement | null
+    composed: HTMLCanvasElement | null
+  }>({ source: null, result: null, edited: null, composed: null })
+  const guarded = <K extends 'result' | 'edited' | 'composed'>(stage: K, build: () => HTMLCanvasElement | null) => {
+    const last = lastGoodRef.current
+    if (last.source !== (image?.original ?? null)) {
+      lastGoodRef.current = { source: image?.original ?? null, result: null, edited: null, composed: null }
+    }
+    try {
+      const value = build()
+      lastGoodRef.current[stage] = value
+      staleStagesRef.current.delete(stage)
+      return value
+    } catch (e) {
+      console.error(`[background-editor] ${stage} build failed`, e)
+      buildFailedRef.current = true
+      staleStagesRef.current.add(stage)
+      return lastGoodRef.current[stage]
+    }
+  }
   const result = useMemo(
-    () => (image && currentMask ? buildCutout(image.original, currentMask, MODEL.inputSize, edge) : null),
+    () => guarded('result', () => (image && currentMask ? buildCutout(image.original, currentMask, MODEL.inputSize, edge) : null)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [image, currentMask, edge]
   )
   // 실행 취소·다시 실행으로 AI 결과가 바뀌면 슬라이더도 그 결과를 만든 값으로 맞춘다
@@ -118,8 +152,21 @@ export function BackgroundEditorPage() {
   const [softness, setSoftness] = useState(DEFAULT_SOFTNESS)
   const [rectMode, setRectMode] = useState<RectMode>('keep')
   const [pick, setPick] = useState<PickOptions>(DEFAULT_PICK)
-  const edited = useMemo(() => edits.apply(result), [edits, result])
-  const composed = useMemo(() => (edited ? composeBackground(edited, deferredBackground) : null), [edited, deferredBackground])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const edited = useMemo(() => guarded('edited', () => edits.apply(result)), [edits, result])
+  const composed = useMemo(
+    () => guarded('composed', () => (edited ? composeBackground(edited, deferredBackground) : null)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [edited, deferredBackground]
+  )
+  useEffect(() => {
+    if (edits.layersFailed) toast.error('메모리가 부족해 수동 보정을 준비하지 못했습니다. 더 작은 이미지로 시도해 주세요.')
+  }, [edits.layersFailed])
+  useEffect(() => {
+    if (!buildFailedRef.current) return
+    buildFailedRef.current = false
+    toast.error(MEMORY_ERROR)
+  })
   const { model, removal, remove, reset, cancelDownload } = useBackgroundRemoval()
   const imageRef = useRef(image)
   imageRef.current = image
@@ -316,6 +363,10 @@ export function BackgroundEditorPage() {
   const save = async () => {
     // 저장은 늦춘 값이 아니라 현재 설정으로 다시 합성한다(마지막 색 변경 직후 저장해도 정확하게)
     if (!edited) return
+    if (staleStagesRef.current.size > 0) {
+      toast.error(MEMORY_ERROR)
+      return
+    }
     setSaving(true)
     try {
       const { ext, label } = getExportFormat(format)
@@ -323,7 +374,10 @@ export function BackgroundEditorPage() {
       downloadBlob(blob, `${sanitizeFileName(baseName)}.${ext}`)
       toast.success(`${label}로 저장했습니다.`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : '저장하지 못했습니다.')
+      // 인코딩 형식 미지원 등은 그 안내를, 캔버스를 만들지 못한 경우(메모리 부족)는 메모리 안내를 보여 준다
+      console.error('[background-editor] save failed', e)
+      const canvasFailure = !(e instanceof Error) || e instanceof RangeError || e.message.includes('캔버스')
+      toast.error(canvasFailure ? MEMORY_ERROR : e.message)
     } finally {
       setSaving(false)
     }
