@@ -32,6 +32,7 @@ import {
   type RectMode,
 } from '@/lib/toolbox/background-editor/edits'
 import { DEFAULT_PICK, type PickOptions } from '@/lib/toolbox/background-editor/picker'
+import { DEFAULT_RECOGNITION, sameRecognition, type RecognitionSettings } from '@/lib/toolbox/background-editor/recognition'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import { cn } from '@/lib/utils'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
@@ -76,10 +77,17 @@ export function BackgroundEditorPage() {
   const dragDepth = useRef(0)
 
   const [image, setImage] = useState<LoadedImage | null>(null)
-  /** 모델이 만든 전경 알파 마스크(MODEL.inputSize²) — 경계 다듬기를 바꿔도 AI를 다시 돌리지 않고 여기서 결과를 다시 만든다 */
+  /**
+   * 처음 배경 제거로 모델이 만든 전경 알파 마스크(MODEL.inputSize²) — 경계 다듬기를 바꿔도 AI를 다시 돌리지 않고 여기서 결과를 다시 만든다.
+   * 인식 보정으로 다시 제거한 결과는 수동 보정 작업 기록(AiOp)에 들어가고, 있으면 그쪽을 쓴다(실행 취소 가능).
+   */
   const [mask, setMask] = useState<Uint8ClampedArray | null>(null)
   // 경계 다듬기는 슬라이더를 놓을 때 반영된다(큰 이미지 처리 비용) — 새 이미지를 열어도 유지
   const [edge, setEdge] = useState<EdgeSettings>(DEFAULT_EDGE)
+  // 인식 보정(P4-3) — AI 입력에만 적용. 설정은 새 이미지를 열어도 유지하고, 지금 마스크를 만들 때 쓴 설정을 따로 기억한다
+  const [recognition, setRecognition] = useState<RecognitionSettings>(DEFAULT_RECOGNITION)
+  /** 처음 배경 제거에 쓴 인식 보정 설정 */
+  const [appliedRecognition, setAppliedRecognition] = useState<RecognitionSettings | null>(null)
   const [loading, setLoading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -92,12 +100,19 @@ export function BackgroundEditorPage() {
   const [quality, setQuality] = useState(DEFAULT_EXPORT_QUALITY)
   // 색상 선택기를 끄는 동안 큰 이미지 합성이 입력을 막지 않도록 한 박자 늦춰 합성한다
   const deferredBackground = useDeferredValue(background)
-  const result = useMemo(
-    () => (image && mask ? buildCutout(image.original, mask, MODEL.inputSize, edge) : null),
-    [image, mask, edge]
-  )
   // 수동 보정(P4) — AI 결과(경계 다듬기 후) 위에 사용자 수정 레이어를 적용한다. 도구·브러시 설정은 새 이미지를 열어도 유지
   const edits = useManualEdits(image?.original ?? null)
+  // 지금 AI 결과 = 다시 제거한 결과(작업 기록) 또는 처음 결과
+  const currentMask = edits.aiResult?.mask ?? mask
+  const currentRecognition = edits.aiResult?.recognition ?? appliedRecognition
+  const result = useMemo(
+    () => (image && currentMask ? buildCutout(image.original, currentMask, MODEL.inputSize, edge) : null),
+    [image, currentMask, edge]
+  )
+  // 실행 취소·다시 실행으로 AI 결과가 바뀌면 슬라이더도 그 결과를 만든 값으로 맞춘다
+  useEffect(() => {
+    if (currentRecognition) setRecognition(currentRecognition)
+  }, [currentRecognition])
   const [tool, setTool] = useState<EditTool>('pan')
   const [brushSize, setBrushSize] = useState(DEFAULT_BRUSH_SIZE)
   const [softness, setSoftness] = useState(DEFAULT_SOFTNESS)
@@ -196,15 +211,25 @@ export function BackgroundEditorPage() {
     if (removal.kind === 'error') toast.error(removal.message)
   }, [removal])
 
-  const startRemoval = useCallback(async () => {
+  /**
+   * 배경 제거(처음·인식 보정 후 다시) — 다시 할 때는 보기 방식·수동 보정을 그대로 두고, 결과를 작업 기록에 넣는다(실행 취소 가능).
+   * 연달아 부르면 마지막 호출의 결과만 반영된다(remove가 이전 작업 결과를 버림).
+   */
+  const startRemoval = useCallback(async (settings: RecognitionSettings = recognition) => {
     if (!image) return
     const source = image.original
-    const alpha = await remove(source)
+    const first = !mask
+    const alpha = await remove(source, settings)
     // 그 사이 다른 이미지를 열었으면 무시(remove도 null을 돌려주지만 한 번 더 확인)
     if (!alpha || imageRef.current?.original !== source) return
-    setMask(alpha)
-    setMode('result')
-  }, [image, remove])
+    if (first) {
+      setMask(alpha)
+      setAppliedRecognition(settings)
+      setMode('result')
+    } else {
+      edits.addAiResult(alpha, settings)
+    }
+  }, [image, mask, recognition, remove, edits])
 
   const openFile = useCallback(
     async (file: File) => {
@@ -221,6 +246,7 @@ export function BackgroundEditorPage() {
         reset()
         setImage({ original: canvas, width: canvas.width, height: canvas.height, fileName, fileSize: file.size })
         setMask(null)
+        setAppliedRecognition(null)
         setMode('result')
         setTool('pan')
         setBaseName(`${baseNameOf(fileName)}_bg`)
@@ -307,6 +333,14 @@ export function BackgroundEditorPage() {
   const processing = modelBusy || removal.kind === 'running'
   const removeState: RemoveButtonState = result ? 'done' : processing ? 'busy' : 'ready'
   const cpu = (model.kind === 'ready' && model.backend === 'wasm') || (removal.kind === 'done' && removal.backend === 'wasm')
+  // 그래픽 가속(WebGPU)이면 인식 보정 슬라이더를 놓을 때 바로 다시 제거한다(0.4~1초). CPU(장당 수 초)는 버튼으로
+  const backendNow = removal.kind === 'done' ? removal.backend : model.kind === 'ready' ? model.backend : null
+  const autoRerun = Boolean(result) && backendNow === 'webgpu'
+  /** 인식 보정 값 확정(슬라이더 놓음·초기화) — 자동 다시 제거 대상이면 실행 */
+  const commitRecognition = (next: RecognitionSettings) => {
+    setRecognition(next)
+    if (autoRerun && currentRecognition && !sameRecognition(next, currentRecognition)) void startRemoval(next)
+  }
 
   const panelProps = {
     image,
@@ -349,6 +383,17 @@ export function BackgroundEditorPage() {
         edits.updateLastPick(next)
       },
       onClear: edits.clearAll,
+    },
+    recognition: {
+      original: image?.original ?? null,
+      settings: recognition,
+      applied: currentRecognition,
+      processing,
+      autoRerun,
+      onChange: (patch: Partial<RecognitionSettings>) => setRecognition((prev) => ({ ...prev, ...patch })),
+      onCommit: commitRecognition,
+      onReset: () => commitRecognition(DEFAULT_RECOGNITION),
+      onRerun: () => void startRemoval(),
     },
     onBaseNameChange: setBaseName,
     onSave: save,

@@ -8,11 +8,13 @@ import {
   brushAlpha,
   brushRadiusInImage,
   clampBrushSize,
+  lastAiOp,
   normalizeRect,
   rasterizeSegment,
 } from './edits'
 import { toAlphaMask, toInputTensor } from './mask'
 import { pickColorMask, rgbToLab, sampleColor } from './picker'
+import { DEFAULT_RECOGNITION, adjustForRecognition, isDefaultRecognition, sameRecognition } from './recognition'
 import { MAX_FEATHER_RADIUS, boxBlur, decontaminateColors, defringeRadius, featherMask, featherRadius } from './refine'
 import { CEIL_MODE_PATTERN, EXPECTED_CEIL_MODE_COUNT, MODEL, ORT_VERSION, patchCeilMode, sha256Hex } from './model'
 
@@ -334,5 +336,47 @@ describe('스포이드(picker)', () => {
     expect(large[(4 * W + 7) * 4 + 3]).toBe(0)
     const none = new Uint8ClampedArray(W * H * 4)
     expect(pickColorMask(rgba, none, W, H, { x: 0, y: 0 }, [0, 0, 255], { range: 'global', tolerance: 5 })).toBeNull()
+  })
+})
+
+describe('인식 보정(recognition)', () => {
+  const px = (...c: number[]) => Uint8ClampedArray.from(c)
+
+  it('기본값은 그대로, 비교 도우미', () => {
+    const a = px(10, 200, 30, 77)
+    adjustForRecognition(a, DEFAULT_RECOGNITION)
+    expect([...a]).toEqual([10, 200, 30, 77])
+    expect(isDefaultRecognition(DEFAULT_RECOGNITION)).toBe(true)
+    expect(sameRecognition(DEFAULT_RECOGNITION, { ...DEFAULT_RECOGNITION, contrast: 5 })).toBe(false)
+  })
+
+  it('채도 −100 = 회색, 대비 +100 = 128에서 2배 멀어짐(잘림), 알파는 그대로', () => {
+    const gray = px(200, 100, 50, 9)
+    adjustForRecognition(gray, { ...DEFAULT_RECOGNITION, saturation: -100 })
+    expect(gray[0]).toBe(gray[1])
+    expect(gray[1]).toBe(gray[2])
+    expect(gray[3]).toBe(9)
+    const c = px(138, 118, 250, 255)
+    adjustForRecognition(c, { ...DEFAULT_RECOGNITION, contrast: 100 })
+    expect([...c]).toEqual([148, 108, 255, 255])
+  })
+
+  it('하이라이트 −: 밝은 픽셀일수록 많이 어두워진다', () => {
+    const p = px(240, 240, 240, 255, 60, 60, 60, 255)
+    adjustForRecognition(p, { ...DEFAULT_RECOGNITION, highlights: -100 })
+    expect(240 - p[0]).toBeGreaterThan(100)
+    expect(60 - p[4]).toBeLessThan(10)
+  })
+})
+
+describe('작업 기록의 AI 결과(lastAiOp)', () => {
+  it('마지막 AI 결과를 찾고, 없으면 null', () => {
+    const rec = { contrast: 0, highlights: -60, saturation: 0 }
+    const a = { kind: 'ai' as const, mask: new Uint8ClampedArray(1), recognition: rec }
+    const b = { kind: 'ai' as const, mask: new Uint8ClampedArray(1), recognition: { ...rec, contrast: 40 } }
+    const rect = { kind: 'rect' as const, mode: 'erase' as const, x: 0, y: 0, width: 1, height: 1 }
+    expect(lastAiOp([])).toBeNull()
+    expect(lastAiOp([rect])).toBeNull()
+    expect(lastAiOp([a, rect, b, rect])).toBe(b)
   })
 })

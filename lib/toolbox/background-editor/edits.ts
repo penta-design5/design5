@@ -1,5 +1,6 @@
 import { createCanvas } from '@/lib/toolbox/common/canvas'
 import { pickColorMask, sampleColor, type PickRange, type RGB } from './picker'
+import type { RecognitionSettings } from './recognition'
 
 /**
  * 수동 보정(P4) — AI 결과 위의 「사용자 수정 레이어」. 원본·AI 마스크는 그대로 두는 비파괴 방식이다.
@@ -53,7 +54,27 @@ export interface PickOp {
   tolerance: number
 }
 
-export type EditOp = StrokeOp | RectOp | PickOp
+/**
+ * 인식 보정으로 다시 제거한 AI 결과(P4-3) — 레이어에는 그리지 않는다.
+ * 작업 기록에 넣어 실행 취소로 이전 AI 결과로 돌아갈 수 있게 한다(현재 AI 마스크 = 기록의 마지막 AiOp, 없으면 처음 결과).
+ */
+export interface AiOp {
+  kind: 'ai'
+  /** 모델 해상도(MODEL.inputSize²) 전경 알파 */
+  mask: Uint8ClampedArray
+  recognition: RecognitionSettings
+}
+
+export type EditOp = StrokeOp | RectOp | PickOp | AiOp
+
+/** 작업 기록에서 마지막 AI 결과(없으면 null) */
+export function lastAiOp(ops: readonly EditOp[]): AiOp | null {
+  for (let i = ops.length - 1; i >= 0; i--) {
+    const op = ops[i]
+    if (op.kind === 'ai') return op
+  }
+  return null
+}
 
 export type RectMode = RectOp['mode']
 
@@ -228,6 +249,7 @@ export class EditLayers {
   }
 
   draw(op: EditOp) {
+    if (op.kind === 'ai') return // AI 결과는 레이어가 아니라 마스크 단계에서 쓴다
     if (op.kind === 'rect') {
       this.drawRect(op)
       return

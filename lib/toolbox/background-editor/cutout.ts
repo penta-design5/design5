@@ -1,12 +1,17 @@
 import { createCanvas } from '@/lib/toolbox/common/canvas'
 import { toInputTensor } from './mask'
+import { adjustForRecognition, type RecognitionSettings } from './recognition'
 import { decontaminateColors, defringeRadius, featherMask, featherRadius, type EdgeSettings } from './refine'
 
-/** 원본 캔버스 → 모델 입력 텐서 데이터(정사각 size² 로 늘려 그린다 — 학습 때와 같은 방식) */
-export function prepareModelInput(source: HTMLCanvasElement, size: number): Float32Array {
+/**
+ * 원본 캔버스 → 모델 입력 텐서 데이터(정사각 size² 로 늘려 그린다 — 학습 때와 같은 방식).
+ * recognition: 인식 보정(P4-3) — 줄인 입력에만 적용하고 원본은 그대로 둔다.
+ */
+export function prepareModelInput(source: HTMLCanvasElement, size: number, recognition?: RecognitionSettings): Float32Array {
   const { canvas, ctx } = createCanvas(size, size)
   ctx.drawImage(source, 0, 0, size, size)
   const { data } = ctx.getImageData(0, 0, size, size)
+  if (recognition) adjustForRecognition(data, recognition)
   canvas.width = 0 // 메모리 즉시 반환
   return toInputTensor(data, size * size)
 }

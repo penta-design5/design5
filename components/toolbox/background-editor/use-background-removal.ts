@@ -6,6 +6,7 @@ import { BackgroundEngine, type EngineReady } from '@/lib/toolbox/background-edi
 import { toAlphaMask } from '@/lib/toolbox/background-editor/mask'
 import { EXPECTED_CEIL_MODE_COUNT, MODEL, loadModelBytes, patchCeilMode } from '@/lib/toolbox/background-editor/model'
 import type { InferenceBackend } from '@/lib/toolbox/background-editor/protocol'
+import type { RecognitionSettings } from '@/lib/toolbox/background-editor/recognition'
 
 export type ModelStatus =
   | { kind: 'idle' }
@@ -94,9 +95,12 @@ export function useBackgroundRemoval() {
     setRemoval({ kind: 'idle' })
   }, [])
 
-  /** 배경 제거 — 전경 알파 마스크(모델 해상도 MODEL.inputSize², 경계 다듬기·합성은 페이지가 한다). 더 새 작업이 시작됐거나 모델 준비가 취소·실패하면 null */
+  /**
+   * 배경 제거 — 전경 알파 마스크(모델 해상도 MODEL.inputSize², 경계 다듬기·합성은 페이지가 한다). 더 새 작업이 시작됐거나 모델 준비가 취소·실패하면 null.
+   * recognition: 인식 보정 — AI 입력에만 적용한다.
+   */
   const remove = useCallback(
-    async (source: HTMLCanvasElement): Promise<Uint8ClampedArray | null> => {
+    async (source: HTMLCanvasElement, recognition?: RecognitionSettings): Promise<Uint8ClampedArray | null> => {
       const job = ++jobRef.current
       const current = () => job === jobRef.current
       setRemoval({ kind: 'idle' })
@@ -113,7 +117,7 @@ export function useBackgroundRemoval() {
       try {
         setRemoval({ kind: 'running', step: 'prepare', startedAt })
         await nextFrame() // 진행 표시가 먼저 그려지도록
-        const input = () => prepareModelInput(source, MODEL.inputSize)
+        const input = () => prepareModelInput(source, MODEL.inputSize, recognition)
 
         setRemoval({ kind: 'running', step: 'infer', startedAt })
         let backend = ready.backend

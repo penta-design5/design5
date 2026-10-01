@@ -11,8 +11,18 @@ import {
   undoHistory,
   type History,
 } from '@/lib/toolbox/common/history'
-import { EditLayers, type EditOp, type PickOp, type Point, type RectOp, type StrokeOp } from '@/lib/toolbox/background-editor/edits'
+import {
+  EditLayers,
+  lastAiOp,
+  type AiOp,
+  type EditOp,
+  type PickOp,
+  type Point,
+  type RectOp,
+  type StrokeOp,
+} from '@/lib/toolbox/background-editor/edits'
 import type { PickOptions } from '@/lib/toolbox/background-editor/picker'
+import type { RecognitionSettings } from '@/lib/toolbox/background-editor/recognition'
 
 const EMPTY: readonly EditOp[] = []
 
@@ -22,6 +32,7 @@ const EMPTY: readonly EditOp[] = []
  * - 실행 취소·다시 실행은 빈 레이어에 작업 기록을 다시 그린다.
  * - 새 이미지를 열면 기록과 레이어를 버린다.
  * `apply(cutout)`는 AI 결과(경계 다듬기 후)에 수정을 적용한 캔버스를 돌려준다(`version`이 바뀔 때마다 다시 계산).
+ * 인식 보정으로 다시 제거한 AI 결과(AiOp)도 같은 기록에 넣는다 — 실행 취소로 이전 AI 결과로 돌아간다.
  */
 export function useManualEdits(original: HTMLCanvasElement | null) {
   const [history, setHistory] = useState<History<readonly EditOp[]>>(() => createHistory(EMPTY))
@@ -154,9 +165,22 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
   const redo = useCallback(() => {
     if (!liveRef.current) setHistory(redoHistory)
   }, [])
-  /** 수정 모두 지우기 — 실행 취소로 되돌릴 수 있다 */
+  /** 인식 보정으로 다시 제거한 AI 결과 — 실행 취소 한 단계 */
+  const addAiResult = useCallback(
+    (mask: Uint8ClampedArray, recognition: RecognitionSettings) => {
+      const op: AiOp = { kind: 'ai', mask, recognition }
+      commit(op)
+    },
+    [commit]
+  )
+
+  /** 수정 모두 지우기 — 수동 보정만 지우고 AI 결과(마지막 다시 제거)는 남긴다. 실행 취소로 되돌릴 수 있다 */
   const clearAll = useCallback(() => {
-    setHistory((h) => (h.present.length === 0 ? h : pushHistory(h, EMPTY)))
+    setHistory((h) => {
+      if (!h.present.some((op) => op.kind !== 'ai')) return h
+      const ai = lastAiOp(h.present)
+      return pushHistory(h, ai ? [ai] : EMPTY)
+    })
   }, [])
 
   const apply = useCallback(
@@ -181,16 +205,20 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
       addRect,
       addPick,
       updateLastPick,
+      addAiResult,
       undo,
       redo,
       clearAll,
       canUndo: canUndo(history),
       canRedo: canRedo(history),
-      hasEdits: history.present.length > 0,
+      /** 수동 보정이 있는지(AI 결과 단계 제외) */
+      hasEdits: history.present.some((op) => op.kind !== 'ai'),
+      /** 인식 보정으로 다시 제거한 지금의 AI 결과(없으면 처음 결과를 쓴다) */
+      aiResult: lastAiOp(history.present),
       /** 마지막 작업이 스포이드면 그 작업(기준색 표시·설정 반영용) */
       lastPick: lastOp?.kind === 'pick' ? lastOp : null,
     }),
-    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, addPick, updateLastPick, undo, redo, clearAll, history, lastOp]
+    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, addPick, updateLastPick, addAiResult, undo, redo, clearAll, history, lastOp]
   )
 }
 
