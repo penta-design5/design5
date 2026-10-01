@@ -7,10 +7,12 @@ import {
   createHistory,
   pushHistory,
   redoHistory,
+  replacePresent,
   undoHistory,
   type History,
 } from '@/lib/toolbox/common/history'
-import { EditLayers, type EditOp, type Point, type RectOp, type StrokeOp } from '@/lib/toolbox/background-editor/edits'
+import { EditLayers, type EditOp, type PickOp, type Point, type RectOp, type StrokeOp } from '@/lib/toolbox/background-editor/edits'
+import type { PickOptions } from '@/lib/toolbox/background-editor/picker'
 
 const EMPTY: readonly EditOp[] = []
 
@@ -41,7 +43,7 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
   }, [bump])
 
   useLayoutEffect(() => {
-    const layers = original ? new EditLayers(original.width, original.height) : null
+    const layers = original ? new EditLayers(original) : null
     layersRef.current = layers
     renderedRef.current = EMPTY
     liveRef.current = null
@@ -121,6 +123,31 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
     [commit, bump]
   )
 
+  /** 스포이드 — 클릭한 곳의 원본 색과 비슷한 색을 지운다 */
+  const addPick = useCallback(
+    (point: Point, options: PickOptions) => {
+      const layers = layersRef.current
+      if (!layers) return
+      const x = Math.round(point.x)
+      const y = Math.round(point.y)
+      if (x < 0 || y < 0 || x >= layers.width || y >= layers.height) return
+      const op: PickOp = { kind: 'pick', x, y, color: layers.sampleColor(x, y), ...options }
+      layers.draw(op)
+      commit(op)
+      bump()
+    },
+    [commit, bump]
+  )
+
+  /** 마지막 작업이 스포이드면 바뀐 범위·허용 범위로 그 결과를 다시 계산한다(실행 취소 단계는 늘리지 않음) */
+  const updateLastPick = useCallback((options: PickOptions) => {
+    setHistory((h) => {
+      const last = h.present[h.present.length - 1]
+      if (last?.kind !== 'pick' || (last.range === options.range && last.tolerance === options.tolerance)) return h
+      return replacePresent(h, [...h.present.slice(0, -1), { ...last, ...options }])
+    })
+  }, [])
+
   const undo = useCallback(() => {
     if (!liveRef.current) setHistory(undoHistory)
   }, [])
@@ -143,6 +170,7 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
     [original, version]
   )
 
+  const lastOp = history.present[history.present.length - 1]
   return useMemo(
     () => ({
       apply,
@@ -151,14 +179,18 @@ export function useManualEdits(original: HTMLCanvasElement | null) {
       strokeEnd,
       strokeCancel,
       addRect,
+      addPick,
+      updateLastPick,
       undo,
       redo,
       clearAll,
       canUndo: canUndo(history),
       canRedo: canRedo(history),
       hasEdits: history.present.length > 0,
+      /** 마지막 작업이 스포이드면 그 작업(기준색 표시·설정 반영용) */
+      lastPick: lastOp?.kind === 'pick' ? lastOp : null,
     }),
-    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, undo, redo, clearAll, history]
+    [apply, strokeStart, strokeMove, strokeEnd, strokeCancel, addRect, addPick, updateLastPick, undo, redo, clearAll, history, lastOp]
   )
 }
 

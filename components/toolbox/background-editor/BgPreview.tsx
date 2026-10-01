@@ -38,7 +38,7 @@ type Gesture =
   | { kind: 'rect'; start: Point }
 
 /** 수동 보정 도구 — 「화면 이동」은 도구가 아닌 기본 조작 */
-export type EditTool = 'pan' | 'erase' | 'restore' | 'rect'
+export type EditTool = 'pan' | 'erase' | 'restore' | 'rect' | 'picker'
 
 /** 수동 보정 조작 — 좌표는 모두 이미지(원본 px) 좌표 */
 export interface PreviewEditing {
@@ -51,6 +51,8 @@ export interface PreviewEditing {
   onStrokeEnd: () => void
   onStrokeCancel: () => void
   onRect: (start: Point, end: Point) => void
+  /** 스포이드 — 누른 곳 */
+  onPick: (point: Point) => void
 }
 
 interface BgPreviewProps {
@@ -123,7 +125,7 @@ function DisplayCanvas({
  * - 처음과 새 이미지·작업 영역 크기 변경 시 화면 맞춤(원본보다 키우지 않음)
  * - 휠 = 포인터 기준 확대/축소, 두 손가락 = 핀치, 빈 곳·이미지를 끌어 화면 이동, 오른쪽 아래 줌 컨트롤(이미지 편집·분할과 동일)
  * - 비교 경계선은 선(히트 폭 24px)·손잡이를 잡았을 때만 움직인다(화면 이동과 겹치지 않음). 손잡이는 키보드 슬라이더
- * - 수동 보정(「결과」 보기): 지우기·복원 브러시는 끌어서 칠하고, 사각형은 끌어서 영역을 고른다.
+ * - 수동 보정(「결과」 보기): 지우기·복원 브러시는 끌어서 칠하고, 사각형은 끌어서 영역을 고르고, 스포이드는 눌러서 색을 고른다.
  *   도구와 무관하게 Space를 누른 채 끌기·두 손가락·휠로 화면을 옮기고 확대/축소한다.
  */
 export function BgPreview({ original, result, mode, dimmed, editing }: BgPreviewProps) {
@@ -368,6 +370,11 @@ export function BgPreview({ original, result, mode, dimmed, editing }: BgPreview
       setGesture({ kind: 'stroke' })
       return
     }
+    if (activeTool === 'picker' && editing) {
+      const p = toImage(e.clientX, e.clientY)
+      if (p) editing.onPick(p)
+      return
+    }
     if (activeTool === 'rect') {
       const p = toImage(e.clientX, e.clientY)
       if (!p) return
@@ -413,7 +420,7 @@ export function BgPreview({ original, result, mode, dimmed, editing }: BgPreview
       ? 'grabbing'
       : brushTool || gesture?.kind === 'stroke'
         ? 'none'
-        : activeTool === 'rect'
+        : activeTool === 'rect' || activeTool === 'picker'
           ? 'crosshair'
           : 'grab'
 

@@ -1,4 +1,5 @@
 import { createCanvas } from '@/lib/toolbox/common/canvas'
+import { pickColorMask, sampleColor, type PickRange, type RGB } from './picker'
 
 /**
  * 수동 보정(P4) — AI 결과 위의 「사용자 수정 레이어」. 원본·AI 마스크는 그대로 두는 비파괴 방식이다.
@@ -42,7 +43,17 @@ export interface RectOp {
   height: number
 }
 
-export type EditOp = StrokeOp | RectOp
+/** 스포이드 색 제거(P4-2) — 클릭 위치(원본 px)·기준색·범위·허용 범위만 기록하고, 그릴 때 원본에서 다시 계산한다 */
+export interface PickOp {
+  kind: 'pick'
+  x: number
+  y: number
+  color: RGB
+  range: PickRange
+  tolerance: number
+}
+
+export type EditOp = StrokeOp | RectOp | PickOp
 
 export type RectMode = RectOp['mode']
 
@@ -171,6 +182,9 @@ export function normalizeRect(a: Point, b: Point, width: number, height: number)
 export class EditLayers {
   readonly width: number
   readonly height: number
+  private readonly source: HTMLCanvasElement
+  /** 원본 픽셀(스포이드용) — 처음 쓸 때 읽는다 */
+  private sourcePixels: Uint8ClampedArray | null = null
   private coverage: CanvasRenderingContext2D
   private restore: CanvasRenderingContext2D
   /** 합성용 임시 캔버스(재사용) */
@@ -184,7 +198,9 @@ export class EditLayers {
   /** 칠하는 중인 획 — 이미 그린 점 수 */
   private live: { op: StrokeOp; drawn: number } | null = null
 
-  constructor(width: number, height: number) {
+  constructor(source: HTMLCanvasElement) {
+    this.source = source
+    const { width, height } = source
     this.width = width
     this.height = height
     this.coverage = createCanvas(width, height).ctx
@@ -216,8 +232,32 @@ export class EditLayers {
       this.drawRect(op)
       return
     }
+    if (op.kind === 'pick') {
+      const { data } = this.ensureStroke().image
+      const area = pickColorMask(this.pixels(), data, this.width, this.height, op, op.color, op)
+      this.strokeArea = unionRect(this.strokeArea, area)
+      this.strokeDirty = unionRect(this.strokeDirty, area)
+      this.mergeStroke('erase')
+      return
+    }
     this.rasterize(op.points, 0, op)
     this.mergeStroke(op.mode)
+  }
+
+  private pixels(): Uint8ClampedArray {
+    if (!this.sourcePixels) {
+      const ctx = this.source.getContext('2d')
+      if (!ctx) throw new Error('브라우저에서 캔버스를 사용할 수 없습니다.')
+      this.sourcePixels = ctx.getImageData(0, 0, this.width, this.height).data
+    }
+    return this.sourcePixels
+  }
+
+  /** 원본에서 (x, y) 주변 3×3 평균색 — 스포이드 기준색 */
+  sampleColor(x: number, y: number): RGB {
+    const px = Math.min(this.width - 1, Math.max(0, Math.round(x)))
+    const py = Math.min(this.height - 1, Math.max(0, Math.round(y)))
+    return sampleColor(this.pixels(), this.width, this.height, px, py)
   }
 
   /** 칠하는 중 — 획이 늘어날 때마다 호출하면 새로 생긴 구간만 획 마스크에 그린다(레이어에는 끝낼 때 합친다) */
@@ -366,6 +406,7 @@ export class EditLayers {
   dispose() {
     for (const ctx of [this.coverage, this.restore, this.scratch, this.stroke?.ctx]) if (ctx) ctx.canvas.width = 0
     this.stroke = null
+    this.sourcePixels = null
     this.live = null
   }
 }

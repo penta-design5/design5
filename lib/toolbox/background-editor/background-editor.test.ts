@@ -12,6 +12,7 @@ import {
   rasterizeSegment,
 } from './edits'
 import { toAlphaMask, toInputTensor } from './mask'
+import { pickColorMask, rgbToLab, sampleColor } from './picker'
 import { MAX_FEATHER_RADIUS, boxBlur, decontaminateColors, defringeRadius, featherMask, featherRadius } from './refine'
 import { CEIL_MODE_PATTERN, EXPECTED_CEIL_MODE_COUNT, MODEL, ORT_VERSION, patchCeilMode, sha256Hex } from './model'
 
@@ -264,5 +265,74 @@ describe('수동 보정(edits)', () => {
     expect(clampBrushSize(1)).toBe(BRUSH_SIZE_MIN)
     expect(clampBrushSize(9999)).toBe(BRUSH_SIZE_MAX)
     expect(clampBrushSize(48.4)).toBe(48)
+  })
+})
+
+describe('스포이드(picker)', () => {
+  /** 흰 바탕 20×10에 빨간 사각형 2개(서로 떨어짐)와 분홍 띠(빨강과 흰색 사이) */
+  const W = 20
+  const H = 10
+  const makeImage = () => {
+    const rgba = new Uint8ClampedArray(W * H * 4).fill(255)
+    const paint = (x0: number, x1: number, c: [number, number, number]) => {
+      for (let y = 2; y < 8; y++)
+        for (let x = x0; x < x1; x++) {
+          const p = (y * W + x) * 4
+          ;[rgba[p], rgba[p + 1], rgba[p + 2]] = c
+        }
+    }
+    paint(2, 6, [220, 30, 40])
+    paint(6, 7, [235, 150, 155]) // 분홍(경계)
+    paint(13, 17, [222, 28, 42])
+    return rgba
+  }
+  const alphaCount = (out: Uint8ClampedArray, min = 1) => {
+    let n = 0
+    for (let i = 3; i < out.length; i += 4) if (out[i] >= min) n++
+    return n
+  }
+
+  it('rgbToLab: 흰색·검정·빨강 기준값', () => {
+    expect(rgbToLab(255, 255, 255)[0]).toBeCloseTo(100, 1)
+    expect(rgbToLab(0, 0, 0)[0]).toBeCloseTo(0, 1)
+    const [L, a, b] = rgbToLab(255, 0, 0)
+    expect(L).toBeCloseTo(53.24, 0)
+    expect(a).toBeCloseTo(80.09, 0)
+    expect(b).toBeCloseTo(67.2, 0)
+  })
+
+  it('sampleColor: 3×3 평균, 이미지 가장자리는 안쪽만', () => {
+    const rgba = makeImage()
+    expect(sampleColor(rgba, W, H, 3, 4)).toEqual([220, 30, 40])
+    expect(sampleColor(rgba, W, H, 0, 0)).toEqual([255, 255, 255])
+  })
+
+  it('이어진 영역만: 누른 사각형만(+ 둘레 1px), 이미지 전체: 떨어진 사각형까지', () => {
+    const rgba = makeImage()
+    const red: [number, number, number] = [220, 30, 40]
+    const a = new Uint8ClampedArray(W * H * 4)
+    const rect = pickColorMask(rgba, a, W, H, { x: 3, y: 4 }, red, { range: 'contiguous', tolerance: 10 })
+    expect(alphaCount(a, 255)).toBe(6 * 8) // 4×6 사각형 + 둘레 1px
+    expect(rect).toEqual({ x: 1, y: 1, width: 6, height: 8 })
+    expect(a[(4 * W + 13) * 4 + 3]).toBe(0) // 떨어진 사각형은 그대로
+    const g = new Uint8ClampedArray(W * H * 4)
+    pickColorMask(rgba, g, W, H, { x: 3, y: 4 }, red, { range: 'global', tolerance: 10 })
+    expect(alphaCount(g, 255)).toBe(2 * 6 * 8)
+    expect(g[(4 * W + 9) * 4 + 3]).toBe(0) // 사이의 흰 바탕은 그대로
+  })
+
+  it('둘레 1px: 섞인 테두리(분홍)는 지우고 그 바깥은 그대로, 허용 범위 바깥이면 null', () => {
+    const rgba = makeImage()
+    const red: [number, number, number] = [220, 30, 40]
+    const small = new Uint8ClampedArray(W * H * 4)
+    pickColorMask(rgba, small, W, H, { x: 3, y: 4 }, red, { range: 'contiguous', tolerance: 10 })
+    expect(small[(4 * W + 6) * 4 + 3]).toBe(255) // 분홍 테두리(1px)
+    expect(small[(4 * W + 7) * 4 + 3]).toBe(0) // 그 바깥 흰 바탕
+    // 분홍이 허용 범위 안에서 일부만 지워져도(255 미만) 거기서 다시 넓히지 않는다(흰색은 ΔE ≈ 98이라 60 밖)
+    const large = new Uint8ClampedArray(W * H * 4)
+    pickColorMask(rgba, large, W, H, { x: 3, y: 4 }, red, { range: 'contiguous', tolerance: 60 })
+    expect(large[(4 * W + 7) * 4 + 3]).toBe(0)
+    const none = new Uint8ClampedArray(W * H * 4)
+    expect(pickColorMask(rgba, none, W, H, { x: 0, y: 0 }, [0, 0, 255], { range: 'global', tolerance: 5 })).toBeNull()
   })
 })

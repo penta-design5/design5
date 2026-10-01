@@ -1,6 +1,6 @@
 'use client'
 
-import { BoxSelect, Eraser, Hand, Paintbrush, Redo2, Undo2, type LucideIcon } from 'lucide-react'
+import { BoxSelect, Eraser, Hand, Paintbrush, Pipette, Redo2, Undo2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ export const EDIT_TOOLS: { value: EditTool; label: string; shortcut: string; ico
   { value: 'erase', label: '지우기', shortcut: 'E', icon: Eraser },
   { value: 'restore', label: '복원', shortcut: 'R', icon: Paintbrush },
   { value: 'rect', label: '사각형 영역', shortcut: 'M', icon: BoxSelect },
+  { value: 'picker', label: '스포이드 색 제거', shortcut: 'I', icon: Pipette },
 ]
 
 interface BgEditToolbarProps {

@@ -31,6 +31,7 @@ import {
   normalizeRect,
   type RectMode,
 } from '@/lib/toolbox/background-editor/edits'
+import { DEFAULT_PICK, type PickOptions } from '@/lib/toolbox/background-editor/picker'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import { cn } from '@/lib/utils'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
@@ -101,6 +102,7 @@ export function BackgroundEditorPage() {
   const [brushSize, setBrushSize] = useState(DEFAULT_BRUSH_SIZE)
   const [softness, setSoftness] = useState(DEFAULT_SOFTNESS)
   const [rectMode, setRectMode] = useState<RectMode>('keep')
+  const [pick, setPick] = useState<PickOptions>(DEFAULT_PICK)
   const edited = useMemo(() => edits.apply(result), [edits, result])
   const composed = useMemo(() => (edited ? composeBackground(edited, deferredBackground) : null), [edited, deferredBackground])
   const { model, removal, remove, reset, cancelDownload } = useBackgroundRemoval()
@@ -132,8 +134,9 @@ export function BackgroundEditorPage() {
         const rect = normalizeRect(start, end, image.width, image.height)
         if (rect) edits.addRect({ mode: rectMode, ...rect })
       },
+      onPick: (point) => edits.addPick(point, pick),
     }
-  }, [result, image, tool, brushSize, rectMode, softness, edits])
+  }, [result, image, tool, brushSize, rectMode, softness, pick, edits])
 
   // 단축키(배경을 제거한 뒤): 실행 취소 Ctrl/⌘+Z · 다시 실행 Ctrl/⌘+Shift+Z 또는 Ctrl+Y · 도구 H/E/R/M · 브러시 크기 [ ]
   const hasResult = Boolean(result)
@@ -335,6 +338,15 @@ export function BackgroundEditorPage() {
       onRectModeChange: (next: RectMode) => {
         setRectMode(next)
         chooseTool('rect')
+      },
+      pick,
+      lastPickColor: edits.lastPick?.color ?? null,
+      // 스포이드 설정을 바꾸면 스포이드 도구로 바꾸고, 마지막 작업이 스포이드면 그 결과에 바로 반영한다
+      onPickChange: (patch: Partial<PickOptions>) => {
+        const next = { ...pick, ...patch }
+        setPick(next)
+        chooseTool('picker')
+        edits.updateLastPick(next)
       },
       onClear: edits.clearAll,
     },
