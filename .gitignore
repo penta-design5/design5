@@ -60,3 +60,5 @@ yarn-error.log*
 
 # ICON+ 참고용 원본 소스 (앱 코드 아님, 저장소 제외)
 /icon-merger/
+# TOOLBOX 테스트용 샘플 이미지 (로컬 전용 — 저작권·공개 경로 문제로 커밋하지 않음)
+/docs/test-img/

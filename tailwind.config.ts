@@ -104,10 +104,16 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        /** 진행률을 알 수 없는 작업의 막대(TOOLBOX 배경 편집) */
+        "progress-indeterminate": {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(250%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "progress-indeterminate": "progress-indeterminate 1.2s ease-in-out infinite",
       },
     },
   },

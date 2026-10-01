@@ -8,8 +8,8 @@
 - **현재 상태**
   - ✅ 이미지 편집 완료 (2026-09-30, 개발망 확인)
   - ✅ 이미지 분할 완료 (2026-09-30, 개발망 확인) → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
-  - ⬜ **배경 제거 및 변경 — 착수 전 결정 논의 중**(§2-1)
-- **다음 세션 시작점**: 배경 제거 및 변경 — §2-1 결정 사항 확정 → `docs/TOOLBOX_background-remover_handoff.md` 작성 → 모델 PoC
+  - 🟡 **배경 편집 — P1(모델 로딩·배경 제거·투명 PNG) 로컬 검증 완료(2026-10-01)** → [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md)
+- **다음 세션 시작점**: 배경 편집 P1 개발망 확인(사무용 PC 처리 시간) → P2
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -42,7 +42,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 1 | **이미지 편집** | `image-editor` | 회전/반전(각도 조정), 사이즈 변경(비율 유지), 자르기, 텍스트·도형(펜, 형광펜, 직선, 화살표, 사각형, 원), 워터마크 삽입 | 브라우저 (Canvas/Konva) | ✅ 완료 · [TOOLBOX_image-editor_handoff.md](TOOLBOX_image-editor_handoff.md) |
 | 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | ✅ 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
-| 3 | 배경 제거 및 변경 | `background-remover` | 배경 제거, 단색/이미지 배경 교체 | ⚠️ **AI 모델 필요 — §2-1 검토 후 결정** | ⬜ 로드맵 |
+| 3 | **배경 편집** | `background-editor` | 배경 제거, 단색/이미지 배경 교체 | 브라우저 (ISNet fp16 + `onnxruntime-web`, 모델은 외부 CDN) | 🟡 P1 로컬 완료 · [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md) |
 | 4 | 이미지 모자이크 | `mosaic` | 격자형, 육각·삼각형, 원형, 블러, 픽셀아트 등 | 브라우저 (픽셀 연산, **AI 불필요** — §2-2) | ⬜ 로드맵 |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·크기·로고, PNG/SVG 다운로드 | 브라우저 (QR 라이브러리, 예: `qrcode`) | ⬜ 로드맵 |
 | 6 | 특수 문자 및 이모티콘 | `special-characters` | 클릭 시 클립보드 복사 | 브라우저 (Clipboard API — HTTPS 필요, 개발망·운영망 모두 HTTPS라 문제없음) | ⬜ 로드맵 |
@@ -51,6 +51,10 @@
 > 공통 기반(이미지 편집 P0: 사이드바 섹션·라우팅·로그인 게이트·레이아웃)은 이후 메뉴가 **메뉴 항목 1줄 + 페이지 1개 추가**만으로 붙도록 설계되어 있다(§3).
 
 ### 2-1. 배경 제거 — 착수 전 검토 항목
+
+> ✅ **2026-10-01 결정 완료**: 아래 항목은 착수 전 논의 기록이다. 확정 내용과 PoC 결과는 [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md)를 본다.
+> - 메뉴 이름 「배경 편집」, slug `background-editor`
+> - 브라우저 처리, 모델 ISNet, 외부 CDN
 
 배경 제거는 **AI 분할(segmentation) 모델이 필요**한 유일한 메뉴다. 브라우저에서 모델을 실행하는 방식(ONNX Runtime Web, Transformers.js, MediaPipe 등)으로도 구현할 수 있고, 이 경우 이미지가 서버로 나가지 않는다는 원칙이 유지된다. 착수 시 아래를 먼저 검토한다.
 
