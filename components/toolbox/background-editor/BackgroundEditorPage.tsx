@@ -19,6 +19,9 @@ import {
   type ExportFormat,
 } from '@/lib/toolbox/common/export'
 import { DEFAULT_BACKGROUND, composeBackground, type BackgroundSettings } from '@/lib/toolbox/background-editor/compose'
+import { buildCutout } from '@/lib/toolbox/background-editor/cutout'
+import { MODEL } from '@/lib/toolbox/background-editor/model'
+import { DEFAULT_EDGE, type EdgeSettings } from '@/lib/toolbox/background-editor/refine'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import { cn } from '@/lib/utils'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
@@ -44,7 +47,7 @@ interface LoadedImage extends BgImageInfo {
  * 레이아웃: 좌측 작업 영역 + 우측 410px 옵션 패널(xl 이상), xl 미만은 「편집 옵션」 Sheet — 이미지 분할과 동일.
  * 흐름: 이미지 불러오기(원본 표시) → 「배경 제거」 버튼 → 결과. 결과는 「원본 | 비교 | 결과」로 볼 수 있다.
  * 모델은 처음 「배경 제거」를 누를 때 외부 CDN에서 내려받는다(진행 카드), 이후에는 브라우저에 저장된 모델을 쓴다.
- * 사이드바 메뉴: lib/toolbox/menu.ts의 TOOLBOX_MENU(P4에서 등록).
+ * 사이드바 메뉴: lib/toolbox/menu.ts의 TOOLBOX_MENU(P5에서 등록).
  * 구현 기록: docs/TOOLBOX_background-editor_handoff.md
  */
 export function BackgroundEditorPage() {
@@ -54,7 +57,10 @@ export function BackgroundEditorPage() {
   const dragDepth = useRef(0)
 
   const [image, setImage] = useState<LoadedImage | null>(null)
-  const [result, setResult] = useState<HTMLCanvasElement | null>(null)
+  /** 모델이 만든 전경 알파 마스크(MODEL.inputSize²) — 경계 다듬기를 바꿔도 AI를 다시 돌리지 않고 여기서 결과를 다시 만든다 */
+  const [mask, setMask] = useState<Uint8ClampedArray | null>(null)
+  // 경계 다듬기는 슬라이더를 놓을 때 반영된다(큰 이미지 처리 비용) — 새 이미지를 열어도 유지
+  const [edge, setEdge] = useState<EdgeSettings>(DEFAULT_EDGE)
   const [loading, setLoading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -67,6 +73,10 @@ export function BackgroundEditorPage() {
   const [quality, setQuality] = useState(DEFAULT_EXPORT_QUALITY)
   // 색상 선택기를 끄는 동안 큰 이미지 합성이 입력을 막지 않도록 한 박자 늦춰 합성한다
   const deferredBackground = useDeferredValue(background)
+  const result = useMemo(
+    () => (image && mask ? buildCutout(image.original, mask, MODEL.inputSize, edge) : null),
+    [image, mask, edge]
+  )
   const composed = useMemo(() => (result ? composeBackground(result, deferredBackground) : null), [result, deferredBackground])
   const { model, removal, remove, reset, cancelDownload } = useBackgroundRemoval()
   const imageRef = useRef(image)
@@ -88,10 +98,10 @@ export function BackgroundEditorPage() {
   const startRemoval = useCallback(async () => {
     if (!image) return
     const source = image.original
-    const cutout = await remove(source)
+    const alpha = await remove(source)
     // 그 사이 다른 이미지를 열었으면 무시(remove도 null을 돌려주지만 한 번 더 확인)
-    if (!cutout || imageRef.current?.original !== source) return
-    setResult(cutout)
+    if (!alpha || imageRef.current?.original !== source) return
+    setMask(alpha)
     setMode('result')
   }, [image, remove])
 
@@ -109,7 +119,7 @@ export function BackgroundEditorPage() {
         // 원본만 보여 주고, 배경 제거는 「배경 제거」 버튼으로 시작한다
         reset()
         setImage({ original: canvas, width: canvas.width, height: canvas.height, fileName, fileSize: file.size })
-        setResult(null)
+        setMask(null)
         setMode('result')
         setBaseName(`${baseNameOf(fileName)}_bg`)
       } catch (e) {
@@ -212,6 +222,8 @@ export function BackgroundEditorPage() {
     onPickBackgroundImage: (file: File) => void pickBackgroundImage(file),
     onFormatChange: setFormat,
     onQualityChange: setQuality,
+    edge,
+    onEdgeChange: (patch: Partial<EdgeSettings>) => setEdge((prev) => ({ ...prev, ...patch })),
     onBaseNameChange: setBaseName,
     onSave: save,
   }

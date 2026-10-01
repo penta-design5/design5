@@ -12,7 +12,9 @@ import { EXPORT_FORMATS, getExportFormat, sanitizeFileName, type ExportFormat } 
 import type { BackgroundSettings } from '@/lib/toolbox/background-editor/compose'
 import { MODEL } from '@/lib/toolbox/background-editor/model'
 import type { InferenceBackend } from '@/lib/toolbox/background-editor/protocol'
+import type { EdgeSettings } from '@/lib/toolbox/background-editor/refine'
 import { BgBackgroundSection } from './BgBackgroundSection'
+import { BgEdgeSection } from './BgEdgeSection'
 import { RemoveBackgroundButton, type RemoveButtonState } from './RemoveBackgroundButton'
 import type { ModelStatus, RemovalStatus } from './use-background-removal'
 
@@ -45,6 +47,8 @@ interface BgSidePanelProps {
   onPickBackgroundImage: (file: File) => void
   onFormatChange: (format: ExportFormat) => void
   onQualityChange: (quality: number) => void
+  edge: EdgeSettings
+  onEdgeChange: (patch: Partial<EdgeSettings>) => void
   onBaseNameChange: (name: string) => void
   onSave: () => void
 }
@@ -86,8 +90,7 @@ function modelLabel(model: ModelStatus): string {
 }
 
 /**
- * 우측 옵션 패널 — 배경 제거(실행 버튼) · 배경(교체) · 처리 정보 · 이미지 정보 · 저장(형식·품질) (데스크톱 패널과 모바일·태블릿 Sheet 공용).
- * 경계 다듬기는 P3에서 추가한다.
+ * 우측 옵션 패널 — 배경 제거(실행 버튼) · 배경(교체) · 경계 다듬기 · 처리 정보 · 이미지 정보 · 저장(형식·품질) (데스크톱 패널과 모바일·태블릿 Sheet 공용).
  */
 export function BgSidePanel({
   variant = 'sidebar',
@@ -106,6 +109,8 @@ export function BgSidePanel({
   onPickBackgroundImage,
   onFormatChange,
   onQualityChange,
+  edge,
+  onEdgeChange,
   onBaseNameChange,
   onSave,
 }: BgSidePanelProps) {
@@ -145,6 +150,8 @@ export function BgSidePanel({
             onChange={onBackgroundChange}
             onPickImage={onPickBackgroundImage}
           />
+
+          <BgEdgeSection enabled={hasResult} edge={edge} onChange={onEdgeChange} />
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">처리 정보</h3>

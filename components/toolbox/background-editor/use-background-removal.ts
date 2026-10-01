@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { applyAlphaMask, prepareModelInput } from '@/lib/toolbox/background-editor/cutout'
+import { prepareModelInput } from '@/lib/toolbox/background-editor/cutout'
 import { BackgroundEngine, type EngineReady } from '@/lib/toolbox/background-editor/engine'
 import { toAlphaMask } from '@/lib/toolbox/background-editor/mask'
 import { EXPECTED_CEIL_MODE_COUNT, MODEL, loadModelBytes, patchCeilMode } from '@/lib/toolbox/background-editor/model'
@@ -94,9 +94,9 @@ export function useBackgroundRemoval() {
     setRemoval({ kind: 'idle' })
   }, [])
 
-  /** 배경 제거 — 투명 배경 캔버스(원본 해상도). 더 새 작업이 시작됐거나 모델 준비가 취소·실패하면 null */
+  /** 배경 제거 — 전경 알파 마스크(모델 해상도 MODEL.inputSize², 경계 다듬기·합성은 페이지가 한다). 더 새 작업이 시작됐거나 모델 준비가 취소·실패하면 null */
   const remove = useCallback(
-    async (source: HTMLCanvasElement): Promise<HTMLCanvasElement | null> => {
+    async (source: HTMLCanvasElement): Promise<Uint8ClampedArray | null> => {
       const job = ++jobRef.current
       const current = () => job === jobRef.current
       setRemoval({ kind: 'idle' })
@@ -132,7 +132,7 @@ export function useBackgroundRemoval() {
 
         setRemoval({ kind: 'running', step: 'compose', startedAt })
         await nextFrame()
-        const result = applyAlphaMask(source, toAlphaMask(output), MODEL.inputSize)
+        const result = toAlphaMask(output)
         if (!current()) return null
         setRemoval({ kind: 'done', ms: performance.now() - startedAt, backend })
         return result
