@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { FolderOpen, Loader2, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useIsMobileViewport } from '@/lib/hooks/use-is-mobile-viewport'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
-import { baseNameOf, downloadBlob, encodeCanvas, sanitizeFileName } from '@/lib/toolbox/common/export'
+import {
+  DEFAULT_EXPORT_QUALITY,
+  baseNameOf,
+  downloadBlob,
+  encodeCanvas,
+  getExportFormat,
+  sanitizeFileName,
+  type ExportFormat,
+} from '@/lib/toolbox/common/export'
+import { DEFAULT_BACKGROUND, composeBackground, type BackgroundSettings } from '@/lib/toolbox/background-editor/compose'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import { cn } from '@/lib/utils'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
@@ -52,6 +61,13 @@ export function BackgroundEditorPage() {
   const [baseName, setBaseName] = useState('')
   const [saving, setSaving] = useState(false)
   const [mode, setMode] = useState<PreviewMode>('result')
+  // 배경·저장 형식은 새 이미지를 열어도 유지한다(같은 설정으로 여러 장을 처리하기 쉽게)
+  const [background, setBackground] = useState<BackgroundSettings>(DEFAULT_BACKGROUND)
+  const [format, setFormat] = useState<ExportFormat>('png')
+  const [quality, setQuality] = useState(DEFAULT_EXPORT_QUALITY)
+  // 색상 선택기를 끄는 동안 큰 이미지 합성이 입력을 막지 않도록 한 박자 늦춰 합성한다
+  const deferredBackground = useDeferredValue(background)
+  const composed = useMemo(() => (result ? composeBackground(result, deferredBackground) : null), [result, deferredBackground])
   const { model, removal, remove, reset, cancelDownload } = useBackgroundRemoval()
   const imageRef = useRef(image)
   imageRef.current = image
@@ -144,13 +160,30 @@ export function BackgroundEditorPage() {
 
   const browse = () => fileInputRef.current?.click()
 
+  /** 배경 이미지 — 원본과 같은 검증(형식·용량·픽셀)·EXIF 보정 */
+  const pickBackgroundImage = useCallback(async (file: File) => {
+    const error = validateImageFile(file)
+    if (error) {
+      toast.error(error)
+      return
+    }
+    try {
+      const canvas = await decodeImageFile(file)
+      setBackground((prev) => ({ ...prev, kind: 'image', image: canvas, imageName: file.name || 'image' }))
+    } catch (e) {
+      toast.error(e instanceof ImageLoadError ? e.message : '배경 이미지를 불러오지 못했습니다.')
+    }
+  }, [])
+
   const save = async () => {
+    // 저장은 늦춘 값이 아니라 현재 설정으로 다시 합성한다(마지막 색 변경 직후 저장해도 정확하게)
     if (!result) return
     setSaving(true)
     try {
-      const blob = await encodeCanvas(result, 'png', 1)
-      downloadBlob(blob, `${sanitizeFileName(baseName)}.png`)
-      toast.success('배경을 제거한 이미지를 PNG로 저장했습니다.')
+      const { ext, label } = getExportFormat(format)
+      const blob = await encodeCanvas(composeBackground(result, background), format, quality)
+      downloadBlob(blob, `${sanitizeFileName(baseName)}.${ext}`)
+      toast.success(`${label}로 저장했습니다.`)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '저장하지 못했습니다.')
     } finally {
@@ -169,9 +202,16 @@ export function BackgroundEditorPage() {
     removal,
     hasResult: Boolean(result),
     removeState,
+    background,
+    format,
+    quality,
     baseName,
     saving,
     onRemove: () => void startRemoval(),
+    onBackgroundChange: (patch: Partial<BackgroundSettings>) => setBackground((prev) => ({ ...prev, ...patch })),
+    onPickBackgroundImage: (file: File) => void pickBackgroundImage(file),
+    onFormatChange: setFormat,
+    onQualityChange: setQuality,
     onBaseNameChange: setBaseName,
     onSave: save,
   }
@@ -184,7 +224,7 @@ export function BackgroundEditorPage() {
             <div>
               <h1 className="page-header-title">배경 편집</h1>
               <p className="text-muted-foreground mt-2">
-                이미지를 불러와 「배경 제거」를 누르면 AI가 배경을 지웁니다. 이미지는 서버로 전송되지 않고 브라우저에서 처리됩니다.
+                이미지를 불러와 「배경 제거」를 누르면 AI가 배경을 지웁니다. 지운 배경은 단색이나 다른 이미지로 바꿀 수 있습니다. 이미지는 서버로 전송되지 않고 브라우저에서 처리됩니다.
               </p>
             </div>
             {image && (
@@ -197,7 +237,7 @@ export function BackgroundEditorPage() {
 
           {image ? (
             <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100">
-              <BgPreview original={image.original} result={result} mode={mode} dimmed={processing} />
+              <BgPreview original={image.original} result={composed} mode={mode} dimmed={processing} />
               <BgProgressCard model={model} removal={removal} cpu={cpu} onCancelDownload={cancelDownload} />
               {/* 보기 전환 — 배경을 제거한 뒤에만 */}
               {result && (

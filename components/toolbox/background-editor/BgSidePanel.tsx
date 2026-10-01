@@ -5,10 +5,14 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 import { formatFileSize } from '@/lib/design-request-attachments'
-import { sanitizeFileName } from '@/lib/toolbox/common/export'
+import { EXPORT_FORMATS, getExportFormat, sanitizeFileName, type ExportFormat } from '@/lib/toolbox/common/export'
+import type { BackgroundSettings } from '@/lib/toolbox/background-editor/compose'
 import { MODEL } from '@/lib/toolbox/background-editor/model'
 import type { InferenceBackend } from '@/lib/toolbox/background-editor/protocol'
+import { BgBackgroundSection } from './BgBackgroundSection'
 import { RemoveBackgroundButton, type RemoveButtonState } from './RemoveBackgroundButton'
 import type { ModelStatus, RemovalStatus } from './use-background-removal'
 
@@ -31,11 +35,25 @@ interface BgSidePanelProps {
   removal: RemovalStatus
   hasResult: boolean
   removeState: RemoveButtonState
+  background: BackgroundSettings
+  format: ExportFormat
+  quality: number
   baseName: string
   saving: boolean
   onRemove: () => void
+  onBackgroundChange: (patch: Partial<BackgroundSettings>) => void
+  onPickBackgroundImage: (file: File) => void
+  onFormatChange: (format: ExportFormat) => void
+  onQualityChange: (quality: number) => void
   onBaseNameChange: (name: string) => void
   onSave: () => void
+}
+
+/** 저장 형식 라벨 — 이미지 분할과 같은 표기 */
+const FORMAT_LABELS: Record<ExportFormat, string> = {
+  png: 'PNG · 투명 유지',
+  jpeg: 'JPG · 투명 → 흰색',
+  webp: 'WebP',
 }
 
 const MODEL_NOTE = `처음 사용할 때 AI 모델(약 ${(MODEL.bytes / 1_000_000).toFixed(1)}MB)을 내려받습니다. 이후에는 저장된 모델을 사용합니다.`
@@ -68,8 +86,8 @@ function modelLabel(model: ModelStatus): string {
 }
 
 /**
- * 우측 옵션 패널 — 배경 제거(실행 버튼) · 처리 정보 · 이미지 정보 · 저장 (데스크톱 패널과 모바일·태블릿 Sheet 공용).
- * P1은 투명 PNG 저장까지. 배경 교체·저장 형식(P2), 경계 다듬기(P3)는 이후 단계에서 추가한다.
+ * 우측 옵션 패널 — 배경 제거(실행 버튼) · 배경(교체) · 처리 정보 · 이미지 정보 · 저장(형식·품질) (데스크톱 패널과 모바일·태블릿 Sheet 공용).
+ * 경계 다듬기는 P3에서 추가한다.
  */
 export function BgSidePanel({
   variant = 'sidebar',
@@ -78,14 +96,24 @@ export function BgSidePanel({
   removal,
   hasResult,
   removeState,
+  background,
+  format,
+  quality,
   baseName,
   saving,
   onRemove,
+  onBackgroundChange,
+  onPickBackgroundImage,
+  onFormatChange,
+  onQualityChange,
   onBaseNameChange,
   onSave,
 }: BgSidePanelProps) {
   const isSheet = variant === 'sheet'
   const safeBase = sanitizeFileName(baseName)
+  const { ext, lossy, label } = getExportFormat(format)
+  // 단색·이미지(꽉 채우기) 배경이면 투명한 부분이 없다 — JPG 흰색 안내 생략
+  const opaque = background.kind === 'color' || (background.kind === 'image' && background.image !== null && background.fit === 'cover')
   const backend = removal.kind === 'done' ? removal.backend : model.kind === 'ready' ? model.backend : null
 
   return (
@@ -109,6 +137,14 @@ export function BgSidePanel({
             <RemoveBackgroundButton state={removeState} onClick={onRemove} />
             {model.kind !== 'ready' && <p className="text-xs text-muted-foreground">{MODEL_NOTE}</p>}
           </section>
+
+          <BgBackgroundSection
+            idPrefix={variant}
+            enabled={hasResult}
+            background={background}
+            onChange={onBackgroundChange}
+            onPickImage={onPickBackgroundImage}
+          />
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">처리 정보</h3>
@@ -136,15 +172,51 @@ export function BgSidePanel({
           <section className="space-y-4">
             <h3 className="text-sm font-semibold">저장</h3>
             <div className="space-y-2">
+              <Label htmlFor={`${variant}-bg-format`}>저장 형식</Label>
+              <Select value={format} onValueChange={(v) => onFormatChange(v as ExportFormat)}>
+                <SelectTrigger id={`${variant}-bg-format`} data-testid="bg-format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPORT_FORMATS.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>
+                      {FORMAT_LABELS[f.value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {lossy && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>품질</Label>
+                  <span className="text-sm tabular-nums text-muted-foreground">{Math.round(quality * 100)}%</span>
+                </div>
+                <Slider
+                  aria-label="저장 품질"
+                  value={[quality]}
+                  min={0.5}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([value]) => onQualityChange(value)}
+                />
+              </div>
+            )}
+            <div className="space-y-2">
               <Label htmlFor={`${variant}-bg-name`}>파일명</Label>
               <Input id={`${variant}-bg-name`} value={baseName} onChange={(e) => onBaseNameChange(e.target.value)} />
-              <p className="break-all text-xs text-muted-foreground">{safeBase}.png</p>
+              <p className="break-all text-xs text-muted-foreground">
+                {safeBase}.{ext}
+              </p>
             </div>
             <Button type="button" className="w-full" onClick={onSave} disabled={!hasResult || saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              PNG로 저장
+              {label}로 저장
             </Button>
-            <p className="text-xs text-muted-foreground">배경이 투명한 PNG로, 원본과 같은 크기로 저장합니다.</p>
+            <p className="text-xs text-muted-foreground">
+              원본과 같은 크기로 저장합니다.
+              {format === 'jpeg' && !opaque && ' JPG는 투명을 지원하지 않아 투명한 부분을 흰색으로 저장합니다.'}
+            </p>
           </section>
 
           <section className="space-y-1.5 text-xs text-muted-foreground">

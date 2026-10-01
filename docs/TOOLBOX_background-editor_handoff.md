@@ -5,8 +5,8 @@
 - 메뉴: 배경 편집 · slug `background-editor` · 라우트 `/toolbox/background-editor`
   - 허브 로드맵의 slug 안(`background-remover`)을 메뉴 이름에 맞춰 바꿨다.
 - 최초 작성: 2026-10-01
-- **현재 상태: 🟡 P1 구현·로컬 검증 완료(2026-10-01) — 개발망 배포·사무용 PC 속도 측정·사용자 확인 대기**
-- **다음 시작점**: 개발망(design6) 반영 → 사무용 PC에서 「처리 정보」의 실행 방식·처리 시간 확인(§6 P1 검증) → P2(배경 교체·저장 형식)
+- **현재 상태: 🟡 P1 푸시 완료(`2f2a4f1`), P2(배경 교체·저장 형식) 로컬 검증 완료 — 사용자 확인 대기**
+- **다음 시작점**: P2 사용자 확인 → 커밋·푸시 → 개발망(design6)에서 사무용 PC의 「처리 정보」(실행 방식·처리 시간) 확인 → P3(경계 다듬기·줌)
 - 미결 항목(§5) Q1~Q4는 모두 확정됐다.
 - 운영망 반영: TOOLBOX 전체 메뉴 완료 후 한꺼번에(허브 §6). 사이드바 메뉴 등록은 마지막 Phase에서 한다.
 
@@ -199,7 +199,7 @@
 | --- | --- | --- |
 | P0 | 모델 PoC(품질·속도·용량·라이선스 비교) | ✅ 2026-10-01 |
 | P1 | 라우트 골격(메뉴 미노출) + `onnxruntime-web` + 모델 다운로드(진행률·캐시·SHA-256·`ceil_mode` 보정) + Worker 추론 + **배경 제거 → 투명 PNG 저장** + 처리 시간·백엔드 표시 → **개발망에서 사무용 PC 속도 측정** | 🟡 로컬 검증 완료, 개발망 확인 대기 |
-| P2 | 배경 교체(투명·단색·이미지) + 저장 형식(JPG/WebP·품질) | ⬜ |
+| P2 | 배경 교체(투명·단색·이미지) + 저장 형식(JPG/WebP·품질) | 🟡 로컬 검증 완료, 사용자 확인 대기 |
 | P3 | 경계 다듬기(부드럽게·강도, 색 번짐 완화) + 줌·화면 이동 (전·후 비교는 P1 보완에서 완료) | ⬜ |
 | P4 | 반응형(Sheet)·접근성·QA + 오류 처리(다운로드 실패·메모리 부족) + **사이드바 메뉴 노출** + 개발망 확인 | ⬜ |
 
@@ -266,6 +266,40 @@
   - 새 이미지 → 원본 상태로 초기화(처리 시간 「-」)
   - 1024px 폭: 하단 버튼 표시 → 실행 → 결과, 완료 후 숨김
   - 다운로드 중 버튼 「처리 중」 → 취소 → 카드 닫힘·토스트·버튼 재활성 → 다시 눌러 결과
+- [x] 사용자 확인(2026-10-01) → 커밋 `2f2a4f1` 푸시
+
+### P2 — 배경 교체 + 저장 형식 (🟡 2026-10-01)
+
+**동작**
+- 우측 패널 「배경 제거」 아래에 **「배경」** 섹션을 둔다. 배경을 제거하기 전에는 안내 문구만 보인다.
+  - **투명**(기본)
+  - **단색**: 프리셋 8색(흰색·밝은 회색·검정 + 이미지 편집 기본색) + 직접 선택(`input type=color`) + HEX 표시
+  - **이미지**: 「배경 이미지 불러오기」(원본과 같은 검증·EXIF 보정) → 파일명·크기 표시
+    - 배치: **꽉 채우기**(기본, 넘치는 부분 잘림) / **맞추기**(남는 부분 투명). 가운데 정렬, 비율 유지
+    - 이미지를 고르기 전에는 투명으로 보인다.
+- 미리보기의 「결과」·「비교」에 바뀐 배경이 바로 반영된다.
+  - 색상 선택기를 끄는 동안 큰 이미지 합성이 입력을 막지 않도록 `useDeferredValue`로 한 박자 늦춘다.
+  - 저장은 늦춘 값이 아니라 현재 설정으로 다시 합성한다.
+- **저장 형식**: PNG · 투명 유지(기본) / JPG · 투명 → 흰색 / WebP. JPG·WebP는 품질 슬라이더(50~100%, 기본 92%)
+  - 파일명 확장자와 버튼 문구(「JPG로 저장」 등)가 형식을 따른다.
+  - JPG이고 투명한 부분이 남아 있으면(투명·맞추기) 「투명한 부분을 흰색으로 저장」 안내를 붙인다.
+- 배경·저장 형식 설정은 새 이미지를 열어도 유지한다. 같은 설정으로 여러 장을 처리하기 쉽게 하기 위해서다.
+
+**구조**
+- `lib/toolbox/background-editor/compose.ts`: `BackgroundSettings`·프리셋, `fitRect`(꽉 채우기/맞추기 위치), `hasBackground`, `composeBackground`(결과 뒤에 배경을 깐 새 캔버스. 배경이 없으면 결과를 그대로 반환)
+- `components/toolbox/background-editor/BgBackgroundSection.tsx`: 배경 섹션 UI
+- 저장은 공용 `export.ts`의 `encodeCanvas`(JPG 흰색 처리·미지원 형식 안내)를 쓴다.
+
+**검증(로컬 dev, 2026-10-01)**
+- [x] typecheck 0 / lint 0 / vitest toolbox 110건(신규 4건: `fitRect` 3, `hasBackground` 1)
+- [x] E2E P2 묶음 **17/17**
+  - 제거 전: 배경 섹션 안내만. 기본 투명(모서리 알파 0)
+  - 단색 검정: 모서리 (0,0,0,255), 고양이 유지. 직접 선택 #12AB34 반영·HEX 표시. 비교 보기의 결과 쪽에도 반영
+  - JPG: 품질·`.jpg`·단색이면 흰색 안내 없음 → 저장 파일 489×584, 모서리 #12AB34
+  - 이미지(수박 1076×688 → 세로 고양이): 선택 전 투명, 정보 표시. 꽉 채우기는 모서리 불투명, 맞추기는 위쪽 투명·가운데 배경
+  - WebP 저장 위쪽 투명 / JPG + 투명 영역이면 흰색 안내 / 투명으로 되돌림 → PNG 투명 유지
+  - 새 이미지: 배경 섹션 안내로 돌아감 / 페이지 오류 0
+- [x] 회귀: P1 E2E 23/23 · 8/8
 - [ ] 사용자 확인
 
 ---
@@ -289,3 +323,4 @@
   - 수정: `package.json`·`package-lock.json`(`onnxruntime-web` 1.30.0), `next.config.js`(ORT 별칭·parser), `tailwind.config.ts`(진행 막대 애니메이션), `.gitignore`(`/docs/test-img/`)
   - 이동: `public/test-img/` → `docs/test-img/`(git 미추적)
 - P1 보완: 신규 `components/toolbox/background-editor/RemoveBackgroundButton.tsx`. 수정 `BackgroundEditorPage.tsx`(버튼 실행·보기 전환·토스트), `BgPreview.tsx`(원본/비교/결과·경계선), `BgProgressCard.tsx`(진행 중만), `BgSidePanel.tsx`(배경 제거 섹션), `use-background-removal.ts`(`reset`)
+- P2: 신규 `lib/toolbox/background-editor/compose.ts`, `components/toolbox/background-editor/BgBackgroundSection.tsx`. 수정 `BackgroundEditorPage.tsx`(배경 상태·합성·형식별 저장), `BgSidePanel.tsx`(배경 섹션·저장 형식·품질), `background-editor.test.ts`(+4)

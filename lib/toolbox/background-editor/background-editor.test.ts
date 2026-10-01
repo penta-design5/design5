@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_BACKGROUND, fitRect, hasBackground } from './compose'
 import { toAlphaMask, toInputTensor } from './mask'
 import { CEIL_MODE_PATTERN, EXPECTED_CEIL_MODE_COUNT, MODEL, ORT_VERSION, patchCeilMode, sha256Hex } from './model'
 
@@ -83,5 +84,29 @@ describe('toAlphaMask', () => {
 
   it('값이 모두 같으면 전부 0', () => {
     expect(Array.from(toAlphaMask(new Float32Array([0.7, 0.7])))).toEqual([0, 0])
+  })
+})
+
+describe('fitRect', () => {
+  it('꽉 채우기: 대상 전체를 덮고 가운데 정렬(넘치는 쪽이 음수 위치)', () => {
+    // 가로로 긴 배경(200×100)을 정사각(100×100)에 → 높이 맞춤 200×100, 좌우 50씩 잘림
+    expect(fitRect({ width: 200, height: 100 }, { width: 100, height: 100 }, 'cover')).toEqual({ x: -50, y: 0, width: 200, height: 100 })
+  })
+
+  it('맞추기: 전체가 들어가고 남는 쪽 여백', () => {
+    expect(fitRect({ width: 200, height: 100 }, { width: 100, height: 100 }, 'contain')).toEqual({ x: 0, y: 25, width: 100, height: 50 })
+  })
+
+  it('작은 배경도 비율을 유지해 키운다', () => {
+    expect(fitRect({ width: 10, height: 20 }, { width: 100, height: 100 }, 'cover')).toEqual({ x: 0, y: -50, width: 100, height: 200 })
+  })
+})
+
+describe('hasBackground', () => {
+  it('투명·이미지 미선택은 배경 없음, 단색·이미지 선택은 있음', () => {
+    expect(hasBackground(DEFAULT_BACKGROUND)).toBe(false)
+    expect(hasBackground({ ...DEFAULT_BACKGROUND, kind: 'image' })).toBe(false)
+    expect(hasBackground({ ...DEFAULT_BACKGROUND, kind: 'color' })).toBe(true)
+    expect(hasBackground({ ...DEFAULT_BACKGROUND, kind: 'image', image: {} as HTMLCanvasElement })).toBe(true)
   })
 })
