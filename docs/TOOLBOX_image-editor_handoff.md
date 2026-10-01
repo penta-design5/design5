@@ -9,7 +9,7 @@
 - 최초 작성: 2026-09-28 · 허브 문서에서 분리: 2026-09-30
 - 이월·잔여 확인 항목(필요 시 운영 반영 전 QA에서 확인): P6-3 체크리스트 중 모바일·태블릿 실기기, Safari·Edge, 한글 IME, Windows 글꼴
 - 이 기능이 만든 공용 모듈(파일 검증·EXIF 보정·내보내기·뷰·리사이즈)은 다른 TOOLBOX 메뉴가 재사용한다. 허브 §4 참고.
-- ⚠️ **경로 변경(2026-09-30, 이미지 분할 P0)**: 아래 기록의 `lib/toolbox/image-editor/{load,export,view,constants}.ts`는 **`lib/toolbox/common/`으로 이동**했다. `transform.ts`의 리사이즈·크기 검증 부분은 `common/canvas.ts`로 옮겼다. 히스토리 상수만 `image-editor/constants.ts`에 남아 있다.
+- ⚠️ **경로 변경(2026-09-30, 이미지 분할 P0)**: 아래 기록의 `lib/toolbox/image-editor/{load,export,view,constants}.ts`는 **`lib/toolbox/common/`으로 이동**했다. `transform.ts`의 리사이즈·크기 검증 부분은 `common/canvas.ts`로 옮겼다. 히스토리 상수만 `image-editor/constants.ts`에 남아 있었다. **이후 `history.ts`와 히스토리 상수도 `lib/toolbox/common/`(`history.ts`·`constants.ts`)으로 이동**했다(2026-10-01, 배경 편집 P4-1) — `image-editor/constants.ts`는 삭제.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 

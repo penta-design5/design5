@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TOOL_SHORTCUTS } from './annotations'
-import { canRedo, createHistory, pushHistory, redoHistory, replacePresent, undoHistory } from './history'
+import { canRedo, createHistory, pushHistory, redoHistory, replacePresent, undoHistory } from '@/lib/toolbox/common/history'
 import { NUDGE_STEP, NUDGE_STEP_LARGE, SHORTCUT_GROUPS, nudgeDelta } from './shortcuts'
 
 describe('nudgeDelta', () => {

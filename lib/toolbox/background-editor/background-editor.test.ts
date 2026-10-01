@@ -2,6 +2,15 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_BACKGROUND, fitRect, hasBackground } from './compose'
+import {
+  BRUSH_SIZE_MAX,
+  BRUSH_SIZE_MIN,
+  brushAlpha,
+  brushRadiusInImage,
+  clampBrushSize,
+  normalizeRect,
+  rasterizeSegment,
+} from './edits'
 import { toAlphaMask, toInputTensor } from './mask'
 import { MAX_FEATHER_RADIUS, boxBlur, decontaminateColors, defringeRadius, featherMask, featherRadius } from './refine'
 import { CEIL_MODE_PATTERN, EXPECTED_CEIL_MODE_COUNT, MODEL, ORT_VERSION, patchCeilMode, sha256Hex } from './model'
@@ -188,5 +197,72 @@ describe('decontaminateColors — 큰 이미지(작업 해상도)', () => {
     expect(px(2055)[2]).toBeGreaterThan(128) // 파랑 쪽으로
     expect(px(2055)[3]).toBe(64)
     expect(px(2049)[0]).toBeLessThan(255) // 경계 바로 안쪽 불투명 빨강도 감소
+  })
+})
+
+describe('수동 보정(edits)', () => {
+  it('brushAlpha: 부드러움 0 = 경계까지 1(1px 안티에일리어싱), 100% = 가운데부터 S자로 0', () => {
+    expect(brushAlpha(0, 10, 0)).toBe(1)
+    expect(brushAlpha(9, 10, 0)).toBe(1)
+    expect(brushAlpha(10, 10, 0)).toBe(0.5)
+    expect(brushAlpha(11, 10, 0)).toBe(0)
+    expect(brushAlpha(0, 10, 100)).toBe(1)
+    expect(brushAlpha(5, 10, 100)).toBeCloseTo(0.5)
+    expect(brushAlpha(2, 10, 100)).toBeGreaterThan(0.9)
+    expect(brushAlpha(8, 10, 100)).toBeLessThan(0.1)
+    // 50%: 안쪽 절반은 1, 바깥 절반에서 흐려짐
+    expect(brushAlpha(5, 10, 50)).toBe(1)
+    expect(brushAlpha(7.5, 10, 50)).toBeCloseTo(0.5)
+  })
+
+  it('rasterizeSegment: 긴 획의 단면 = 브러시 한 번의 농도(겹쳐도 진해지지 않음)', () => {
+    const w = 100
+    const h = 60
+    const rgba = new Uint8ClampedArray(w * h * 4)
+    // 같은 선을 짧은 구간 여러 개로 나눠 그린다(칠하는 중처럼)
+    for (let x = 10; x < 90; x += 3) rasterizeSegment(rgba, w, h, { x, y: 30 }, { x: x + 3, y: 30 }, 20, 100)
+    const alphaAt = (y: number) => rgba[(y * w + 50) * 4 + 3]
+    for (const y of [30, 34, 38, 42, 46]) {
+      const d = Math.abs(y + 0.5 - 30)
+      expect(Math.abs(alphaAt(y) - Math.round(brushAlpha(d, 20, 100) * 255))).toBeLessThanOrEqual(1)
+    }
+    expect(alphaAt(38)).toBeLessThan(170) // 반경 약 40% 지점 0.62 — 도장을 더하던 방식은 0.99였다
+    expect(alphaAt(55)).toBe(0)
+  })
+
+  it('rasterizeSegment: 나눠 그리기 = 한 번에 그리기, 이미지 밖은 null', () => {
+    const w = 80
+    const h = 80
+    const pts = [{ x: 10, y: 10 }, { x: 40, y: 25 }, { x: 60, y: 70 }]
+    const a = new Uint8ClampedArray(w * h * 4)
+    const b = new Uint8ClampedArray(w * h * 4)
+    for (let i = 1; i < pts.length; i++) rasterizeSegment(a, w, h, pts[i - 1], pts[i], 8, 60)
+    rasterizeSegment(b, w, h, pts[0], pts[1], 8, 60)
+    rasterizeSegment(b, w, h, pts[0], pts[1], 8, 60) // 같은 구간을 다시 그려도 그대로
+    rasterizeSegment(b, w, h, pts[1], pts[2], 8, 60)
+    expect(b).toEqual(a)
+    // 이어 그리기(시작점 뒤쪽 반원 건너뛰기)도 결과가 같다
+    const c = new Uint8ClampedArray(w * h * 4)
+    for (let i = 1; i < pts.length; i++) rasterizeSegment(c, w, h, pts[i - 1], pts[i], 8, 60, i > 1)
+    expect(c).toEqual(a)
+    expect(rasterizeSegment(a, w, h, { x: -50, y: -50 }, { x: -40, y: -50 }, 5, 0)).toBeNull()
+    const r = rasterizeSegment(a, w, h, { x: 2, y: 2 }, { x: 2, y: 2 }, 5, 0)
+    expect(r).toEqual({ x: 0, y: 0, width: 8, height: 8 })
+  })
+
+  it('normalizeRect: 방향 무관·이미지 안으로 자르기·너무 작으면 null', () => {
+    expect(normalizeRect({ x: 50, y: 40 }, { x: 10, y: 5 }, 100, 100)).toEqual({ x: 10, y: 5, width: 40, height: 35 })
+    expect(normalizeRect({ x: -20, y: -5 }, { x: 150, y: 30.4 }, 100, 80)).toEqual({ x: 0, y: 0, width: 100, height: 30 })
+    expect(normalizeRect({ x: 10, y: 10 }, { x: 10.2, y: 50 }, 100, 100)).toBeNull()
+  })
+
+  it('브러시 크기: 화면 지름 → 원본 반경, 범위 제한', () => {
+    expect(brushRadiusInImage(40, 1)).toBe(20)
+    expect(brushRadiusInImage(40, 4)).toBe(5) // 확대하면 원본 기준으로 작아진다
+    expect(brushRadiusInImage(40, 0.5)).toBe(40)
+    expect(brushRadiusInImage(4, 8)).toBe(0.5) // 하한
+    expect(clampBrushSize(1)).toBe(BRUSH_SIZE_MIN)
+    expect(clampBrushSize(9999)).toBe(BRUSH_SIZE_MAX)
+    expect(clampBrushSize(48.4)).toBe(48)
   })
 })

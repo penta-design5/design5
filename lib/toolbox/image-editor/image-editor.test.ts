@@ -7,7 +7,7 @@ import {
   pushHistory,
   redoHistory,
   undoHistory,
-} from './history'
+} from '@/lib/toolbox/common/history'
 
 describe('history', () => {
   it('push → undo → redo', () => {

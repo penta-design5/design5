@@ -8,8 +8,8 @@
 - **현재 상태**
   - ✅ 이미지 편집 완료 (2026-09-30, 개발망 확인)
   - ✅ 이미지 분할 완료 (2026-09-30, 개발망 확인) → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
-  - 🟡 **배경 편집 — P1~P3 완료·푸시(2026-10-01), 다음 P4 수동 보정(결정 완료)** → [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md)
-- **다음 세션 시작점**: 배경 편집 P4 수동 보정(브러시·사각형·스포이드·인식 보정) → P5(QA·메뉴 노출)
+  - 🟡 **배경 편집 — P1~P3 완료·푸시, P4-1(브러시·사각형) 완료·푸시(2026-10-01)** → [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md)
+- **다음 세션 시작점**: 배경 편집 P4-1b 영역만 다시 인식 → P4-2 스포이드 → P4-3 인식 보정 → P5(QA·메뉴 노출)
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -42,7 +42,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 1 | **이미지 편집** | `image-editor` | 회전/반전(각도 조정), 사이즈 변경(비율 유지), 자르기, 텍스트·도형(펜, 형광펜, 직선, 화살표, 사각형, 원), 워터마크 삽입 | 브라우저 (Canvas/Konva) | ✅ 완료 · [TOOLBOX_image-editor_handoff.md](TOOLBOX_image-editor_handoff.md) |
 | 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | ✅ 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
-| 3 | **배경 편집** | `background-editor` | 배경 제거, 단색/이미지 배경 교체 | 브라우저 (ISNet fp16 + `onnxruntime-web`, 모델은 외부 CDN) | 🟡 P3 완료 · [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md) |
+| 3 | **배경 편집** | `background-editor` | 배경 제거, 단색/이미지 배경 교체 | 브라우저 (ISNet fp16 + `onnxruntime-web`, 모델은 외부 CDN) | 🟡 P4-1 완료 · [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md) |
 | 4 | 이미지 모자이크 | `mosaic` | 격자형, 육각·삼각형, 원형, 블러, 픽셀아트 등 | 브라우저 (픽셀 연산, **AI 불필요** — §2-2) | ⬜ 로드맵 |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·크기·로고, PNG/SVG 다운로드 | 브라우저 (QR 라이브러리, 예: `qrcode`) | ⬜ 로드맵 |
 | 6 | 특수 문자 및 이모티콘 | `special-characters` | 클릭 시 클립보드 복사 | 브라우저 (Clipboard API — HTTPS 필요, 개발망·운영망 모두 HTTPS라 문제없음) | ⬜ 로드맵 |
@@ -139,7 +139,7 @@
 | `export.ts` | 형식(PNG/JPG/WebP)·품질·파일명(`baseNameOf`·`sanitizeFileName`)·인코딩(JPG 투명 → 흰색, 미지원 형식 안내)·다운로드 |
 | `canvas.ts` | `Size`·`MAX_SIDE`·`validateOutputSize`(결과 크기 상한)·`resolveResize`·`linkedDimension`(비율 유지 입력)·`createCanvas`·`resizeCanvas`(고품질 단계적 축소)·`createCheckerPattern`(투명 표시) — 새 캔버스 반환 |
 | `view.ts` | 화면 맞춤·중앙 정렬·기준점 줌 |
-| (이미지 편집 전용) `image-editor/history.ts` | 불변 스냅샷 undo/redo(`pushHistory`·`replacePresent`), 이미지 크기별 단계 상한 — 필요한 메뉴가 생기면 common으로 옮긴다 |
+| `history.ts` | 불변 undo/redo(`pushHistory`·`replacePresent`), 이미지 크기별 단계 상한. 상수 `HISTORY_*`는 `constants.ts` — 이미지 편집(스냅샷)·배경 편집(작업 기록) 공용. 배경 편집 P4-1에서 `image-editor/`에서 이동(2026-10-01) |
 | `lib/hooks/use-media-query.ts` | 범용 미디어 쿼리 훅(xl 기준·`pointer: coarse`) |
 
 UI 패턴 참고(`components/toolbox/image-editor/`):

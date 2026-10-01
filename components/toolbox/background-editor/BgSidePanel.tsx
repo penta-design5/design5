@@ -15,6 +15,7 @@ import type { InferenceBackend } from '@/lib/toolbox/background-editor/protocol'
 import type { EdgeSettings } from '@/lib/toolbox/background-editor/refine'
 import { BgBackgroundSection } from './BgBackgroundSection'
 import { BgEdgeSection } from './BgEdgeSection'
+import { BgManualSection, type BgManualSectionProps } from './BgManualSection'
 import { RemoveBackgroundButton, type RemoveButtonState } from './RemoveBackgroundButton'
 import type { ModelStatus, RemovalStatus } from './use-background-removal'
 
@@ -49,6 +50,8 @@ interface BgSidePanelProps {
   onQualityChange: (quality: number) => void
   edge: EdgeSettings
   onEdgeChange: (patch: Partial<EdgeSettings>) => void
+  /** 수동 보정 설정 */
+  manual: Omit<BgManualSectionProps, 'enabled'>
   onBaseNameChange: (name: string) => void
   onSave: () => void
 }
@@ -90,7 +93,7 @@ function modelLabel(model: ModelStatus): string {
 }
 
 /**
- * 우측 옵션 패널 — 배경 제거(실행 버튼) · 배경(교체) · 경계 다듬기 · 처리 정보 · 이미지 정보 · 저장(형식·품질) (데스크톱 패널과 모바일·태블릿 Sheet 공용).
+ * 우측 옵션 패널 — 배경 제거(실행 버튼) · 배경(교체) · 경계 다듬기 · 수동 보정 · 처리 정보 · 이미지 정보 · 저장(형식·품질) (데스크톱 패널과 모바일·태블릿 Sheet 공용).
  */
 export function BgSidePanel({
   variant = 'sidebar',
@@ -111,6 +114,7 @@ export function BgSidePanel({
   onQualityChange,
   edge,
   onEdgeChange,
+  manual,
   onBaseNameChange,
   onSave,
 }: BgSidePanelProps) {
@@ -152,6 +156,8 @@ export function BgSidePanel({
           />
 
           <BgEdgeSection enabled={hasResult} edge={edge} onChange={onEdgeChange} />
+
+          <BgManualSection enabled={hasResult} {...manual} />
 
           <section className="space-y-2">
             <h3 className="text-sm font-semibold">처리 정보</h3>

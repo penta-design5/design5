@@ -25,7 +25,7 @@ import {
   replacePresent,
   undoHistory,
   type History,
-} from '@/lib/toolbox/image-editor/history'
+} from '@/lib/toolbox/common/history'
 import {
   DEFAULT_EXPORT_QUALITY,
   buildExportFileName,

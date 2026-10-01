@@ -22,20 +22,38 @@ import { DEFAULT_BACKGROUND, composeBackground, type BackgroundSettings } from '
 import { buildCutout } from '@/lib/toolbox/background-editor/cutout'
 import { MODEL } from '@/lib/toolbox/background-editor/model'
 import { DEFAULT_EDGE, type EdgeSettings } from '@/lib/toolbox/background-editor/refine'
+import {
+  BRUSH_SIZE_STEP,
+  DEFAULT_BRUSH_SIZE,
+  DEFAULT_SOFTNESS,
+  brushRadiusInImage,
+  clampBrushSize,
+  normalizeRect,
+  type RectMode,
+} from '@/lib/toolbox/background-editor/edits'
 import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateImageFile } from '@/lib/toolbox/common/load'
 import { cn } from '@/lib/utils'
 import { ImageUploadZone } from '@/components/toolbox/common/ImageUploadZone'
-import { BgPreview, type PreviewMode } from './BgPreview'
+import { BgEditToolbar, EDIT_TOOLS } from './BgEditToolbar'
+import { BgPreview, type EditTool, type PreviewEditing, type PreviewMode } from './BgPreview'
 import { BgProgressCard } from './BgProgressCard'
 import { BgSidePanel, type BgImageInfo } from './BgSidePanel'
 import { RemoveBackgroundButton, type RemoveButtonState } from './RemoveBackgroundButton'
 import { useBackgroundRemoval } from './use-background-removal'
+import { useManualEdits } from './use-manual-edits'
 
 const VIEW_MODES: { value: PreviewMode; label: string }[] = [
   { value: 'original', label: '원본' },
   { value: 'compare', label: '비교' },
   { value: 'result', label: '결과' },
 ]
+
+const isTypingTarget = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+
+/** 다이얼로그·Sheet 안에 포커스가 있으면 편집 단축키를 쓰지 않음 */
+const isInDialog = (target: EventTarget | null) => target instanceof HTMLElement && !!target.closest('[role=dialog]')
 
 interface LoadedImage extends BgImageInfo {
   /** 불러온 원본(EXIF 보정 후) */
@@ -77,10 +95,90 @@ export function BackgroundEditorPage() {
     () => (image && mask ? buildCutout(image.original, mask, MODEL.inputSize, edge) : null),
     [image, mask, edge]
   )
-  const composed = useMemo(() => (result ? composeBackground(result, deferredBackground) : null), [result, deferredBackground])
+  // 수동 보정(P4) — AI 결과(경계 다듬기 후) 위에 사용자 수정 레이어를 적용한다. 도구·브러시 설정은 새 이미지를 열어도 유지
+  const edits = useManualEdits(image?.original ?? null)
+  const [tool, setTool] = useState<EditTool>('pan')
+  const [brushSize, setBrushSize] = useState(DEFAULT_BRUSH_SIZE)
+  const [softness, setSoftness] = useState(DEFAULT_SOFTNESS)
+  const [rectMode, setRectMode] = useState<RectMode>('keep')
+  const edited = useMemo(() => edits.apply(result), [edits, result])
+  const composed = useMemo(() => (edited ? composeBackground(edited, deferredBackground) : null), [edited, deferredBackground])
   const { model, removal, remove, reset, cancelDownload } = useBackgroundRemoval()
   const imageRef = useRef(image)
   imageRef.current = image
+
+  /** 보정 도구는 「결과」 보기에서만 쓴다 — 도구를 고르면 「결과」로, 다른 보기로 바꾸면 화면 이동으로 */
+  const chooseTool = useCallback((next: EditTool) => {
+    setTool(next)
+    if (next !== 'pan') setMode('result')
+  }, [])
+  const chooseMode = useCallback((next: PreviewMode) => {
+    setMode(next)
+    if (next !== 'result') setTool('pan')
+  }, [])
+
+  const editing = useMemo<PreviewEditing | null>(() => {
+    if (!result || !image) return null
+    return {
+      tool,
+      brushSize,
+      rectMode,
+      onStrokeStart: (point, zoom) =>
+        edits.strokeStart(tool === 'restore' ? 'restore' : 'erase', point, brushRadiusInImage(brushSize, zoom), softness),
+      onStrokeMove: edits.strokeMove,
+      onStrokeEnd: edits.strokeEnd,
+      onStrokeCancel: edits.strokeCancel,
+      onRect: (start, end) => {
+        const rect = normalizeRect(start, end, image.width, image.height)
+        if (rect) edits.addRect({ mode: rectMode, ...rect })
+      },
+    }
+  }, [result, image, tool, brushSize, rectMode, softness, edits])
+
+  // 단축키(배경을 제거한 뒤): 실행 취소 Ctrl/⌘+Z · 다시 실행 Ctrl/⌘+Shift+Z 또는 Ctrl+Y · 도구 H/E/R/M · 브러시 크기 [ ]
+  const hasResult = Boolean(result)
+  useEffect(() => {
+    if (!hasResult) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.isComposing || isTypingTarget(e.target) || isInDialog(e.target)) return
+      const key = e.key.toLowerCase()
+      if (e.metaKey || e.ctrlKey) {
+        if (key === 'z') {
+          e.preventDefault()
+          if (e.shiftKey) edits.redo()
+          else edits.undo()
+        } else if (key === 'y') {
+          e.preventDefault()
+          edits.redo()
+        }
+        return
+      }
+      if (e.altKey) return
+      if (e.key === '[' || e.key === ']') {
+        e.preventDefault()
+        setBrushSize((s) => clampBrushSize(e.key === ']' ? s * BRUSH_SIZE_STEP : s / BRUSH_SIZE_STEP))
+        return
+      }
+      const t = EDIT_TOOLS.find((item) => item.shortcut.toLowerCase() === key)
+      if (t && !e.shiftKey) {
+        e.preventDefault()
+        chooseTool(t.value)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [hasResult, edits, chooseTool])
+
+  // 수동 보정 내용이 있을 때 페이지 이탈 경고(이미지 편집과 같음)
+  useEffect(() => {
+    if (!edits.hasEdits) return
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [edits.hasEdits])
 
   useEffect(() => {
     if (!isCompactViewport) setSheetOpen(false)
@@ -121,6 +219,7 @@ export function BackgroundEditorPage() {
         setImage({ original: canvas, width: canvas.width, height: canvas.height, fileName, fileSize: file.size })
         setMask(null)
         setMode('result')
+        setTool('pan')
         setBaseName(`${baseNameOf(fileName)}_bg`)
       } catch (e) {
         toast.error(e instanceof ImageLoadError ? e.message : '이미지를 불러오지 못했습니다.')
@@ -187,11 +286,11 @@ export function BackgroundEditorPage() {
 
   const save = async () => {
     // 저장은 늦춘 값이 아니라 현재 설정으로 다시 합성한다(마지막 색 변경 직후 저장해도 정확하게)
-    if (!result) return
+    if (!edited) return
     setSaving(true)
     try {
       const { ext, label } = getExportFormat(format)
-      const blob = await encodeCanvas(composeBackground(result, background), format, quality)
+      const blob = await encodeCanvas(composeBackground(edited, background), format, quality)
       downloadBlob(blob, `${sanitizeFileName(baseName)}.${ext}`)
       toast.success(`${label}로 저장했습니다.`)
     } catch (e) {
@@ -224,6 +323,21 @@ export function BackgroundEditorPage() {
     onQualityChange: setQuality,
     edge,
     onEdgeChange: (patch: Partial<EdgeSettings>) => setEdge((prev) => ({ ...prev, ...patch })),
+    manual: {
+      tool,
+      brushSize,
+      softness,
+      rectMode,
+      hasEdits: edits.hasEdits,
+      onBrushSizeChange: setBrushSize,
+      onSoftnessChange: setSoftness,
+      // 사각형 방식을 고르면 사각형 도구로 바꾼다
+      onRectModeChange: (next: RectMode) => {
+        setRectMode(next)
+        chooseTool('rect')
+      },
+      onClear: edits.clearAll,
+    },
     onBaseNameChange: setBaseName,
     onSave: save,
   }
@@ -249,30 +363,42 @@ export function BackgroundEditorPage() {
 
           {image ? (
             <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border bg-neutral-100">
-              <BgPreview original={image.original} result={composed} mode={mode} dimmed={processing} />
+              <BgPreview original={image.original} result={composed} mode={mode} dimmed={processing} editing={editing} />
               <BgProgressCard model={model} removal={removal} cpu={cpu} onCancelDownload={cancelDownload} />
-              {/* 보기 전환 — 배경을 제거한 뒤에만 */}
+              {/* 보기 전환 + 수동 보정 도구 — 배경을 제거한 뒤에만 */}
               {result && (
-                <div
-                  className="absolute left-3 top-3 z-30 flex rounded-lg border bg-card/95 p-0.5 shadow-sm"
-                  role="radiogroup"
-                  aria-label="보기 방식"
-                >
-                  {VIEW_MODES.map((v) => (
-                    <button
-                      key={v.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={mode === v.value}
-                      onClick={() => setMode(v.value)}
-                      className={cn(
-                        'rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        mode === v.value ? 'bg-[var(--penta-indigo)] text-white' : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      {v.label}
-                    </button>
-                  ))}
+                <div className="pointer-events-none absolute left-3 right-16 top-3 z-30 flex flex-wrap items-start gap-2">
+                  <div
+                    className="pointer-events-auto flex rounded-lg border bg-card/95 p-0.5 shadow-sm"
+                    role="radiogroup"
+                    aria-label="보기 방식"
+                  >
+                    {VIEW_MODES.map((v) => (
+                      <button
+                        key={v.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={mode === v.value}
+                        onClick={() => chooseMode(v.value)}
+                        className={cn(
+                          'rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          mode === v.value ? 'bg-[var(--penta-indigo)] text-white' : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="pointer-events-auto">
+                    <BgEditToolbar
+                      tool={tool}
+                      onToolChange={chooseTool}
+                      canUndo={edits.canUndo}
+                      canRedo={edits.canRedo}
+                      onUndo={edits.undo}
+                      onRedo={edits.redo}
+                    />
+                  </div>
                 </div>
               )}
               {/* xl 미만: 패널이 「편집 옵션」 Sheet 안에 있으므로 실행 버튼을 작업 영역 아래에도 둔다 */}
