@@ -9,7 +9,8 @@
   - ✅ 이미지 편집 완료 (2026-09-30, 개발망 확인)
   - ✅ 이미지 분할 완료 (2026-09-30, 개발망 확인) → [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md)
   - 🟡 **배경 편집 — P1~P3 완료·푸시, P4-1(브러시·사각형) 완료, P4-2(스포이드) 완료, P4 완료, P1~P5 완료·푸시(2026-10-01), 개발망 확인 대기** → [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md)
-- **다음 세션 시작점**: 배경 편집 개발망 확인(`docs/TOOLBOX_background-editor_handoff.md` §7) → 완료 처리 → 로드맵 다음 메뉴. 「영역만 다시 인식」은 제외(사용자 결정)
+  - 🟡 **이미지 모자이크 — 구현 완료(P0~P6: 영역 객체·타원/원·패턴(거친 픽셀·부드러운 블러)·되돌리기·단축키·원본/비교/결과·워터마크·얼굴 자동 감지·반응형·터치·접근성·성능·오류 처리·사이드바 노출, 2026-10-07), 사용자·개발망 확인 대기** → [TOOLBOX_mosaic_handoff.md](TOOLBOX_mosaic_handoff.md)
+- **다음 세션 시작점**: 이미지 모자이크 — 사용자 확인 → 푸시(요청 시) → 개발망 확인(`docs/TOOLBOX_mosaic_handoff.md` §5; 배경 편집 개발망 확인(`docs/TOOLBOX_background-editor_handoff.md` §7)도 남아 있으면 함께) → 완료 처리 → 로드맵 다음 메뉴(QR 코드 생성). 「영역만 다시 인식」은 제외(사용자 결정)
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -43,7 +44,7 @@
 | 1 | **이미지 편집** | `image-editor` | 회전/반전(각도 조정), 사이즈 변경(비율 유지), 자르기, 텍스트·도형(펜, 형광펜, 직선, 화살표, 사각형, 원), 워터마크 삽입 | 브라우저 (Canvas/Konva) | ✅ 완료 · [TOOLBOX_image-editor_handoff.md](TOOLBOX_image-editor_handoff.md) |
 | 2 | 이미지 분할 | `image-splitter` | 2 / 4 / 8 / 16 분할(기본 4), 분할선 위치 조정, 분할 전 크기 변경 | 브라우저 (Canvas + `jszip` ZIP 다운로드) | ✅ 완료 · [TOOLBOX_image-splitter_handoff.md](TOOLBOX_image-splitter_handoff.md) |
 | 3 | **배경 편집** | `background-editor` | 배경 제거, 단색/이미지 배경 교체 | 브라우저 (ISNet fp16 + `onnxruntime-web`, 모델은 외부 CDN) | 🟡 P5 완료·개발망 확인 대기 · [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md) |
-| 4 | 이미지 모자이크 | `mosaic` | 격자형, 육각·삼각형, 원형, 블러, 픽셀아트 등 | 브라우저 (픽셀 연산, **AI 불필요** — §2-2) | ⬜ 로드맵 |
+| 4 | 이미지 모자이크 | `mosaic` | 영역(사각형·타원/원)별 패턴(거친 픽셀·부드러운 블러)·강도, 얼굴 자동 감지, 워터마크. 육각·삼각형·원형·픽셀아트·랜덤 픽셀은 보류(MVP 후 검토) | 브라우저 (픽셀 연산, 모자이크는 **AI 불필요** — §2-2. 얼굴 자동 감지만 소형 모델 YuNet(MIT, 0.23MB, 자체 호스팅 `public/tool-models/`)) | 🟡 구현 완료·확인 대기 · [TOOLBOX_mosaic_handoff.md](TOOLBOX_mosaic_handoff.md) |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·크기·로고, PNG/SVG 다운로드 | 브라우저 (QR 라이브러리, 예: `qrcode`) | ⬜ 로드맵 |
 | 6 | 특수 문자 및 이모티콘 | `special-characters` | 클릭 시 클립보드 복사 | 브라우저 (Clipboard API — HTTPS 필요, 개발망·운영망 모두 HTTPS라 문제없음) | ⬜ 로드맵 |
 | 7 | 파일명 일괄 변경 | `batch-rename` | 규칙 기반 일괄 변경 | 브라우저 (**제약 있음** — §2-3) | ⬜ 로드맵 |
@@ -89,8 +90,8 @@
 ### 2-2. 이미지 모자이크 — AI 불필요
 
 - 격자형, 육각·삼각형, 원형, 블러, 픽셀아트는 모두 **영역별 평균색을 계산해 다시 칠하는 픽셀 연산**이라 Canvas만으로 구현한다(모델·외부 라이브러리 불필요).
-- 모자이크 영역은 **사용자가 직접 지정**(브러시 칠하기 / 사각형 선택)하는 방식을 기본으로 한다.
-- AI가 필요한 경우는 **얼굴·번호판 자동 감지 후 모자이크** 같은 자동화 기능뿐이며, 필요 시 후속 옵션으로 검토(이때는 §2-1과 같은 라이선스·용량 검토 적용).
+- 모자이크 영역은 **사용자가 직접 지정**한다(2026-10-07 참고 패널 기준: 사각형·타원/원 영역 객체를 그리고 이동·크기 조절. 브러시 칠하기는 제외).
+- AI가 필요한 경우는 **얼굴 자동 감지** 같은 자동화 기능뿐이다. **2026-10-07 사용자 결정으로 이번 메뉴에 포함**하며, 독립 Phase에서 모델 PoC(§2-1과 같은 라이선스·용량·위치 검토)를 먼저 한다. 번호판 자동 감지는 범위 밖이다.
 - 큰 이미지에서 블러·패턴 연산이 무거우면 Web Worker / `OffscreenCanvas`로 분리 검토.
 
 ### 2-3. 파일명 일괄 변경 — 브라우저 제약
@@ -140,10 +141,14 @@
 | `canvas.ts` | `Size`·`MAX_SIDE`·`validateOutputSize`(결과 크기 상한)·`resolveResize`·`linkedDimension`(비율 유지 입력)·`createCanvas`·`resizeCanvas`(고품질 단계적 축소)·`createCheckerPattern`(투명 표시) — 새 캔버스 반환 |
 | `view.ts` | 화면 맞춤·중앙 정렬·기준점 줌 |
 | `history.ts` | 불변 undo/redo(`pushHistory`·`replacePresent`), 이미지 크기별 단계 상한. 상수 `HISTORY_*`는 `constants.ts` — 이미지 편집(스냅샷)·배경 편집(작업 기록) 공용. 배경 편집 P4-1에서 `image-editor/`에서 이동(2026-10-01) |
+| `ort.ts` | onnxruntime-web 버전(`ORT_VERSION`)·wasm CDN 주소 — 배경 편집(배경 제거)·이미지 모자이크(얼굴 감지) 공용(이미지 모자이크 P5에서 `background-editor/model.ts`에서 이동, 기존 import는 재export) |
+| `text-style.ts` | 텍스트 글꼴(`TextFont`·`TEXT_FONTS`·`TEXT_FONT_STACKS`)·색상 팔레트(`COLOR_PRESETS`) — 이미지 편집 주석과 워터마크 공용. 이미지 모자이크 P4에서 `image-editor/`에서 이동(2026-10-07) |
+| `watermark.ts` · `watermark-render.ts` · `watermark-logo.ts` | 워터마크 설정·배치 계산(순수)·그리기(화면·저장 공용 `drawWatermark`/`renderWatermarked`)·로고 불러오기. 설정은 **이미지 편집·이미지 모자이크가 공유**하는 `toolbox:watermark:v1`에 저장(예전 키 읽기 호환). 이미지 모자이크 P4에서 `image-editor/`에서 이동 |
 | `lib/hooks/use-media-query.ts` | 범용 미디어 쿼리 훅(xl 기준·`pointer: coarse`) |
 
 UI 패턴 참고(`components/toolbox/image-editor/`):
 - **`components/toolbox/common/ImageUploadZone`**(클릭·드롭·붙여넣기 안내 — 공용, 이미지 분할 P1에서 이동)
+- **`components/toolbox/common/WatermarkPanel`·`use-watermark`**(워터마크 설정 패널·상태 훅 — 공용, 이미지 모자이크 P4에서 이동. `idPrefix`로 id 중복 방지)
 - `EditorSidePanel`(우측 패널 + Sheet 공용)
 - **`components/toolbox/common/ZoomControls`**(캔버스 오른쪽 아래 줌 컨트롤 — 공용, 이미지 분할 P3에서 이동)·`ShortcutHint`(단축키 칩)
 - 휠 줌·화면 이동·핀치 줌 처리(`EditorCanvas`, 이미지 분할 `SplitCanvas`도 같은 방식)
