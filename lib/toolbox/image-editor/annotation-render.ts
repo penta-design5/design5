@@ -1,26 +1,12 @@
 import Konva from 'konva'
-import type { Annotation, BoxAnnotation, StrokeAnnotation, TextAnnotation, TextFont } from './annotations'
+import { ANNOTATION_FONT_FAMILY, TEXT_FONT_STACKS } from '@/lib/toolbox/common/text-style'
+import type { Annotation, BoxAnnotation, StrokeAnnotation, TextAnnotation } from './annotations'
 import type { EditorDoc } from './types'
 
 /**
  * 주석 → Konva 속성. 화면(react-konva)과 내보내기(오프스크린 Konva)가 **같은 함수**를 써서 결과가 어긋나지 않게 한다.
  * 브라우저 전용(konva) — 클라이언트 컴포넌트에서만 import.
  */
-
-export const ANNOTATION_FONT_FAMILY =
-  '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif'
-
-/**
- * 텍스트 글꼴 스택 — 외부 웹폰트 없이 Windows·macOS 기본 한글 글꼴 사용(사내망·외부 CDN 의존 없음).
- * Windows: 바탕·굴림·궁서 / macOS: AppleMyungjo·나눔명조·AppleGothic·GungSeo. 없으면 뒤의 대체 글꼴로 표시.
- * 브라우저에서 합성하므로 화면에 보이는 글꼴 그대로 저장된다.
- */
-export const TEXT_FONT_STACKS: Record<TextFont, string> = {
-  gothic: ANNOTATION_FONT_FAMILY,
-  myeongjo: '"Batang", "바탕", "AppleMyungjo", "Nanum Myeongjo", "NanumMyeongjo", "Noto Serif KR", serif',
-  gulim: '"Gulim", "굴림", "Dotum", "돋움", "AppleGothic", sans-serif',
-  gungseo: '"Gungsuh", "궁서", "GungSeo", "Gungseo", serif',
-}
 
 const TEXT_BACKGROUND_COLOR = { white: '#ffffff', black: '#000000' } as const
 

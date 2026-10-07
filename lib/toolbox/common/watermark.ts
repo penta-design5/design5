@@ -1,4 +1,4 @@
-import type { TextFont } from './annotations'
+import type { TextFont } from './text-style'
 
 /**
  * 워터마크 설정·배치 계산(순수 로직). 렌더링(화면·내보내기 공용)은 `watermark-render.ts`.
@@ -245,7 +245,11 @@ export function layoutWatermark(doc: Size, item: ItemSize, settings: WatermarkSe
 
 // ---------- localStorage (텍스트 설정만 저장 — 로고·켜짐 상태는 저장하지 않음) ----------
 
-export const WATERMARK_STORAGE_KEY = 'toolbox:image-editor:watermark:v1'
+/** 워터마크 설정 저장 키 — 이미지 편집·이미지 모자이크가 같은 설정을 공유한다 */
+export const WATERMARK_STORAGE_KEY = 'toolbox:watermark:v1'
+
+/** 이미지 편집에서만 쓰던 이전 키 — 저장해 둔 설정을 잃지 않도록 읽기만 하고, 저장은 새 키로 한다 */
+export const LEGACY_WATERMARK_STORAGE_KEY = 'toolbox:image-editor:watermark:v1'
 
 type StoredSettings = Omit<WatermarkSettings, 'enabled'>
 
@@ -298,7 +302,8 @@ export function serializeWatermark(settings: WatermarkSettings): string {
 /** 브라우저 저장소가 막힌 환경(시크릿 모드 등)에서도 동작하도록 예외를 삼킨다 */
 export function loadWatermarkSettings(): WatermarkSettings {
   try {
-    return parseStoredWatermark(window.localStorage.getItem(WATERMARK_STORAGE_KEY))
+    const raw = window.localStorage.getItem(WATERMARK_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_WATERMARK_STORAGE_KEY)
+    return parseStoredWatermark(raw)
   } catch {
     return DEFAULT_WATERMARK_SETTINGS
   }

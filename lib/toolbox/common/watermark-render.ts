@@ -1,4 +1,4 @@
-import { TEXT_FONT_STACKS } from './annotation-render'
+import { TEXT_FONT_STACKS } from './text-style'
 import {
   isWatermarkActive,
   layoutWatermark,

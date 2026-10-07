@@ -23,11 +23,10 @@ import {
   type EditorTool,
   type Point,
   type TextAnnotation,
-  type TextFont,
 } from '@/lib/toolbox/image-editor/annotations'
-import { TEXT_FONT_STACKS } from '@/lib/toolbox/image-editor/annotation-render'
-import type { WatermarkLogo, WatermarkSettings } from '@/lib/toolbox/image-editor/watermark'
-import { drawWatermark } from '@/lib/toolbox/image-editor/watermark-render'
+import { TEXT_FONT_STACKS, type TextFont } from '@/lib/toolbox/common/text-style'
+import type { WatermarkLogo, WatermarkSettings } from '@/lib/toolbox/common/watermark'
+import { drawWatermark } from '@/lib/toolbox/common/watermark-render'
 import { AnnotationShape } from './AnnotationShape'
 import { CropOverlay } from './CropOverlay'
 

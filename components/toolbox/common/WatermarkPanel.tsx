@@ -9,8 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { FILE_INPUT_ACCEPT } from '@/lib/toolbox/common/constants'
-import { TEXT_FONT_STACKS } from '@/lib/toolbox/image-editor/annotation-render'
-import { COLOR_PRESETS, TEXT_FONTS } from '@/lib/toolbox/image-editor/annotations'
+import { COLOR_PRESETS, TEXT_FONTS, TEXT_FONT_STACKS } from '@/lib/toolbox/common/text-style'
 import {
   WATERMARK_LIMITS,
   WATERMARK_POSITIONS,
@@ -19,9 +18,11 @@ import {
   type WatermarkLayout,
   type WatermarkLogo,
   type WatermarkSettings,
-} from '@/lib/toolbox/image-editor/watermark'
+} from '@/lib/toolbox/common/watermark'
 
 interface WatermarkPanelProps {
+  /** 같은 화면에 패널이 둘 이상 렌더될 때(데스크톱 패널 + Sheet) 입력칸 id가 겹치지 않게 하는 접두사 */
+  idPrefix?: string
   settings: WatermarkSettings
   logo: WatermarkLogo | null
   onChange: (patch: Partial<WatermarkSettings>) => void
@@ -73,10 +74,10 @@ function RangeField({
 }
 
 /**
- * 워터마크 설정 — 설정값 기반 레이어라 실행취소 대상이 아니며, 다운로드 시 현재 크기에 맞춰 합성된다.
- * 텍스트 설정은 localStorage에 저장(로고·켜짐 상태 제외).
+ * 워터마크 설정 패널(이미지 편집·이미지 모자이크 공용) — 설정값 기반 레이어라 실행취소 대상이 아니며, 저장 시 현재 크기에 맞춰 합성된다.
+ * 텍스트 설정은 localStorage에 저장(로고·켜짐 상태 제외, `use-watermark.ts`).
  */
-export function WatermarkPanel({ settings, logo, onChange, onLogoFile, onLogoRemove }: WatermarkPanelProps) {
+export function WatermarkPanel({ idPrefix = 'watermark', settings, logo, onChange, onLogoFile, onLogoRemove }: WatermarkPanelProps) {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const isText = settings.kind === 'text'
   const L = WATERMARK_LIMITS
@@ -115,9 +116,9 @@ export function WatermarkPanel({ settings, logo, onChange, onLogoFile, onLogoRem
           {isText ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="image-editor-watermark-text">문구</Label>
+                <Label htmlFor={`${idPrefix}-watermark-text`}>문구</Label>
                 <Input
-                  id="image-editor-watermark-text"
+                  id={`${idPrefix}-watermark-text`}
                   value={settings.text}
                   maxLength={200}
                   placeholder="워터마크 문구"

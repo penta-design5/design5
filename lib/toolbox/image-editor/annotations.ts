@@ -5,20 +5,12 @@
  * 렌더링(화면·내보내기 공용 속성)은 `annotation-render.ts`.
  */
 
+import { COLOR_PRESETS, type TextFont } from '@/lib/toolbox/common/text-style'
+
 export type DrawTool = 'pen' | 'highlighter' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'text'
 export type EditorTool = 'select' | DrawTool
 
 export type TextBackground = 'none' | 'white' | 'black'
-
-/** 텍스트 글꼴 — PC에 설치된 한글 시스템 글꼴 사용(스택: annotation-render.ts `TEXT_FONT_STACKS`) */
-export type TextFont = 'gothic' | 'myeongjo' | 'gulim' | 'gungseo'
-
-export const TEXT_FONTS: { value: TextFont; label: string }[] = [
-  { value: 'gothic', label: '고딕' },
-  { value: 'myeongjo', label: '명조' },
-  { value: 'gulim', label: '굴림' },
-  { value: 'gungseo', label: '궁서' },
-]
 
 interface AnnotationBase {
   id: string
@@ -71,7 +63,6 @@ export interface DrawStyle {
 
 export const HIGHLIGHTER_WIDTH_FACTOR = 4
 
-export const COLOR_PRESETS = ['#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#000000', '#ffffff']
 
 export const TOOL_LABELS: Record<EditorTool, string> = {
   select: '선택',

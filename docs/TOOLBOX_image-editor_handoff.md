@@ -263,6 +263,8 @@
 - localStorage에는 **텍스트 설정만 저장**한다. 로고 이미지와 켜짐 상태는 저장하지 않으며, 새로고침하면 항상 꺼진 상태로 시작한다. 키는 `toolbox:image-editor:watermark:v1`이고, 저장값은 검증 후 복원한다(범위 밖 값은 경계값, 잘못된 값은 기본값).
 - 기본 문구: **`© Penta Security`**
 
+> ※ **2026-10-07 이미지 모자이크 P4에서 워터마크 모듈을 공용으로 옮겼다**: `watermark.ts`·`watermark-render.ts`·`watermark.test.ts` → `lib/toolbox/common/`, `WatermarkPanel.tsx` → `components/toolbox/common/`(+ `use-watermark.ts`·`watermark-logo.ts`·`text-style.ts` 신규). 저장소 키는 `toolbox:watermark:v1`로 바뀌었고 예전 키(`toolbox:image-editor:watermark:v1`)는 읽기 호환된다. 아래 경로는 당시 기록이다. 동작은 동일하다.
+
 **구조**
 - `lib/toolbox/image-editor/watermark.ts`(순수)
   - 설정 타입·기본값·범위(`WATERMARK_LIMITS`), `isWatermarkActive`

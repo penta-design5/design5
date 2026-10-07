@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_WATERMARK_SETTINGS,
+  LEGACY_WATERMARK_STORAGE_KEY,
+  WATERMARK_STORAGE_KEY,
+  loadWatermarkSettings,
+  saveWatermarkSettings,
   MAX_TILES,
   isWatermarkActive,
   layoutWatermark,
@@ -153,5 +157,50 @@ describe('localStorage 저장값', () => {
     expect(parsed.rotation).toBe(-180)
     expect(parsed.position).toBe(DEFAULT_WATERMARK_SETTINGS.position)
     expect(parsed.textSize).toBe(DEFAULT_WATERMARK_SETTINGS.textSize)
+  })
+})
+
+/** 메모리 저장소 — 실행 환경(Node 버전)에 따라 jsdom의 localStorage가 비어 있을 수 있어 직접 주입한다 */
+function installMemoryStorage() {
+  const map = new Map<string, string>()
+  const storage = {
+    getItem: (k: string) => (map.has(k) ? (map.get(k) as string) : null),
+    setItem: (k: string, v: string) => void map.set(k, String(v)),
+    removeItem: (k: string) => void map.delete(k),
+    clear: () => map.clear(),
+  }
+  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true })
+}
+
+describe('워터마크 설정 저장 — 이미지 편집·이미지 모자이크 공유', () => {
+  beforeEach(() => installMemoryStorage())
+
+  it('새 키에 저장하고 새 키에서 읽는다(켜짐 상태는 저장하지 않음)', () => {
+    saveWatermarkSettings({ ...DEFAULT_WATERMARK_SETTINGS, enabled: true, text: '© 사내용', opacity: 0.4 })
+    expect(window.localStorage.getItem(WATERMARK_STORAGE_KEY)).toContain('© 사내용')
+    expect(window.localStorage.getItem(LEGACY_WATERMARK_STORAGE_KEY)).toBeNull()
+    const loaded = loadWatermarkSettings()
+    expect(loaded.text).toBe('© 사내용')
+    expect(loaded.opacity).toBe(0.4)
+    expect(loaded.enabled).toBe(false)
+  })
+
+  it('이미지 편집이 예전 키에 저장해 둔 설정은 새 키가 없을 때 읽어 온다(저장값 호환)', () => {
+    window.localStorage.setItem(LEGACY_WATERMARK_STORAGE_KEY, serializeWatermark({ ...DEFAULT_WATERMARK_SETTINGS, text: '예전 문구', position: 'top-left' }))
+    const loaded = loadWatermarkSettings()
+    expect(loaded.text).toBe('예전 문구')
+    expect(loaded.position).toBe('top-left')
+  })
+
+  it('새 키가 있으면 예전 키보다 우선한다', () => {
+    window.localStorage.setItem(LEGACY_WATERMARK_STORAGE_KEY, serializeWatermark({ ...DEFAULT_WATERMARK_SETTINGS, text: '예전' }))
+    window.localStorage.setItem(WATERMARK_STORAGE_KEY, serializeWatermark({ ...DEFAULT_WATERMARK_SETTINGS, text: '새것' }))
+    expect(loadWatermarkSettings().text).toBe('새것')
+  })
+
+  it('저장값이 없거나 깨졌으면 기본값', () => {
+    expect(loadWatermarkSettings()).toEqual(DEFAULT_WATERMARK_SETTINGS)
+    window.localStorage.setItem(WATERMARK_STORAGE_KEY, '{깨짐')
+    expect(loadWatermarkSettings()).toEqual(DEFAULT_WATERMARK_SETTINGS)
   })
 })

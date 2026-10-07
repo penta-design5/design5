@@ -6,10 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
-import { TEXT_FONT_STACKS } from '@/lib/toolbox/image-editor/annotation-render'
+import { COLOR_PRESETS, TEXT_FONTS, TEXT_FONT_STACKS } from '@/lib/toolbox/common/text-style'
 import {
-  COLOR_PRESETS,
-  TEXT_FONTS,
   TOOL_LABELS,
   type Annotation,
   type DrawStyle,

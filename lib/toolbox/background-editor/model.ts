@@ -4,9 +4,8 @@
  * 출처·변환 방법·검증 기록: docs/TOOLBOX_background-editor_handoff.md §1 T1-a
  */
 
-/** package.json의 onnxruntime-web 버전과 같아야 한다(model.test.ts에서 확인) — wasm은 jsDelivr에서 같은 버전을 받는다 */
-export const ORT_VERSION = '1.30.0'
-export const ORT_WASM_BASE_URL = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`
+/** onnxruntime-web 버전·wasm 주소는 이미지 모자이크(얼굴 감지)와 공용이라 `lib/toolbox/common/ort.ts`로 옮겼다(기존 import 유지용 재export) */
+export { ORT_VERSION, ORT_WASM_BASE_URL } from '@/lib/toolbox/common/ort'
 
 export const MODEL = {
   /** 커밋 해시로 고정한 URL — 저장소 파일이 바뀌어도 이 주소의 내용은 바뀌지 않는다 */
