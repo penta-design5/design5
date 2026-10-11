@@ -22,7 +22,7 @@ import { ImageLoadError, decodeImageFile, getImageFileFromClipboard, validateIma
 import { renderWatermarked } from '@/lib/toolbox/common/watermark-render'
 import { renderMosaicInto, updateMosaicInto } from '@/lib/toolbox/mosaic/compose'
 import { dropOverlapping, faceRegionRect } from '@/lib/toolbox/mosaic/face'
-import { FaceDetectionError } from '@/lib/toolbox/mosaic/face-engine'
+import { DetectionError } from '@/lib/toolbox/mosaic/detection-engine'
 import { createRegion, fullRect, normalizeRect, nudgeRect, sameRect, setRectField, type RectField } from '@/lib/toolbox/mosaic/regions'
 import {
   DEFAULT_REGION_SETTINGS,
@@ -38,6 +38,7 @@ import { MosaicSidePanel, type MosaicImageInfo, type MosaicScope } from './Mosai
 import { MosaicShortcutDialog } from './MosaicShortcutDialog'
 import { MosaicToolbar, type MosaicViewMode } from './MosaicToolbar'
 import { useFaceDetection } from './use-face-detection'
+import { usePlateDetection } from './use-plate-detection'
 import { useMosaicRegions } from './use-mosaic-regions'
 
 interface LoadedImage extends MosaicImageInfo {
@@ -92,6 +93,9 @@ export function MosaicPage() {
   // 얼굴 자동 감지 — 모델은 처음 감지할 때 내려받는다(0.23MB, 같은 출처). 설정(자동 적용·여백)은 localStorage에 저장
   const face = useFaceDetection()
   const cancelFaces = face.cancel
+  // 번호판 자동 감지 — 모델(7.5MB)은 처음 감지할 때 내려받는다(같은 출처, 브라우저 캐시). 설정(여백·정밀 감지)은 localStorage에 저장
+  const plate = usePlateDetection()
+  const cancelPlates = plate.cancel
   const [defaults, setDefaults] = useState<RegionSettings>(DEFAULT_REGION_SETTINGS)
   const [baseName, setBaseName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -160,7 +164,8 @@ export function MosaicPage() {
     }
     setLoading(true)
     try {
-      cancelFaces() // 진행 중인 얼굴 감지는 이전 이미지 기준이므로 버린다
+      cancelFaces() // 진행 중인 얼굴·번호판 감지는 이전 이미지 기준이므로 버린다
+      cancelPlates()
       const original = await decodeImageFile(file)
       const { canvas: result } = createCanvas(original.width, original.height)
       const fileName = file.name || 'image.png'
@@ -175,7 +180,7 @@ export function MosaicPage() {
     } finally {
       setLoading(false)
     }
-  }, [reset, cancelFaces])
+  }, [reset, cancelFaces, cancelPlates])
 
   // 클립보드 붙여넣기 (이미지가 있을 때만 가로챔 — 입력창 텍스트 붙여넣기는 그대로)
   useEffect(() => {
@@ -232,8 +237,8 @@ export function MosaicPage() {
    * 얼굴 자동 감지 — 찾은 얼굴마다 영역(얼굴 여백 적용)을 추가한다. 현재 새 영역 기본값의 모양·패턴·강도를 따르고,
    * 이미 있는 영역과 많이 겹치는 얼굴은 건너뛴다. 「이미지 전체」였다면 전체 영역은 지워진다. 추가는 되돌리기 1단계다.
    */
-  const latestFace = useRef({ image, regions, defaults, margin: face.settings.margin, busy: face.busy })
-  latestFace.current = { image, regions, defaults, margin: face.settings.margin, busy: face.busy }
+  const latestFace = useRef({ image, regions, defaults, margin: face.settings.margin, busy: face.busy || plate.busy })
+  latestFace.current = { image, regions, defaults, margin: face.settings.margin, busy: face.busy || plate.busy }
   const faceDetect = face.detect
   const detectFaces = useCallback(async () => {
     const { image: target, busy } = latestFace.current
@@ -261,9 +266,45 @@ export function MosaicPage() {
       setShowOutlines(true)
       toast.success(`얼굴 ${added.length}개를 영역으로 추가했습니다. 놓친 얼굴이 없는지 확인해 주세요.`)
     } catch (e) {
-      toast.error(e instanceof FaceDetectionError ? e.message : '얼굴 감지 중 오류가 발생했습니다.')
+      toast.error(e instanceof DetectionError ? e.message : '얼굴 감지 중 오류가 발생했습니다.')
     }
   }, [faceDetect, commit])
+
+  /**
+   * 번호판 자동 감지 — 찾은 번호판마다 **사각형** 영역(번호판 여백 적용)을 추가한다. 패턴·강도는 현재 새 영역 기본값을 따른다.
+   * 이미 있는 영역과 많이 겹치는 번호판은 건너뛰고, 「이미지 전체」였다면 전체 영역은 지워진다. 추가는 되돌리기 1단계다.
+   */
+  const latestPlate = useRef({ margin: plate.settings.margin })
+  latestPlate.current = { margin: plate.settings.margin }
+  const plateDetect = plate.detect
+  const detectPlates = useCallback(async () => {
+    const { image: target, busy } = latestFace.current
+    if (!target || busy) return
+    try {
+      const boxes = await plateDetect(target.original)
+      if (!boxes || latestFace.current.image?.original !== target.original) return
+      const size = { width: target.width, height: target.height }
+      const { defaults: settings, regions: current } = latestFace.current
+      const rects = boxes.map((b) => faceRegionRect(b, latestPlate.current.margin, size))
+      if (rects.length === 0) {
+        toast.info('감지된 번호판이 없습니다. 영역을 직접 지정해 주세요.')
+        return
+      }
+      const fresh = dropOverlapping(rects, current.filter((r) => !r.whole))
+      if (fresh.length === 0) {
+        toast.info('감지된 번호판이 모두 이미 영역으로 지정되어 있습니다.')
+        return
+      }
+      const added = fresh.map((rect) => createRegion(rect, { ...settings, shape: 'rect' }))
+      commit((prev) => [...prev.filter((r) => !r.whole), ...added])
+      setSelectedId(null)
+      setMode('result')
+      setShowOutlines(true)
+      toast.success(`번호판 ${added.length}개를 영역으로 추가했습니다. 놓친 번호판이 없는지 확인해 주세요.`)
+    } catch (e) {
+      toast.error(e instanceof DetectionError ? e.message : '번호판 감지 중 오류가 발생했습니다.')
+    }
+  }, [plateDetect, commit])
 
   // 「불러올 때 얼굴 자동 적용」 — 새 이미지가 표시되면 감지한다(켜는 순간에는 이미 열려 있는 이미지를 감지하지 않는다)
   const autoFaceRef = useRef(face.settings.auto)
@@ -492,6 +533,16 @@ export function MosaicPage() {
       onAutoChange: face.setAuto,
       onMarginChange: face.setMargin,
     },
+    plate: {
+      settings: plate.settings,
+      busy: plate.busy,
+      progress: plate.progress,
+      disabled: face.busy,
+      onDetect: () => void detectPlates(),
+      onCancel: plate.cancel,
+      onPreciseChange: plate.setPrecise,
+      onMarginChange: plate.setMargin,
+    },
     watermark,
     watermarkLogo,
     onWatermarkChange: changeWatermark,
@@ -532,6 +583,8 @@ export function MosaicPage() {
                 onPatternChange={(pattern) => changeSettings({ pattern })}
                 faceBusy={face.busy}
                 onDetectFaces={() => void detectFaces()}
+                plateBusy={plate.busy}
+                onDetectPlates={() => void detectPlates()}
                 mode={mode}
                 onModeChange={chooseMode}
                 showOutlines={showOutlines}

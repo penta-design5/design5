@@ -12,6 +12,7 @@ import { formatFileSize } from '@/lib/design-request-attachments'
 import type { WatermarkLogo, WatermarkSettings } from '@/lib/toolbox/common/watermark'
 import { WatermarkPanel } from '@/components/toolbox/common/WatermarkPanel'
 import { MosaicFaceSection, type MosaicFaceSectionProps } from './MosaicFaceSection'
+import { MosaicPlateSection, type MosaicPlateSectionProps } from './MosaicPlateSection'
 import { NumberField } from './MosaicNumberField'
 import { EXPORT_FORMATS, getExportFormat, sanitizeFileName, type ExportFormat } from '@/lib/toolbox/common/export'
 import type { RectField } from '@/lib/toolbox/mosaic/regions'
@@ -67,6 +68,7 @@ interface MosaicSidePanelProps {
   onBaseNameChange: (name: string) => void
   onSave: () => void
   face: Omit<MosaicFaceSectionProps, 'idPrefix'>
+  plate: Omit<MosaicPlateSectionProps, 'idPrefix'>
   watermark: WatermarkSettings
   watermarkLogo: WatermarkLogo | null
   onWatermarkChange: (patch: Partial<WatermarkSettings>) => void
@@ -109,6 +111,7 @@ export function MosaicSidePanel({
   onBaseNameChange,
   onSave,
   face,
+  plate,
   watermark,
   watermarkLogo,
   onWatermarkChange,
@@ -227,6 +230,8 @@ export function MosaicSidePanel({
           </section>
 
           <MosaicFaceSection idPrefix={`${variant}-mosaic`} {...face} />
+
+          <MosaicPlateSection idPrefix={`${variant}-mosaic`} {...plate} />
 
           {/* 워터마크 — 이미지 편집과 같은 패널·설정(공용). 꺼 두면 한 줄만 차지한다 */}
           <WatermarkPanel

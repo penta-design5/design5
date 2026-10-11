@@ -17,7 +17,7 @@ import {
   type FaceBox,
   type YunetOutputs,
 } from './face'
-import type { FaceWorkerRequest, FaceWorkerResponse } from './face-protocol'
+import type { DetectionWorkerRequest as FaceWorkerRequest, DetectionWorkerResponse as FaceWorkerResponse } from './detection-protocol'
 
 const scope = self as unknown as {
   postMessage: (message: FaceWorkerResponse, transfer?: Transferable[]) => void

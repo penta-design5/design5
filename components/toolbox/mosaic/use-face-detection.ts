@@ -2,24 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DEFAULT_FACE_SETTINGS, FACE_MARGIN_MAX, FACE_MARGIN_MIN, FACE_SETTINGS_KEY, parseFaceSettings, type FaceBox, type FaceSettings } from '@/lib/toolbox/mosaic/face'
-import { FaceEngine } from '@/lib/toolbox/mosaic/face-engine'
-
-interface FaceState {
-  busy: boolean
-  /** 0~1, 모델을 준비하는 동안은 null */
-  progress: number | null
-}
-
-const IDLE: FaceState = { busy: false, progress: null }
+import { createFaceEngine } from '@/lib/toolbox/mosaic/face-engine'
+import { useDetectionRun } from './use-detection-run'
 
 /**
  * 얼굴 감지 실행 상태 + 설정(불러올 때 자동 적용·얼굴 여백, localStorage 저장).
- * Worker는 처음 감지할 때 만들고 페이지를 떠나면 끝낸다. detect는 취소되면 null을 돌려준다.
+ * detect는 취소되면 null을 돌려준다.
  */
 export function useFaceDetection() {
-  const engineRef = useRef<FaceEngine | null>(null)
-  const runRef = useRef(0)
-  const [state, setState] = useState<FaceState>(IDLE)
+  const { busy, progress, run, cancel } = useDetectionRun(createFaceEngine)
   const [settings, setSettings] = useState<FaceSettings>(DEFAULT_FACE_SETTINGS)
   const restored = useRef(false)
 
@@ -45,39 +36,7 @@ export function useFaceDetection() {
     return () => window.clearTimeout(timer)
   }, [settings])
 
-  useEffect(
-    () => () => {
-      runRef.current++
-      engineRef.current?.dispose()
-      engineRef.current = null
-    },
-    []
-  )
-
-  const detect = useCallback(async (canvas: HTMLCanvasElement): Promise<FaceBox[] | null> => {
-    const run = ++runRef.current
-    setState({ busy: true, progress: null })
-    try {
-      engineRef.current ??= new FaceEngine()
-      const result = await engineRef.current.detect(canvas, {
-        onProgress: (done, total) => {
-          if (run === runRef.current) setState({ busy: true, progress: total > 0 ? done / total : null })
-        },
-      })
-      return run === runRef.current ? result.boxes : null
-    } catch (e) {
-      if (run !== runRef.current) return null // 취소됨
-      throw e
-    } finally {
-      if (run === runRef.current) setState(IDLE)
-    }
-  }, [])
-
-  const cancel = useCallback(() => {
-    runRef.current++
-    engineRef.current?.cancel()
-    setState(IDLE)
-  }, [])
+  const detect = useCallback((canvas: HTMLCanvasElement): Promise<FaceBox[] | null> => run(canvas), [run])
 
   const setAuto = useCallback((auto: boolean) => setSettings((s) => ({ ...s, auto })), [])
   const setMargin = useCallback(
@@ -85,5 +44,5 @@ export function useFaceDetection() {
     []
   )
 
-  return { ...state, settings, detect, cancel, setAuto, setMargin }
+  return { busy, progress, settings, detect, cancel, setAuto, setMargin }
 }

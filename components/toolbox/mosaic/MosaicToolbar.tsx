@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Circle, Droplets, Eraser, Eye, EyeOff, FolderOpen, Grid3x3, Hand, Keyboard, Loader2, Redo2, ScanFace, Square, SquarePlus, Trash2, Undo2 } from 'lucide-react'
+import { Car, Circle, Droplets, Eraser, Eye, EyeOff, FolderOpen, Grid3x3, Hand, Keyboard, Loader2, Redo2, ScanFace, Square, SquarePlus, Trash2, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HorizontalScrollEdgeFades } from '@/components/ui/horizontal-scroll-edge-fades'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -36,6 +36,9 @@ interface MosaicToolbarProps {
   /** 얼굴 자동 감지 — 감지 중이면 아이콘이 돌고 누를 수 없다(취소는 패널의 버튼) */
   faceBusy: boolean
   onDetectFaces: () => void
+  /** 번호판 자동 감지 — 얼굴과 같다. 둘 중 하나가 진행 중이면 다른 쪽도 누를 수 없다 */
+  plateBusy: boolean
+  onDetectPlates: () => void
   mode: MosaicViewMode
   onModeChange: (mode: MosaicViewMode) => void
   showOutlines: boolean
@@ -130,6 +133,8 @@ export function MosaicToolbar({
   onPatternChange,
   faceBusy,
   onDetectFaces,
+  plateBusy,
+  onDetectPlates,
   mode,
   onModeChange,
   showOutlines,
@@ -199,8 +204,11 @@ export function MosaicToolbar({
           </div>
 
           <Divider />
-          <ToolButton label="얼굴 자동 감지" tooltip="얼굴 자동 감지 — 얼굴을 찾아 영역으로 추가" onClick={onDetectFaces} disabled={faceBusy}>
+          <ToolButton label="얼굴 자동 감지" tooltip="얼굴 자동 감지 — 얼굴을 찾아 영역으로 추가" onClick={onDetectFaces} disabled={faceBusy || plateBusy}>
             {faceBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />}
+          </ToolButton>
+          <ToolButton label="번호판 자동 감지" tooltip="번호판 자동 감지 — 차량 번호판을 찾아 영역으로 추가" onClick={onDetectPlates} disabled={faceBusy || plateBusy}>
+            {plateBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Car className="h-4 w-4" />}
           </ToolButton>
 
           <Divider />
