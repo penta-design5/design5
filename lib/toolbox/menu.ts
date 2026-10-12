@@ -10,6 +10,7 @@ export const TOOLBOX_MENU = [
   { slug: 'image-splitter', label: '이미지 분할' },
   { slug: 'background-editor', label: '배경 편집' },
   { slug: 'mosaic', label: '이미지 모자이크' },
+  { slug: 'qr-code', label: 'QR 코드 생성' },
 ] as const
 
 export type ToolboxSlug = (typeof TOOLBOX_MENU)[number]['slug']
