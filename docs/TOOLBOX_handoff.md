@@ -12,7 +12,8 @@
   - ✅ **이미지 모자이크 완료 (2026-10-07, 개발망 확인)** — 영역(사각형·타원/원)·패턴(거친 픽셀·부드러운 블러)·되돌리기·원본/비교/결과·워터마크·얼굴 자동 감지·반응형·터치·사이드바 노출 → [TOOLBOX_mosaic_handoff.md](TOOLBOX_mosaic_handoff.md)
   - 🟡 **이미지 모자이크 + 번호판 자동 감지(P7, 2026-10-12 추가)** — PoC(YOLOv9-t 640, MIT, 샘플 6장·번호판 11개 전부 감지)·구현·로컬 E2E 58/58 완료, **사용자·개발망 확인 대기** → [TOOLBOX_mosaic_handoff.md](TOOLBOX_mosaic_handoff.md) §4 P7
   - ✅ **QR 코드 생성 구현 완료(P0~P5, 2026-10-12, 사용자 확인 완료)** — URL/텍스트 → QR, 색상·투명 배경·여백·오류 정정·크기, 중앙 로고, PNG/SVG 저장, 스캔 안내·반응형·터치·접근성, 사이드바 노출. **개발망 확인 대기(실제 스마트폰 스캔)**, 모바일 실기기·Safari·Edge는 전체 QA로 이월 → [TOOLBOX_qr-code_handoff.md](TOOLBOX_qr-code_handoff.md)
-- **다음 세션 시작점**: 로드맵 다음 메뉴 **특수 문자 및 이모티콘**(§2 표 6번, slug `special-characters`)을 착수한다(`docs/TOOLBOX_special-characters_handoff.md` 작성 → 결정 사항 확인 → Phase별 진행). 우측 패널이 없을 수 있는 도구라 `MainLayout`의 `hasRightPanel` 판별을 도구별로 나눠야 할 수 있다(§3). QR 코드 생성의 개발망 확인(`docs/TOOLBOX_qr-code_handoff.md` §4 P5)·번호판 자동 감지(P7)·배경 편집 개발망 확인(`docs/TOOLBOX_background-editor_handoff.md` §7)이 남아 있으면 완료 처리한다. 「영역만 다시 인식」은 제외(사용자 결정)
+  - ✅ **특수 문자 및 이모티콘 구현 완료(P0~P5, 2026-10-12)** — 특수 문자 11카테고리·이모지 1,914개(국기·Windows 폴리필 글꼴·미지원 자동 숨김)·텍스트 이모티콘 120개·검색·조합 입력창·최근 사용·즐겨찾기·반응형·axe 접근성 검증·사이드바 노출. P0~P5 사용자 확인 완료, **커밋·푸시 완료(2026-10-14)** → **개발망 확인 대기**(Windows Chrome·Edge 국기/글리프 필수)  → [TOOLBOX_special-characters_handoff.md](TOOLBOX_special-characters_handoff.md)
+- **다음 세션 시작점**: **특수 문자 및 이모티콘**은 구현·사용자 확인·커밋·푸시 완료(2026-10-14) → **개발망 확인**(`docs/TOOLBOX_special-characters_handoff.md` §5, 특히 Windows Chrome·Edge) → 완료 처리. 그다음 로드맵 마지막 메뉴 **파일명 일괄 변경**(§2 표 7번, slug `batch-rename`, 브라우저 제약 §2-3)을 착수한다(`docs/TOOLBOX_batch-rename_handoff.md` 작성 → 결정 사항 확인 → Phase별 진행). 이 도구의 우측 패널은 유지하기로 해 `MainLayout` 수정이 불필요했다. QR 코드 생성의 개발망 확인(`docs/TOOLBOX_qr-code_handoff.md` §4 P5)·번호판 자동 감지(P7)·배경 편집 개발망 확인(`docs/TOOLBOX_background-editor_handoff.md` §7)이 남아 있으면 완료 처리한다. 「영역만 다시 인식」은 제외(사용자 결정)
 - ⚠️ **운영망(design5) 반영은 TOOLBOX 전체 메뉴 구현이 끝난 뒤 한꺼번에** 한다(사용자 결정 2026-09-30). 개발망·운영망이 같은 브랜치(`2026-06-17-tiper`)를 pull하므로, 그 전에는 운영망에서 pull하지 않는다.
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
@@ -48,7 +49,7 @@
 | 3 | **배경 편집** | `background-editor` | 배경 제거, 단색/이미지 배경 교체 | 브라우저 (ISNet fp16 + `onnxruntime-web`, 모델은 외부 CDN) | 🟡 P5 완료·개발망 확인 대기 · [TOOLBOX_background-editor_handoff.md](TOOLBOX_background-editor_handoff.md) |
 | 4 | 이미지 모자이크 | `mosaic` | 영역(사각형·타원/원)별 패턴(거친 픽셀·부드러운 블러)·강도, 얼굴 자동 감지, 워터마크. 육각·삼각형·원형·픽셀아트·랜덤 픽셀은 보류(MVP 후 검토) | 브라우저 (픽셀 연산, 모자이크는 **AI 불필요** — §2-2. 얼굴 자동 감지만 소형 모델 YuNet(MIT, 0.23MB), 번호판 자동 감지는 YOLOv9-t 640(MIT, 7.5MB) — 둘 다 자체 호스팅 `public/tool-models/`) | ✅ 완료(번호판 감지 P7 확인 대기) · [TOOLBOX_mosaic_handoff.md](TOOLBOX_mosaic_handoff.md) |
 | 5 | QR 코드 생성 | `qr-code` | URL/텍스트 → QR, 색상·투명 배경·여백·오류 정정·크기·중앙 로고, PNG/SVG 다운로드, 스캔 안내 | 브라우저 (`qrcode`로 행렬만 생성 → Canvas/SVG 직접 렌더, 의존성 `qrcode`·`@types/qrcode` 추가) | ✅ 구현 완료·사용자 확인 완료(개발망 확인 대기) · [TOOLBOX_qr-code_handoff.md](TOOLBOX_qr-code_handoff.md) |
-| 6 | 특수 문자 및 이모티콘 | `special-characters` | 클릭 시 클립보드 복사 | 브라우저 (Clipboard API — HTTPS 필요, 개발망·운영망 모두 HTTPS라 문제없음) | ⬜ 로드맵 |
+| 6 | 특수 문자 및 이모티콘 | `special-characters` | 특수 문자(11카테고리)·이모지(1,914개, 국기 포함)·텍스트 이모티콘(120개) 클릭 → 클립보드 복사, 검색, 조합 입력창·최근 사용·즐겨찾기 | 브라우저 (Clipboard API — HTTPS 필요, 개발망·운영망 모두 HTTPS라 문제없음. 이모지 데이터 `emojibase-data`(MIT, devDependency로 JSON 생성), 국기 폴리필 글꼴은 자체 호스팅(Twemoji CC BY 4.0 — 출처 표기)) | ✅ 구현 완료(P0~P5)·사용자 확인 완료·푸시 완료(개발망 확인 대기) · [TOOLBOX_special-characters_handoff.md](TOOLBOX_special-characters_handoff.md) |
 | 7 | 파일명 일괄 변경 | `batch-rename` | 규칙 기반 일괄 변경 | 브라우저 (**제약 있음** — §2-3) | ⬜ 로드맵 |
 
 > 공통 기반(이미지 편집 P0: 사이드바 섹션·라우팅·로그인 게이트·레이아웃)은 이후 메뉴가 **메뉴 항목 1줄 + 페이지 1개 추가**만으로 붙도록 설계되어 있다(§3).
