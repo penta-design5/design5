@@ -12,6 +12,7 @@ export const TOOLBOX_MENU = [
   { slug: 'mosaic', label: '이미지 모자이크' },
   { slug: 'qr-code', label: 'QR 코드 생성' },
   { slug: 'special-characters', label: '특수 문자 및 이모티콘' },
+  { slug: 'batch-rename', label: '파일명 일괄 변경' },
 ] as const
 
 export type ToolboxSlug = (typeof TOOLBOX_MENU)[number]['slug']
