@@ -53,6 +53,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "docx-preview": "^0.4.1",
     "fast-xml-parser": "^5.9.3",
     "html2canvas": "^1.4.1",
     "isomorphic-dompurify": "^2.26.0",
