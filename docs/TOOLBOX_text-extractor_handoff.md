@@ -4,8 +4,8 @@
 
 - 메뉴: 텍스트추출(OCR) · slug `text-extractor` · 라우트 `/toolbox/text-extractor`
 - 최초 작성: 2026-10-15 (가능성 검토 2026-10-14 — 답변만, 구현 없음)
-- **현재 상태: 🟡 P0~P4(오피스 화면 미리보기 R1~R4 포함) 사용자 확인 완료(2026-10-15). P5(사이드바 메뉴 노출·반응형·터치·접근성·저사양 성능) 사용자 확인 완료(2026-10-15). R2~P5 로컬 커밋(푸시 전). 진행 중: Z(미리보기 줌 툴바 — Z1 오피스, Z2 이미지·PDF). 남은 작업: Z → 푸시 → 개발망 확인.**
-- 다음 시작점(새 세션): **Z(미리보기 줌 툴바)** — §4 Z → 푸시(`git push origin HEAD:2026-06-17-tiper`) → **개발망 확인**(§5 수동 QA 체크리스트의 개발망 항목 — COOP·COEP 헤더·4스레드·실기기·저사양 PC) → 완료 처리
+- **현재 상태: 🟡 P0~P4(오피스 화면 미리보기 R1~R4 포함) 사용자 확인 완료(2026-10-15). P5(사이드바 메뉴 노출·반응형·터치·접근성·저사양 성능) 사용자 확인 완료(2026-10-15). Z(미리보기 줌 툴바 — Z1 오피스(쪽 맞춤 포함), Z2 이미지·PDF) 사용자 확인 완료(2026-10-15). R2~Z 커밋·푸시(`2026-06-17-tiper`, 2026-10-15). 남은 작업: 개발망 확인 → 완료 처리.**
+- 다음 시작점(새 세션): **개발망 확인**(§5 수동 QA 체크리스트의 개발망 항목 — COOP·COEP 헤더·4스레드·실기기·저사양 PC) → 완료 처리
   - 구현 위치: 렌더러를 `lib/toolbox/text-extractor/render-<형식>.ts`로 만들고 `TextExtractorPage`의 `OFFICE_RENDERERS`에 1줄(`{ render, minZoom? }`) 추가하면 `OfficeVisualPreview`(공용 틀·안내 문구·폭 맞춤·실패 안내)가 그대로 쓴다. 그린 DOM은 **반드시 `sanitizePreview`**로 정리. 그린 뒤 내용이 바뀌면(탭 전환 등) `notifyPreviewResize`(`preview-resize.ts`)로 폭 맞춤을 다시 요청
   - E2E는 세션 스크래치에서 다시 만든다(이전 세션 스크립트 `p0~p4d.mjs`·`r2.mjs`·`r3.mjs`·`r4.mjs`는 스크래치라 남지 않음 — 방식은 각 Phase 검증 기록과 허브 §5 참고). 샘플 `docs/test-img/01~09`는 `.gitignore` 대상(로컬에만 있음)
   - 개발망 반영 시: **새 의존성 `docx-preview`**(리빌드 시 설치), DB 변경 없음(`migrate deploy` 불필요). **`next.config.js`의 COOP·COEP 헤더가 nginx를 거쳐 전달되는지 확인**(§4 P2-B′ — 개발자 도구 Network 응답 헤더, 콘솔 `crossOriginIsolated === true`)
@@ -93,6 +93,7 @@
 | P3 | 인식 글자 상자 표시 + **영역 지정 인식**(D7) | ✅ (사용자 확인 2026-10-15) |
 | P4 | **오피스 문서**(DOCX·PPTX·XLSX·HWPX — jszip XML 텍스트 추출, OCR 불필요) | ✅ (사용자 확인 2026-10-15) + 추출되지 않은 내용 안내 ✅ + 화면 미리보기 R0·R1 ✅, R2 ✅, R3 ✅, R4 ✅ |
 | P5 | 반응형·터치·접근성(axe)·저사양 성능 측정 + **사이드바 메뉴 노출** + 개발망 확인 | ✅ (사용자 확인 2026-10-15), 개발망 확인 대기 |
+| Z | 미리보기 **줌 툴바**(이미지 모자이크와 같은 공용 `ZoomControls`, 오른쪽 아래) — Z1 오피스 문서, Z2 이미지·PDF(화면 이동·두 손가락) | ✅ (사용자 확인 2026-10-15) |
 
 ---
 
@@ -451,6 +452,42 @@
 - [x] **사용자 확인 ✅ 2026-10-15**: ① 사이드바 TOOLBOX 맨 아래 「텍스트추출(OCR)」 → 들어갈 때 깜박임 없이 열리는지(다른 메뉴에서 클릭) ② 휴대폰·태블릿: 메뉴에서 이동, 버튼 누르기 쉬운지(미리보기 도구·쪽 넘기기·시트 탭·스위치) ③ 키보드: Tab으로 문서 미리보기 영역에 들어가 방향키·PageDown 스크롤 ④ 나머지 메뉴로 이동했을 때 정상(YouTube 등 iframe)
 - [ ] **개발망 확인**(커밋·푸시 후): §5 개발망 항목
 
+### Z — 미리보기 줌 툴바 (✅ 2026-10-15, 사용자 확인 완료)
+
+**결정(사용자 2026-10-15)**: 「이미지 모자이크」처럼 미리보기 오른쪽 아래에 줌 툴바 — **A안**(Z1 오피스 → Z2 이미지·PDF, 화면 이동 방식 포함) 제안대로. 공용 `components/toolbox/common/ZoomControls`(축소·배율 %(=100%로 보기)·확대·화면에 맞추기)를 그대로 쓴다.
+
+**Z1 — 오피스 문서(Word·Excel·PowerPoint·한글) `OfficeVisualPreview`**
+- 기존 CSS zoom 폭 맞춤을 「화면에 맞추기」 모드로 두고, 툴바(×1.25 단계, 10~400%)·**Ctrl/⌘+휠(트랙패드 핀치)**로 직접 배율을 바꾼다. 그냥 휠은 스크롤(문서 미리보기라 스크롤이 기본)
+- 배율을 바꿀 때 **화면 가운데(휠은 마우스 위치)의 문서 위치를 고정**(스크롤 위치 보정). 화면 이동은 기존 스크롤(스크롤바·터치·키보드)
+- 직접 바꾼 배율은 창 크기·Excel 시트 탭 전환에도 유지, 「화면에 맞추기」를 누르면 다시 자동 맞춤(Excel 최소 75%·슬라이드 20% 규칙 그대로), 새 파일이면 다시 맞춤
+- 툴바는 세로 스크롤바(Windows 약 17px)를 피해 조금 안쪽(`bottom-4 right-6`) — `ZoomControls`에 `className`(위치 조정) 추가
+- 글자(DOM)를 다시 그리는 방식이라 확대해도 흐려지지 않는다
+
+**Z2 — 이미지·PDF `ExtractPreview`**
+- 그림과 인식 상자·영역 SVG를 한 「무대」 상자로 묶어 위치·배율(`translate` + 크기)로 배치 — 공용 `lib/toolbox/common/view.ts`(`fitZoom`·`centerPosition`·`zoomAroundPoint`)·`ZOOM_STEP`(모자이크와 같음). SVG는 무대와 같은 비율이라 `preserveAspectRatio="none"`, 영역 선택 좌표 변환(`getScreenCTM`)이 CSS 변형까지 반영해 **확대·이동 상태에서도 영역 선택·인식 상자 위치가 정확**
+- 조작: **휠 = 배율(마우스 아래 지점 고정)**, **드래그 = 화면 이동**(「영역 선택」 중에는 드래그가 영역 그리기 — 겹치지 않음), **두 손가락 = 배율 + 이동**, 툴바. 화면 이동은 그림이 48px 이상 화면에 남게 제한. 도구 줄·줌 툴바·쪽 넘기기·진행 카드 위에서는 이동하지 않음
+- 터치: 맞춤 상태에서는 `touch-action: pan-y`(손가락 세로 스와이프로 **페이지 스크롤** 가능, 두 손가락 확대는 받음), 확대한 뒤에는 `none`(한 손가락으로 화면 이동)
+- 기본은 화면에 맞추기 — **원본보다 키우지 않는다**(이미지 분할·모자이크와 같은 규칙. 전에는 작은 그림도 영역에 꽉 차게 키웠다). 새 파일·쪽을 넘기면 다시 맞춤, 직접 바꾸면 창 크기가 바뀌어도 유지
+- 최대 배율: 이미지 800%(공용), **PDF 200%**(미리보기를 긴 변 1,600px로 그리므로 그 이상은 흐림 — 더 크게 보려면 확대 시 고해상도 다시 그리기가 필요, 후속 검토)
+- PDF 쪽 넘기기: 640px 미만은 **왼쪽 아래**(오른쪽 아래 줌 툴바와 겹치지 않게), 그 이상은 가운데
+- 공용 `ZoomControls`: 터치 기기(`pointer: coarse`)에서 버튼 44px(마우스 화면은 32px 그대로 — 이미지 편집·분할·배경 편집·모자이크에도 적용), `data-testid="zoom-controls"`
+
+**Z1-보완 — 「화면에 맞추기」 = 쪽 맞춤 (사용자 지적 2026-10-15 → A안)**
+- 지적: 「이미지는 화면에 맞추는데 다른 문서는 작동하지 않는다」 — 재현 결과 배율은 돌아가지만 ① 문서는 **폭에만** 맞춰 쪽이 위아래로 넘쳤고(처음 연 상태에서 누르면 변화도 없음) ② 스크롤 위치가 그대로 남았고 ③ **Word는 맞춘 뒤에도 가로 13px 넘침·쪽 왼쪽 가장자리가 잘림**(`docx-preview`가 쪽(794px)을 가운데 정렬 — 영역보다 넓으면 왼쪽으로 넘친 부분이 scrollWidth에 잡히지 않아 내용 너비를 767px로 잘못 잼, 실제 854px)
+- **결정(사용자 2026-10-15): A안** — 툴바 「화면에 맞추기」 = **쪽 맞춤**: Word·한글은 한 쪽, PowerPoint는 한 장(「슬라이드 N」 포함)이 통째로 들어오는 배율(원래 크기보다 키우지 않음, 둘레 16px)로 맞추고 **지금 보고 있던 쪽**(화면 가운데에 걸친 쪽)을 가운데에 둔다. **Excel은 쪽이 없어 폭 맞춤**. 처음 열 때 기본은 **폭 맞춤 유지**(읽기 편함)
+- 구현: `OfficePreviewRenderer.pageSelector`(Word `section.docx` · PowerPoint `[data-testid=pptx-preview] > figure` · 한글 `[data-testid=hwpx-page]`), 맞춤 상태 3가지(`width` 기본·`page`·`manual`) — 창 크기가 바뀌면 각 방식대로 다시(쪽 맞춤은 같은 쪽), 새 파일은 폭 맞춤. 폭 맞춤의 내용 너비는 `width: max-content`로 잰다(Word 넘침 해결)
+- 참고: 16:9 슬라이드처럼 가로로 긴 쪽은 폭 맞춤과 쪽 맞춤 배율이 같을 수 있다(이미 통째로 보임)
+
+**검증**
+- [x] Z1-보완: E2E **`z.mjs` 37/37**(+ 쪽 맞춤 — 보고 있던 한글 3쪽이 통째로·가운데(53%), 창 크기 바뀌면 같은 쪽 다시 맞춤, 새로 열면 폭 맞춤, Excel은 폭 맞춤, **Word 폭 맞춤 가로 넘침 0·쪽 양쪽 가장자리 보임**, Word·PowerPoint 쪽 맞춤) + 회귀 `r2` 37/37·`r3` 31/31·`r4` 29/29·`p5` 21/21 · typecheck·lint 통과
+- [x] typecheck 0 · `npm run lint` 통과(변경 폴더 경고 0건) · vitest `lib/toolbox` 459건
+- [x] 로컬 헤드리스 Chrome E2E **`z.mjs` 32/32** + 회귀 `r2` 37/37·`r3` 31/31·`r4` 29/29·`p5` 21/21, 모자이크 줌 툴바(마우스 32px·터치 44px, 위치 그대로)
+  - Z1: 툴바·맞춤 배율(08 한글 88%), 오른쪽 아래 안쪽, 확대 1.25배·**가운데 문서 위치 유지**, 축소, 100%, 직접 배율은 창 크기 바뀌어도 유지 → 화면에 맞추기는 창 크기 따라 다시 맞춤, 그냥 휠 = 스크롤·Ctrl+휠 = 확대, 새 파일 다시 맞춤, Excel 시트 탭 전환에도 배율 유지, Word·PowerPoint 툴바
+  - Z2: 맞춰 가운데, 추출 후 **확대해도 인식 상자가 그림의 같은 자리**, 휠 확대 마우스 지점 고정, 드래그 이동, **확대·이동 상태 영역 선택 좌표 정확**·영역 드래그는 화면 이동 안 함, 100% = 원본 픽셀, 맞추기, 이미지 최대 800%, PDF 새 파일 맞춤·최대 200%·쪽 넘기면 맞춤, 390 쪽 넘기기·툴바 겹침 없음·가로 넘침 없음
+  - 터치: 맞춤 상태 `pan-y`, 툴바 44px, **두 손가락 벌리기 확대**(19% → 58%), 확대 후 `none`
+  - 스크린샷(Excel 확대 121% — 행 번호·열 머리글·시트 탭 고정, 이미지 확대)
+- [x] **사용자 확인 ✅ 2026-10-15**(「완벽합니다」): ① 오피스 4종 툴바 확대·축소·100%·맞추기(**Word·한글·PowerPoint는 쪽 맞춤, Excel은 폭 맞춤**), 확대 후 스크롤, Ctrl/⌘+휠(트랙패드 핀치) ② 이미지·PDF: 휠·드래그 이동·툴바, 확대한 채로 「영역 선택」 → 추출, 인식 영역 표시 ③ 휴대폰·태블릿: 두 손가락 확대·한 손가락 이동, 맞춤 상태에서 페이지 스크롤 ④ 작은 그림을 원본보다 키우지 않게 바뀐 것이 괜찮은지 ⑤ 다른 메뉴(모자이크 등) 줌 툴바 이상 없는지
+
 ---
 
 ## 5. 수동 QA 체크리스트
@@ -462,6 +499,7 @@
 - [ ] 사이드바 메뉴에서 들어가기(깜박임 없음)·나가기(다른 메뉴 iframe 정상)
 - [ ] 샘플 01~09·실제 업무 파일(이미지·PDF·DOCX·XLSX·PPTX·HWPX) 추출·화면 미리보기
 - [ ] 실기기: 휴대폰·태블릿(터치 영역 선택·버튼), Safari(1스레드로 동작)·Edge·Firefox
+- [ ] 미리보기 줌 툴바: 오피스 4종 확대·축소·쪽 맞춤, 이미지·PDF 휠·드래그·두 손가락, 확대한 채 영역 선택 → 추출(실기기 포함)
 - [ ] 저사양 PC에서 OCR 시간(1스레드 기준 이미지 약 5~6초, 스캔 쪽당 약 7초 이내인지)
 - [ ] 운영망 반영 전: PaddleOCR ONNX 변환본 출처·라이선스 재확인(§4 P0), `docx-preview` 라이선스(Apache-2.0) 표기
 
@@ -472,6 +510,8 @@
 - `docs/TOOLBOX_text-extractor_handoff.md` (신규, 2026-10-15)
 - `docs/TOOLBOX_handoff.md` (로드맵 8번 행·현재 상태 추가, 2026-10-15)
 - P0: `app/(dashboard)/toolbox/text-extractor/page.tsx`·`layout.tsx`, `components/toolbox/text-extractor/TextExtractorPage.tsx`·`ExtractSidePanel.tsx` (신규)
+- Z1-보완: `components/toolbox/text-extractor/OfficeVisualPreview.tsx`(쪽 맞춤·맞춤 상태·max-content 너비), `TextExtractorPage.tsx`(`pageSelector`)
+- Z: `components/toolbox/common/ZoomControls.tsx`(터치 44px·`className`·testid — 공용), `components/toolbox/text-extractor/OfficeVisualPreview.tsx`(Z1 줌), `components/toolbox/text-extractor/ExtractPreview.tsx`(Z2 줌·화면 이동·두 손가락·쪽 넘기기 위치)
 - P5: `lib/toolbox/menu.ts`(메뉴 등록·`fullReload`·`toolboxFullReload`), `components/category-pages/layout/Sidebar.tsx`(`renderStaticLink` 전체 이동 인자), `components/toolbox/text-extractor/`(`ExtractPreview.tsx`·`TextExtractorPage.tsx`·`ExtractResult.tsx`·`PdfOptions.tsx`·`OmissionNotice.tsx`·`ExtractSidePanel.tsx`·`OfficeVisualPreview.tsx` — 터치 44px·제목 순서·미리보기 포커스), `lib/toolbox/text-extractor/render-xlsx.ts`(터치 탭·숨김 탭 대비)
 - P4-R4: `lib/toolbox/text-extractor/`(`hwpx-model.ts`·`hwpx-model.test.ts`·`render-hwpx.ts` 신규, `office.ts` — `readHwpxManifest` 분리), `components/toolbox/text-extractor/TextExtractorPage.tsx`(`OFFICE_RENDERERS`에 hwpx). 의존성 추가 없음
 - P4-R3: `lib/toolbox/text-extractor/`(`pptx-model.ts`·`pptx-model.test.ts`·`render-pptx.ts` 신규), `components/toolbox/text-extractor/TextExtractorPage.tsx`(`OFFICE_RENDERERS`에 pptx). 의존성 추가 없음

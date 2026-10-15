@@ -53,11 +53,11 @@ type Source =
 
 const FILE_ACCEPT = `${FILE_INPUT_ACCEPT},application/pdf,.pdf,${OFFICE_ACCEPT}`
 
-/** 형식별 화면 미리보기 렌더러(P4-R1 Word · R2 Excel · R3 PowerPoint · R4 한글) — 없는 형식은 문서 카드. Excel은 75%까지만 줄이고(글자 약 11px) 그보다 넓으면 가로 스크롤, 슬라이드는 한 장이 폭에 다 들어오게 20%까지 */
+/** 형식별 화면 미리보기 렌더러(P4-R1 Word · R2 Excel · R3 PowerPoint · R4 한글) — 없는 형식은 문서 카드. Excel은 75%까지만 줄이고(글자 약 11px) 그보다 넓으면 가로 스크롤, 슬라이드는 한 장이 폭에 다 들어오게 20%까지. pageSelector는 툴바 「화면에 맞추기」(쪽 맞춤)의 쪽 단위 */
 const OFFICE_RENDERERS: Partial<Record<OfficeFormat, OfficePreviewRenderer>> = {
-  docx: { render: renderDocxPreview },
-  pptx: { render: renderPptxPreview, minZoom: 0.2 },
-  hwpx: { render: renderHwpxPreview },
+  docx: { render: renderDocxPreview, pageSelector: 'section.docx' },
+  pptx: { render: renderPptxPreview, minZoom: 0.2, pageSelector: '[data-testid=pptx-preview] > figure' },
+  hwpx: { render: renderHwpxPreview, pageSelector: '[data-testid=hwpx-page]' },
   xlsx: { render: renderXlsxPreview, minZoom: 0.75 },
 }
 
@@ -357,6 +357,7 @@ export function TextExtractorPage() {
                 data={source.data}
                 render={OFFICE_RENDERERS[source.format]!.render}
                 minZoom={OFFICE_RENDERERS[source.format]!.minZoom}
+                pageSelector={OFFICE_RENDERERS[source.format]!.pageSelector}
                 busy={loading}
                 dragActive={dragActive}
                 onBrowse={browse}
