@@ -44,7 +44,7 @@ function ToolButton({ label, pressed, disabled, onClick, children }: { label: st
           type="button"
           variant="ghost"
           size="icon"
-          className={cn('h-8 w-8', pressed && 'bg-[rgb(var(--penta-indigo-rgb)/0.12)] text-[var(--penta-indigo)]')}
+          className={cn('h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11', pressed && 'bg-[rgb(var(--penta-indigo-rgb)/0.12)] text-[var(--penta-indigo)]')}
           onClick={onClick}
           disabled={disabled}
           aria-label={label}
@@ -215,13 +215,13 @@ export function ExtractPreview(props: ExtractPreviewProps) {
 
       {numPages !== null && numPages > 1 && (
         <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-lg border bg-card/95 px-1 py-0.5 shadow-sm">
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1} aria-label="이전 페이지">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1} aria-label="이전 페이지">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="min-w-[4.5rem] text-center text-sm tabular-nums" aria-live="polite">
             {page} / {numPages}쪽
           </span>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => onPageChange(Math.min(numPages, page + 1))} disabled={page >= numPages} aria-label="다음 페이지">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11" onClick={() => onPageChange(Math.min(numPages, page + 1))} disabled={page >= numPages} aria-label="다음 페이지">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

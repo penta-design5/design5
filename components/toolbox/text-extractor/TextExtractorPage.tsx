@@ -31,6 +31,9 @@ import {
 import { buildOmissions, type Omission } from '@/lib/toolbox/text-extractor/omissions'
 import type { NormRect } from '@/lib/toolbox/text-extractor/region'
 import { renderDocxPreview } from '@/lib/toolbox/text-extractor/render-docx'
+import { renderHwpxPreview } from '@/lib/toolbox/text-extractor/render-hwpx'
+import { renderPptxPreview } from '@/lib/toolbox/text-extractor/render-pptx'
+import { renderXlsxPreview } from '@/lib/toolbox/text-extractor/render-xlsx'
 import { textFileName } from '@/lib/toolbox/text-extractor/text'
 import { ExtractResult } from './ExtractResult'
 import { ExtractPreview } from './ExtractPreview'
@@ -38,7 +41,7 @@ import { ExtractNotes, ExtractScope, ExtractSidePanel } from './ExtractSidePanel
 import { ExtractUploadZone } from './ExtractUploadZone'
 import { OcrProgressCard } from './OcrProgressCard'
 import { OfficeCard } from './OfficeCard'
-import { OfficeVisualPreview, type OfficeRenderer } from './OfficeVisualPreview'
+import { OfficeVisualPreview, type OfficePreviewRenderer } from './OfficeVisualPreview'
 import { PdfOptions, type PdfOptionsProps } from './PdfOptions'
 import { useCrossOriginIsolation } from './use-cross-origin-isolation'
 import { useOcr } from './use-ocr'
@@ -50,8 +53,13 @@ type Source =
 
 const FILE_ACCEPT = `${FILE_INPUT_ACCEPT},application/pdf,.pdf,${OFFICE_ACCEPT}`
 
-/** 형식별 화면 미리보기 렌더러 — 없는 형식은 문서 카드(P4-R1: Word만) */
-const OFFICE_RENDERERS: Partial<Record<OfficeFormat, OfficeRenderer>> = { docx: renderDocxPreview }
+/** 형식별 화면 미리보기 렌더러(P4-R1 Word · R2 Excel · R3 PowerPoint · R4 한글) — 없는 형식은 문서 카드. Excel은 75%까지만 줄이고(글자 약 11px) 그보다 넓으면 가로 스크롤, 슬라이드는 한 장이 폭에 다 들어오게 20%까지 */
+const OFFICE_RENDERERS: Partial<Record<OfficeFormat, OfficePreviewRenderer>> = {
+  docx: { render: renderDocxPreview },
+  pptx: { render: renderPptxPreview, minZoom: 0.2 },
+  hwpx: { render: renderHwpxPreview },
+  xlsx: { render: renderXlsxPreview, minZoom: 0.75 },
+}
 
 const UNSUPPORTED_MESSAGE = '지원하지 않는 형식입니다. 이미지(PNG·JPG·WebP·GIF·BMP), PDF, 문서(DOCX·PPTX·XLSX·HWPX)를 사용해 주세요.'
 
@@ -332,7 +340,7 @@ export function TextExtractorPage() {
             </div>
             {source && (
               <div className="flex shrink-0 gap-2 xl:hidden">
-                <Button type="button" onClick={extract} disabled={!canExtract}>
+                <Button type="button" className="[@media(pointer:coarse)]:h-11" onClick={extract} disabled={!canExtract}>
                   <ScanText className="mr-2 h-4 w-4" />
                   텍스트 추출
                 </Button>
@@ -347,7 +355,8 @@ export function TextExtractorPage() {
                 format={source.format}
                 size={source.size}
                 data={source.data}
-                render={OFFICE_RENDERERS[source.format]!}
+                render={OFFICE_RENDERERS[source.format]!.render}
+                minZoom={OFFICE_RENDERERS[source.format]!.minZoom}
                 busy={loading}
                 dragActive={dragActive}
                 onBrowse={browse}
@@ -386,6 +395,8 @@ export function TextExtractorPage() {
           {/* 1280px 미만: PDF 옵션·결과를 본문에 둔다 */}
           {isCompactViewport && source && (
             <div className="space-y-4 rounded-lg border bg-card p-4">
+              {/* 우측 패널의 h2와 같은 제목(화면 낭독용) — 아래 PDF 옵션 h3의 제목 순서를 맞춘다 */}
+              <h2 className="sr-only">텍스트 추출</h2>
               {pdfProps && <PdfOptions idPrefix="main" {...pdfProps} />}
               <ExtractScope regionLabel={regionLabel} onClearRegion={clearRegion} disabled={running} selectable={source.kind !== 'office'} />
               <ExtractResult idPrefix="main" {...resultProps} />

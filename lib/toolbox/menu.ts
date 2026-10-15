@@ -13,9 +13,14 @@ export const TOOLBOX_MENU = [
   { slug: 'qr-code', label: 'QR 코드 생성' },
   { slug: 'special-characters', label: '특수 문자 및 이모티콘' },
   { slug: 'batch-rename', label: '파일명 일괄 변경' },
+  // 이 페이지만 교차 출처 격리 헤더(OCR 멀티 스레드)가 있어, 문서를 새로 불러와야 적용된다 → 전체 이동 링크(SPA로 들어온 뒤 다시 불러오는 깜박임 방지)
+  { slug: 'text-extractor', label: '텍스트추출(OCR)', fullReload: true },
 ] as const
 
 export type ToolboxSlug = (typeof TOOLBOX_MENU)[number]['slug']
+
+/** 전체 이동(새로 불러오기)으로 들어가야 하는 메뉴인가 */
+export const toolboxFullReload = (menu: (typeof TOOLBOX_MENU)[number]) => 'fullReload' in menu && menu.fullReload
 
 /** 사이드바 `renderStaticLink`용 경로(앞의 `/` 제외) */
 export const toolboxPath = (slug: ToolboxSlug) => `toolbox/${slug}`

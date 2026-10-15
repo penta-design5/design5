@@ -104,7 +104,7 @@ const GRAMMARS: Record<'docx' | 'pptx' | 'hwpx', Grammar> = {
 /** 문단 또는 표(행 → 칸) */
 export type Block = { kind: 'para'; text: string } | { kind: 'table'; rows: string[][] }
 
-const elementChildren = (node: Node) => Array.from(node.childNodes).filter((n): n is Element => n.nodeType === 1)
+export const elementChildren = (node: Node) => Array.from(node.childNodes).filter((n): n is Element => n.nodeType === 1)
 
 /** 문단 하나의 글자 — 문단 안에 든 표·텍스트 상자의 문단은 `nested`로 모아 문단 뒤에 따로 읽는다 */
 function readParagraph(p: Element, g: Grammar, nested: Element[]): string {
@@ -193,7 +193,7 @@ export function blocksToText(blocks: Block[]): string {
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
 }
 
-function parseXml(xml: string): Document {
+export function parseXml(xml: string): Document {
   const doc = new DOMParser().parseFromString(xml, 'application/xml')
   if (doc.getElementsByTagName('parsererror').length > 0) throw new OfficeLoadError('문서 내용을 읽지 못했습니다. 파일이 손상되었을 수 있습니다.')
   return doc
@@ -319,7 +319,7 @@ export function readDateStyles(xml: string): boolean[] {
 /* ───────────── ZIP 읽기 ───────────── */
 
 /** `_rels` 파일 → (Id → 대상 경로, 기준 폴더에서 풀어 쓴 절대 경로) */
-function readRels(xml: string, baseDir: string): Map<string, string> {
+export function readRels(xml: string, baseDir: string): Map<string, string> {
   const doc = parseXml(xml)
   const map = new Map<string, string>()
   for (const r of Array.from(doc.getElementsByTagName('Relationship'))) {
@@ -341,7 +341,7 @@ export function resolvePath(baseDir: string, target: string): string {
   return out.join('/')
 }
 
-async function readText(zip: JSZip, path: string): Promise<string> {
+export async function readText(zip: JSZip, path: string): Promise<string> {
   const file = zip.file(path)
   if (!file) throw new OfficeLoadError('문서 구성이 올바르지 않습니다. 파일이 손상되었을 수 있습니다.')
   return file.async('string')
@@ -483,22 +483,28 @@ const readXlsx: Reader = async (zip) => {
   return { sections, stats }
 }
 
-const readHwpx: Reader = async (zip) => {
-  // 구역 순서는 content.hpf의 spine(본문 순서) — 없으면 section0.xml, section1.xml … 순서
-  let paths: string[] = []
+/** HWPX 구역 파일 순서(content.hpf의 spine — 없으면 section0.xml, section1.xml … 순서)와 목록 항목(id → 경로, 그림 BinData 포함) */
+export async function readHwpxManifest(zip: JSZip): Promise<{ sections: string[]; items: Map<string, string> }> {
+  let sections: string[] = []
+  let items = new Map<string, string>()
   const hpf = zip.file('Contents/content.hpf')
   if (hpf) {
     const doc = parseXml(await hpf.async('string'))
-    const items = new Map(Array.from(doc.getElementsByTagName('opf:item')).map((it) => [it.getAttribute('id') ?? '', it.getAttribute('href') ?? '']))
-    paths = Array.from(doc.getElementsByTagName('opf:itemref'))
+    items = new Map(Array.from(doc.getElementsByTagName('opf:item')).map((it) => [it.getAttribute('id') ?? '', it.getAttribute('href') ?? '']))
+    sections = Array.from(doc.getElementsByTagName('opf:itemref'))
       .map((ref) => items.get(ref.getAttribute('idref') ?? '') ?? '')
       .filter((href) => /section\d+\.xml$/i.test(href))
   }
-  if (paths.length === 0) {
-    paths = Object.keys(zip.files)
+  if (sections.length === 0) {
+    sections = Object.keys(zip.files)
       .filter((p) => /^Contents\/section\d+\.xml$/i.test(p))
       .sort((a, b) => Number(a.match(/(\d+)\.xml$/i)?.[1]) - Number(b.match(/(\d+)\.xml$/i)?.[1]))
   }
+  return { sections, items }
+}
+
+const readHwpx: Reader = async (zip) => {
+  const paths = (await readHwpxManifest(zip)).sections
   const blocks: Block[] = []
   const stats = { headerFooter: 0, notes: 0, images: 0 }
   for (const path of paths) {

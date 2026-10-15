@@ -58,7 +58,7 @@ export function ExtractScope({ regionLabel, onClearRegion, disabled, selectable 
         {regionLabel ?? '전체'}
       </p>
       {regionLabel ? (
-        <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={onClearRegion} disabled={disabled}>
+        <Button type="button" variant="link" size="sm" className="h-auto p-0 [@media(pointer:coarse)]:min-h-11" onClick={onClearRegion} disabled={disabled}>
           선택 해제
         </Button>
       ) : (

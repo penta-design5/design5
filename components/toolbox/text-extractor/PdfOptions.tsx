@@ -42,7 +42,7 @@ export function PdfOptions({ idPrefix, numPages, startText, endText, rangeError,
           aria-invalid={rangeError !== null}
           aria-describedby={rangeError ? errorId : undefined}
           onChange={(e) => onStartTextChange(e.target.value)}
-          className="w-20 text-center tabular-nums"
+          className="w-20 text-center tabular-nums [@media(pointer:coarse)]:h-11"
         />
         <span aria-hidden="true">~</span>
         <Label htmlFor={`${idPrefix}-pdf-end`} className="sr-only">
@@ -56,7 +56,7 @@ export function PdfOptions({ idPrefix, numPages, startText, endText, rangeError,
           aria-invalid={rangeError !== null}
           aria-describedby={rangeError ? errorId : undefined}
           onChange={(e) => onEndTextChange(e.target.value)}
-          className="w-20 text-center tabular-nums"
+          className="w-20 text-center tabular-nums [@media(pointer:coarse)]:h-11"
         />
         <span className="text-sm">쪽</span>
       </div>
@@ -74,7 +74,7 @@ export function PdfOptions({ idPrefix, numPages, startText, endText, rangeError,
           <p className="text-sm">모든 페이지를 OCR로 읽기</p>
           <p className="text-xs text-muted-foreground">PDF에 들어 있는 글자가 깨져 나올 때 켜세요. 시간이 더 걸립니다.</p>
         </div>
-        <Switch aria-label="모든 페이지를 OCR로 읽기" checked={forceOcr} disabled={disabled} onCheckedChange={onForceOcrChange} />
+        <Switch className="relative after:absolute after:-inset-3 after:content-['']" aria-label="모든 페이지를 OCR로 읽기" checked={forceOcr} disabled={disabled} onCheckedChange={onForceOcrChange} />
       </div>
     </section>
   )

@@ -51,11 +51,11 @@ export function ExtractResult({ idPrefix, className, text, fileName, summary, om
         spellCheck={false}
       />
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" onClick={onCopy} disabled={disabled || empty}>
+        <Button type="button" variant="outline" className="[@media(pointer:coarse)]:h-11" onClick={onCopy} disabled={disabled || empty}>
           <Copy className="mr-2 h-4 w-4" />
           전체 복사
         </Button>
-        <Button type="button" variant="outline" onClick={onSave} disabled={disabled || empty} title={empty ? undefined : fileName}>
+        <Button type="button" variant="outline" className="[@media(pointer:coarse)]:h-11" onClick={onSave} disabled={disabled || empty} title={empty ? undefined : fileName}>
           <Download className="mr-2 h-4 w-4" />
           .txt 저장
         </Button>

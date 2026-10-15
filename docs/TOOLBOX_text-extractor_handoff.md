@@ -4,13 +4,13 @@
 
 - 메뉴: 텍스트추출(OCR) · slug `text-extractor` · 라우트 `/toolbox/text-extractor`
 - 최초 작성: 2026-10-15 (가능성 검토 2026-10-14 — 답변만, 구현 없음)
-- **현재 상태: 🟡 P4-R1(Word 화면 미리보기)까지 사용자 확인 완료(2026-10-15) — 커밋·푸시(`2026-06-17-tiper`). 남은 작업: R2 Excel·R3 PowerPoint·R4 한글 화면 미리보기 → P5. 메뉴 미노출(URL로만 접근).**
-- 다음 시작점(새 세션): **R2 Excel 화면 미리보기(직접 구현 — 셀 색·글꼴·테두리·병합·열 너비·행 높이)** → R3 PowerPoint(`pptx-preview` vs 직접 구현 PoC) → R4 한글(직접 구현, 낮은 재현도 허용) → P5. 각 R은 구현 → 자동 검증 → 사용자 확인
-  - 구현 위치: 렌더러를 `lib/toolbox/text-extractor/render-<형식>.ts`로 만들고 `TextExtractorPage`의 `OFFICE_RENDERERS`에 1줄 추가하면 `OfficeVisualPreview`(공용 틀·안내 문구·폭 맞춤·실패 안내)가 그대로 쓴다. 그린 DOM은 **반드시 `sanitizePreview`**로 정리
-  - E2E는 세션 스크래치에서 다시 만든다(이전 세션 스크립트 `p0~p4d.mjs`는 스크래치라 남지 않음 — 방식은 각 Phase 검증 기록과 허브 §5 참고). 샘플 `docs/test-img/01~09`는 `.gitignore` 대상(로컬에만 있음)
-  - 개발망 반영 시: **새 의존성 `docx-preview`**(리빌드 시 설치), `next.config.js` 헤더(COOP·COEP) 전달 확인(§4 P2-B′), DB 변경 없음(`migrate deploy` 불필요)(반응형·터치·접근성(axe)·저사양 성능 + 사이드바 메뉴 등록(전체 이동 링크 검토, §4 P2-B′) + 개발망 확인). **개발망 반영 시 COOP·COEP 헤더가 nginx를 거쳐 전달되는지 확인**(§4 P2-B′)
+- **현재 상태: 🟡 P0~P4(오피스 화면 미리보기 R1~R4 포함) 사용자 확인 완료(2026-10-15). P5(사이드바 메뉴 노출·반응형·터치·접근성·저사양 성능) 사용자 확인 완료(2026-10-15). R2~P5 로컬 커밋(푸시 전). 진행 중: Z(미리보기 줌 툴바 — Z1 오피스, Z2 이미지·PDF). 남은 작업: Z → 푸시 → 개발망 확인.**
+- 다음 시작점(새 세션): **Z(미리보기 줌 툴바)** — §4 Z → 푸시(`git push origin HEAD:2026-06-17-tiper`) → **개발망 확인**(§5 수동 QA 체크리스트의 개발망 항목 — COOP·COEP 헤더·4스레드·실기기·저사양 PC) → 완료 처리
+  - 구현 위치: 렌더러를 `lib/toolbox/text-extractor/render-<형식>.ts`로 만들고 `TextExtractorPage`의 `OFFICE_RENDERERS`에 1줄(`{ render, minZoom? }`) 추가하면 `OfficeVisualPreview`(공용 틀·안내 문구·폭 맞춤·실패 안내)가 그대로 쓴다. 그린 DOM은 **반드시 `sanitizePreview`**로 정리. 그린 뒤 내용이 바뀌면(탭 전환 등) `notifyPreviewResize`(`preview-resize.ts`)로 폭 맞춤을 다시 요청
+  - E2E는 세션 스크래치에서 다시 만든다(이전 세션 스크립트 `p0~p4d.mjs`·`r2.mjs`·`r3.mjs`·`r4.mjs`는 스크래치라 남지 않음 — 방식은 각 Phase 검증 기록과 허브 §5 참고). 샘플 `docs/test-img/01~09`는 `.gitignore` 대상(로컬에만 있음)
+  - 개발망 반영 시: **새 의존성 `docx-preview`**(리빌드 시 설치), DB 변경 없음(`migrate deploy` 불필요). **`next.config.js`의 COOP·COEP 헤더가 nginx를 거쳐 전달되는지 확인**(§4 P2-B′ — 개발자 도구 Network 응답 헤더, 콘솔 `crossOriginIsolated === true`)
 - 운영망 반영: TOOLBOX 전체 메뉴 완료 후 한꺼번에(허브 §6). 이 메뉴는 로드맵 7개 메뉴 완료(2026-10-14) **이후 추가된 메뉴**지만, **「전체 메뉴 완료 후 일괄 반영」 규칙은 유지**한다(사용자 결정 2026-10-15) — 이 메뉴까지 끝난 뒤 함께 반영.
-- 사이드바 메뉴 등록은 마지막 Phase에서 한다(개발 중에는 URL로 직접 검증).
+- 사이드바 메뉴: P5에서 등록(TOOLBOX 마지막, **전체 이동 링크** — §4 P5).
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -91,8 +91,8 @@
 | P1 | **이미지 입력**(파일·끌어다 놓기·붙여넣기) + OCR 실행(Worker·진행률·취소·모델 첫 로딩) + 결과 텍스트·복사·`.txt` 저장 — 최소 사용 가능 | ✅ (사용자 확인 2026-10-15) |
 | P2 | **PDF 입력** — 텍스트 레이어 추출 + 스캔 페이지 자동 OCR 전환 + 페이지 범위·페이지 구분 | ✅ (사용자 확인 2026-10-15) + 멀티 스레드(B′) ✅ |
 | P3 | 인식 글자 상자 표시 + **영역 지정 인식**(D7) | ✅ (사용자 확인 2026-10-15) |
-| P4 | **오피스 문서**(DOCX·PPTX·XLSX·HWPX — jszip XML 텍스트 추출, OCR 불필요) | ✅ (사용자 확인 2026-10-15) + 추출되지 않은 내용 안내 ✅ + 화면 미리보기 R0·R1 ✅, R2~R4 ⬜ |
-| P5 | 반응형·터치·접근성(axe)·저사양 성능 측정 + **사이드바 메뉴 노출** + 개발망 확인 | ⬜ |
+| P4 | **오피스 문서**(DOCX·PPTX·XLSX·HWPX — jszip XML 텍스트 추출, OCR 불필요) | ✅ (사용자 확인 2026-10-15) + 추출되지 않은 내용 안내 ✅ + 화면 미리보기 R0·R1 ✅, R2 ✅, R3 ✅, R4 ✅ |
+| P5 | 반응형·터치·접근성(axe)·저사양 성능 측정 + **사이드바 메뉴 노출** + 개발망 확인 | ✅ (사용자 확인 2026-10-15), 개발망 확인 대기 |
 
 ---
 
@@ -291,7 +291,7 @@
 
 > **철회 사유(사용자 2026-10-15)**: 파일을 열자마자 추출 텍스트가 미리보기에 보여 「텍스트 추출」 버튼이 필요 없어 보인다. 의도는 **페이지 캡처처럼 문서의 화면 구조(모양)를 보여 주는 것**. → `OfficePreview.tsx`(텍스트 미리보기)는 삭제하고 카드로 되돌린 뒤(R0) 형식별 화면 렌더링(P4-R)으로 다시 구현. 위 기록 중 「문서를 열 때 바로 읽기」(손상·암호 안내가 열 때 나옴)와 블록 구조(`OfficeSection.blocks`)는 유지, `limitPreviewBlocks`는 삭제.
 
-### P4-R — 오피스 문서 화면 미리보기 (🟡 R0·R1 ✅ 2026-10-15 사용자 확인 완료, R2~R4 대기)
+### P4-R — 오피스 문서 화면 미리보기 (✅ R0~R4 2026-10-15 사용자 확인 완료)
 
 **결정(사용자 2026-10-15)**: 방안 1) **브라우저 렌더링(형식별 PoC 후 구현)** 채택 — 2) 서버 변환(LibreOffice → PDF)은 원칙 변경이 필요해 제외, 3) 내장 썸네일은 부족. 텍스트 미리보기는 **카드로 되돌림**. **한글은 재현 수준이 낮아도 그대로 구현**. 미리보기 영역에는 「제대로 재현되지 않을 수 있다」는 **짧은 안내만** 둔다.
 
@@ -299,9 +299,9 @@
 | --- | --- | --- | --- |
 | R0 | (공통) | 텍스트 미리보기 → 문서 카드 복원(`OfficeCard`), 화면 미리보기가 없는 형식은 카드 | ✅ |
 | R1 | Word | **`docx-preview` 0.4.1**(Apache-2.0, 의존성 jszip만 — `package.json` 추가) | ✅ (사용자 확인 2026-10-15) |
-| R2 | Excel | **직접 구현**(이미 만든 XLSX 파서로 셀 색·글꼴·테두리·병합·열 너비·행 높이) — `ExcelJS`(MIT)는 서버용 의존성(archiver·tmp 등)이 많아 제외 | ⬜ |
-| R3 | PowerPoint | `pptx-preview`(ISC — echarts까지 딸려 옴) vs **직접 구현**(슬라이드 XML의 도형 위치·글상자·그림) PoC 비교 | ⬜ |
-| R4 | 한글 | 직접 구현(문단·표 테두리·그림 배치 — 낮은 재현도 허용). 마땅한 라이브러리 없음 | ⬜ |
+| R2 | Excel | **직접 구현**(이미 만든 XLSX 파서로 셀 색·글꼴·테두리·병합·열 너비·행 높이) — `ExcelJS`(MIT)는 서버용 의존성(archiver·tmp 등)이 많아 제외 | ✅ (사용자 확인 2026-10-15) |
+| R3 | PowerPoint | **직접 구현**(PoC 후 사용자 결정 2026-10-15 — `pptx-preview`는 소스 비공개·비표준 라이선스 조건으로 제외) | ✅ (사용자 확인 2026-10-15) |
+| R4 | 한글 | 직접 구현(문단·표 테두리·그림 배치 — 낮은 재현도 허용). 마땅한 라이브러리 없음 | ✅ (사용자 확인 2026-10-15) |
 
 **R1 구현**
 - `OfficeVisualPreview.tsx`(공용 틀): 파일 정보 + 안내 줄(항상) 「미리보기는 원본 문서와 다르게 보일 수 있습니다. 텍스트 추출 결과와는 관계없습니다.」 + 미리보기 영역(스크롤). 형식별 렌더러(`OfficeRenderer` — `(data, body, style) => Promise`)를 받아 **화면에 붙지 않은 요소에 먼저 그리고**, 취소되지 않았을 때만 옮겨 붙인다(빠르게 다른 파일을 열 때 늦게 끝난 이전 그리기가 덮어쓰지 않도록). 페이지가 영역보다 넓으면 **CSS zoom으로 폭 맞춤**(ResizeObserver, 최소 0.3). 실패하면 「이 문서는 미리보기를 표시할 수 없습니다. 「텍스트 추출」은 그대로 사용할 수 있습니다.」
@@ -318,11 +318,152 @@
   - 05·07·08 → 문서 카드, Word → PPTX를 곧바로 바꿔 열어도 이전 미리보기가 덮어쓰지 않음, 콘솔 에러 없음
 - [x] **사용자 확인 ✅ 2026-10-15**(Word 미리보기 잘 구현됨): ① 06 샘플 Word 미리보기 모양·안내 문구 ② 실제 업무 Word 문서(그림·머리말·여러 페이지) ③ 좁은 화면 축소 표시 ④ 05·07·08은 카드로 보이는지
 
+**R2 결정(사용자 2026-10-15 — 모두 권장안)**: ① 여러 시트는 **아래 시트 탭**(한 번에 한 시트, 숨긴 시트는 「(숨김)」) ② 숫자는 **자주 쓰는 표시 서식만 적용**(미리보기에만 — 추출 결과는 지금처럼 원래 숫자) ③ **열 머리글·행 번호·눈금선 모두 그리기**(시트에서 끈 경우 따름) ④ 시트마다 **500행 × 100열**까지(넘으면 안내, 추출은 전체)
+
+**R2 구현**
+- `xlsx-sheet.ts`(순수, vitest 대상)
+  - 색: 테마(theme1.xml, 번호 순서 lt1·dk1·lt2·dk2·강조 1~6…, 없으면 Office 기본) + 밝기 조정(tint — HSL L만), 예전 색 번호(indexed 64색, 문서의 `indexedColors` 우선), rgb
+  - 서식표(styles.xml): 글꼴(이름·크기·굵게·기울임·밑줄(이중)·취소선·색)·채우기(단색, 무늬는 전경색 근사, 그라데이션은 첫 색)·테두리(종류·색)·정렬(가로·세로·줄 바꿈·들여쓰기)·숫자 서식(기본 번호 → 한국어 Excel 기준 서식 문자열)
+  - 표시 서식 `formatCellNumber`: 구역(양수;음수;0;글자)·조건 `[>=100]`·색 `[Red]`·통화 `[$₩-412]`·쉼표·소수·백분율·1,000 단위 나누기(끝 쉼표)·지수·**회계 채움 `*`(₩는 왼쪽 끝·숫자는 오른쪽 끝 — `split`)**·전화번호처럼 자리 표시 사이 글자(`000-0000-0000`)·날짜/시간(yyyy·m·mmm·d·ddd·aaa(한국어 요일)·h·mm(분 판별)·ss·AM/PM·[h] 경과 시간·1904 체계). 해석하지 못한 서식은 일반 서식. 글자 칸은 `@` 구역(`@"님"`)
+  - 시트 모델 `readSheetModel`: 열 너비 px = `trunc(너비 × 숫자 폭 + 0.5)`(숫자 폭: 기본 글꼴이 한글 글꼴이면 8px, 그 밖 7px — 11pt 기준) · 행 높이 pt × 4/3 · 숨긴 행·열은 0 · 행/열 전체 서식(채우기) · 병합 · 눈금선/머리글 표시 여부. **그리는 범위는 A1부터 값·채우기·테두리·병합(글자나 꾸밈이 있는 것)이 있는 마지막 칸까지** — 서식만 있는 빈 칸·빈 병합은 범위에서 뺀다(샘플 07의 `dimension`은 AB열, 빈 병합 T2:V2까지 넣으면 5열이 더 넓어졌다)
+  - 글자 넘침 `textArea`: 줄 바꿈 없는 글자 칸은 Excel처럼 옆 빈 칸으로(왼쪽 정렬 → 오른쪽, 오른쪽 정렬 → 왼쪽, 가운데 → 양쪽 같은 폭). 숫자·병합 칸은 넘치지 않음
+- `render-xlsx.ts`(브라우저): 시트를 **절대 위치 레이어**로 그린다 — 눈금선 → 행·열 전체 채우기 → 칸 채우기(병합은 영역 전체, 채우기가 없으면 흰색으로 안쪽 눈금선만 가림) → 테두리(칸 경계에 겹침, 병합은 바깥만) → 글자(`textContent`만 사용). 칸 DOM은 값·꾸밈이 있는 칸만 만들고 눈금선은 행·열마다 1개라 500×100도 가볍다(15열×500행 7,500칸 약 0.4초)
+  - 열 머리글·행 번호는 **sticky**(스크롤해도 위·왼쪽에 남음), 시트 탭은 아래에 sticky(가로 스크롤해도 왼쪽에 남음). 탭은 `role=tablist/tab/tabpanel`·`aria-selected`·←→/Home/End
+  - 시트는 **탭을 처음 열 때 읽는다**(모델 캐시). 빠르게 탭을 바꿔도 늦게 끝난 그리기는 버린다(토큰). 처음 탭은 문서에 저장된 활성 시트(`workbookView activeTab`, 숨긴 시트면 첫 보이는 시트). 차트 시트·빈 시트는 안내 문구
+  - 탭을 바꾸면 `notifyPreviewResize`(`preview-resize.ts`) → `OfficeVisualPreview`가 폭 맞춤을 다시 하고 스크롤을 맨 위로
+- `OfficeVisualPreview`: 렌더러별 **최소 배율(`minZoom`)** — Excel은 **0.75**(11pt → 약 11px)까지만 줄이고 그보다 넓으면 미리보기 안에서 가로 스크롤(Word는 기존대로 0.3). 처음엔 0.6으로 했다가 100열 시트 글자가 약 9px라 올렸다
+- `office.ts`: `parseXml`·`elementChildren`·`readRels`·`readText`를 export(로직 변경 없음)
+- MVP 제외: 조건부 서식, 차트·그림, 표(ListObject) 스타일, 틀 고정, 메모, 글자 회전, 서식이 섞인 글자(rich text — 칸 글꼴 하나로), 「###」 표시
+- 참고: 테마 색 밝기는 Excel의 정수 HLS 계산과 1단위 차이가 날 수 있다(샘플 07 B4 `FDE9D9` → `FDEADA`)
+
+**R2 검증**
+- [x] typecheck 0 · `npm run lint` 통과(종료 코드 0, 경고는 프로젝트 기존 파일들 — 이번 변경 파일 0건) · vitest **69건**(+ `xlsx-sheet.test.ts` 16건: 테마·tint·indexed·auto 색, 서식 구역 나누기, 일반·쉼표·소수·백분율·지수·천 단위 나누기, 음수 구역·색·0 구역, 회계 split(₩·0 → -), 전화번호 서식, 날짜·시간·[h]·1904, `@` 글자 서식, 해석 불가 → 일반, 서식표(글꼴·채우기·테두리·정렬·gray125), 열 이름·주소·열 너비 px·숫자 폭, 시트 모델(범위·숨김·행 높이·값 서식), 병합·눈금선 끔·상한, 빈 병합 범위 제외, 글자 넘침)
+- [x] 로컬 헤드리스 Chrome E2E **`r2.mjs` 37/37**(스크래치 복사본 + `getCategories` stub, 포트 3100)
+  - 07 샘플: 약 60ms, 안내 문구, 시트 탭 「통합1」, B5 회계형 쉼표 서식(가운데 정렬이어도 숫자 오른쪽 끝)·B4 머리글 가운데·테마 채우기 색, A2 14pt 제목 옆 칸 넘침, 병합 I2:K2, 추출 전 결과 비어 있음·**추출 결과는 원래 숫자(3000)**, 1440 가로 넘침 없음(zoom 0.77)
+  - 테스트 통합 문서(스크래치 생성 — 숨김·활성 탭·큰 시트 600행×120열(눈금선 끔)·빈 시트): 탭 이름·「(숨김)」, 저장된 활성 시트부터, 전화번호(`010-1234-5678`·`002-1234-5678`)·날짜(`2026년 10월 15일`)·통화 회계(₩ 양 끝, 0 → -), 긴 제목 넘침, 흰 굵은 글자·남색 채우기, 행 높이 33pt
+  - 큰 시트: 상한 안내·**500행·100열까지만**(7,500칸, 약 0.4초)·눈금선 없음, 스크롤해도 열 머리글·시트 탭 보임, ← → Home 키로 탭 이동·포커스, 탭 바꾸면 스크롤 맨 위, 빈 시트·숨긴 시트 내용
+  - 1024·390 가로 넘침 없음(390은 zoom 0.75 + 미리보기 안 가로 스크롤), Word 미리보기로 교체·PowerPoint 카드, **XLSX → DOCX 곧바로 바꿔 열어도 Word만 남음**, 콘솔 에러 없음(로컬 DB 부재 `/api/profile/me` 404 제외 — 테스트 사용자가 DB에 없음)
+  - 스크린샷으로 07 샘플·여러 시트·큰 시트·390 화면 확인
+- [x] **R2 사용자 확인 ✅ 2026-10-15**: ① 07 샘플 미리보기 모양(색·테두리·병합·숫자 서식) ② 실제 업무 Excel(여러 시트·숨긴 시트·날짜/통화/백분율 서식·줄 바꿈 칸) ③ 넓은 시트 가로 스크롤·긴 시트에서 머리글·탭 고정 ④ 휴대폰·태블릿 화면 ⑤ 「텍스트 추출」 결과가 전과 같은지(원래 숫자)
+
+**R3 PoC(2026-10-15) — `pptx-preview` 1.0.7 vs 직접 구현**
+- 기준 화면: macOS Quick Look(`qlmanage -t`)으로 만든 슬라이드 그림(첫 장만 나오므로 슬라이드 순서를 바꾼 복사본으로 2장째도 만듦)
+- `pptx-preview`: **화면 품질 우수**(샘플 05 두 장 원본과 거의 같음, 약 90ms). 그러나 **소스 비공개**(npm에 압축 빌드만, 저장소·LICENSE 파일 없음, 연락처 위챗), `package.json`은 ISC지만 README에 「npm 패키지는 상업용 포함 무료, 소스는 개인 학습용·공개 금지」라는 **비표준 조건**, echarts 포함 약 1.4MB. 압축 코드 검색으로 외부 통신·eval·쿠키 접근 없음, 슬라이드 글자는 이스케이프(`<img onerror>` 글자 실행 안 됨)를 확인했으나 소스 없이 한 점검이라 한계
+- **결정(사용자 2026-10-15): A. 직접 구현** — 공개 예정 사이트(보안 회사)에 소스 비공개 익명 라이브러리를 넣는 공급망·라이선스 부담을 피함
+
+**R3 구현**
+- `pptx-model.ts`(순수, vitest 대상)
+  - 테마: 색 12개·주/본문 글꼴(라틴·동아시아, `script="Hang"` 한국어 글꼴 목록)·선 스타일 굵기. 색 이름 대응(`clrMap` — tx1 → dk1 등, 슬라이드/레이아웃 `overrideClrMapping`)
+  - 색: srgb·scheme·sys·prst·scrgb + 변형 lumMod·lumOff·satMod(HSL), **tint·shade는 선형 색 공간**(PowerPoint와 같은 계산 — 기본 표 스타일 띠 색이 Quick Look 측정값과 1~2단위 차이), alpha → rgba
+  - 글자 서식 이어받기: `readListStyle`(defPPr + lvl1~9pPr)·`readParaProps`·`readRunProps`·`mergePara`(정의된 값만 덮어씀). 테마 글꼴 참조(`+mn-ea` 등)
+  - 글머리 기호(Wingdings·Symbol·개인 영역 U+F0xx → 유니코드)·자동 번호(arabic·roman·alpha·괄호·마침표·원 숫자)
+  - 도형 경로: 기본 도형 약 40종(사각형·둥근 사각형·타원·선·연결선·삼각형·마름모·평행사변형·사다리꼴·오각형·육각형·팔각형·홈 플레이트·갈매기형·십자·화살표 상하좌우/양방향·별·호, 순서도 일부 — 모르는 도형은 사각형) + **사용자 지정 경로**(moveTo·lnTo·cubicBezTo·quadBezTo·arcTo·close, 경로 좌표를 도형 크기에 맞춤) + 도형별 **글자 영역**(타원·삼각형·마름모·별·화살표 등) + 점선 배열
+  - 자리 표시자 찾기: 레이아웃은 번호(idx) 우선·없으면 종류, 마스터는 종류(제목류 title/ctrTitle·본문류 body/subTitle/obj 묶음), 글자 스타일 종류(제목·본문·기타)
+- `render-pptx.ts`(브라우저): 슬라이드를 원래 크기(EMU ÷ 9,525 = px, 16:9는 1280×720)로 그린다
+  - 순서: 배경(슬라이드 → 레이아웃 → 마스터, 단색·그라데이션·그림·bgRef) → 마스터 도형 → 레이아웃 도형(자리 표시자 제외, `showMasterSp="0"`이면 생략) → 슬라이드 도형
+  - 자리 표시자는 마스터 → 레이아웃 → 슬라이드로 위치·모양·채우기·선·bodyPr(여백·세로 정렬·줄 바꿈·자동 맞춤)·목록 스타일을 이어받는다. 글자 수준 서식 = 마스터 글자 스타일(제목/본문/기타, 일반 글상자는 프레젠테이션 `defaultTextStyle`) → 도형 스타일 글자 색(`fontRef`) → 자리 표시자 목록 스타일 → 도형 목록 스타일 → 문단·글자 서식
+  - 도형: SVG 경로(채우기 단색·그라데이션(선형·원형)·그림(clip-path)·무늬는 전경색, 선 굵기·점선·화살표 머리), 회전(글자도 함께)·뒤집기(모양만), 그룹(자식 좌표 chOff/chExt 비례), `p:style`의 fillRef·lnRef 색, `mc:AlternateContent`는 Fallback 우선
+  - 그림: 자르기(srcRect)·도형 모양 자르기·SVG 그림 우선, 테두리. **EMF·WMF·TIFF는 「표시 안 함」 자리**(브라우저가 못 그림)
+  - 표: 열 너비·행 높이·병합(gridSpan·rowSpan·hMerge·vMerge)·칸 여백·세로 정렬·칸 채우기·칸 테두리, **표 스타일**(tableStyles.xml의 wholeTbl·band1H/2H·firstRow·lastRow·firstCol·lastCol 채우기·테두리·굵게·글자 색) — 파일에 없는 기본 스타일 `{5C22544A-…}`은 「보통 스타일 2 - 강조 1」 근사(머리글 강조 1·흰 굵은 글자, 띠 tint 40%/20%, 흰 테두리)
+  - 글자: 글꼴(라틴 → 동아시아 → 맑은 고딕 순)·크기·굵게·기울임·밑줄(이중)·취소선·대문자·위/아래 첨자·색·형광펜·하이퍼링크 색(링크는 만들지 않음), 정렬·왼쪽 여백·첫 줄 들여쓰기(내어쓰기 글머리)·줄 간격(배수·pt)·문단 앞뒤 간격, 자동 맞춤 배율(`normAutofit fontScale·lnSpcReduction`), 한글은 단어 단위 줄 바꿈(`keep-all`)
+  - **차트·SmartArt·OLE 개체는 「표시 안 함」 자리**(사용자 결정 범위)
+  - 슬라이드마다 「슬라이드 N」(숨긴 슬라이드는 「(숨김)」), **앞 50장까지**(넘으면 안내 — PDF 50쪽 상한과 같음). 그림은 data:image URL(같은 그림은 한 번만 읽음), 한 슬라이드가 실패하면 그 슬라이드만 안내 문구
+  - 보안: 글자는 `textContent`, 스타일 값은 파싱한 숫자·색·이름 정리(따옴표·괄호 제거), 외부 링크·스크립트 없음, 그린 뒤 `sanitizePreview`
+- `TextExtractorPage`: `OFFICE_RENDERERS`에 `pptx: { render, minZoom: 0.2 }`(슬라이드 한 장이 폭에 다 들어오게 — 390px에서 약 0.27). 「슬라이드 N」 글자는 축소 후에도 읽히게 원래 크기 20px
+- 참고: 우리 렌더러가 Quick Look과 다른 곳 — 글머리 기호 뒤 간격(사양대로 marL·indent를 따름, Quick Look은 더 넓게 그림), 좁은 도형 안 글자 줄 바꿈(글자 영역 규칙)
+
+**R3 검증**
+- [x] typecheck 0 · `npm run lint` 통과(종료 코드 0, 변경 파일 경고 0건) · vitest **79건**(+ `pptx-model.test.ts` 10건: 테마 색·글꼴·선 굵기·테마 글꼴 참조, 색 대응·변형·투명도·선형 tint(측정값 비교), 글자/문단 서식·목록 스타일 이어받기·덮어쓰기, Wingdings·자동 번호 형식, EMU, 기본 도형 경로·글자 영역, 사용자 지정 경로(곡선·호), 점선, 자리 표시자 찾기·스타일 종류)
+- [x] 로컬 헤드리스 Chrome E2E **`r3.mjs` 31/31** + R2 회귀 `r2.mjs` 37/37(「PowerPoint는 카드」 → 「한글은 카드」로 수정)
+  - 05 샘플: 그림까지 약 140ms, 슬라이드 2장·번호, 1280×720, 레이아웃 그림 4개·로고 사용자 지정 경로 56개, 제목 색(레이아웃 이어받기), 슬라이드 2 글머리 기호 6개·슬라이드 번호·본문, 추출 전 결과 비어 있음 → 「텍스트 추출」 결과(슬라이드 구분선) 그대로, 1440 가로 넘침 없음(zoom 0.55)
+  - 기능 테스트 PPTX(스크래치에서 python-pptx로 생성): 숨긴 슬라이드 「(숨김)」, 도형 글자 흰색(fontRef), 30° 회전, 그라데이션·점선·화살표, 표 11칸·병합 colspan 2·기본 표 스타일 머리글(강조 1·굵은 흰 글자), 그림 자르기(좌우 25%), 자동 번호 `1. 2. 1. 3.`(수준별), 차트 자리 안내, **악성 글자(`<img onerror>`·`<script>`)는 글자로만 — 실행·요소 생성 없음**
+  - 60장: 앞 50장만·상한 안내(약 65ms)
+  - 1024·390 가로 넘침 없음·슬라이드가 폭에 맞음(zoom 0.55·0.27), Word·Excel 미리보기·한글 카드 회귀, **PPTX → DOCX 곧바로 바꿔 열어도 Word만 남음**, 콘솔 에러·실패 요청 없음
+  - 스크린샷을 Quick Look 기준 화면과 나란히 비교(05 두 장, 도형·표·그림 슬라이드)
+- [x] **R3 사용자 확인 ✅ 2026-10-15**: ① 05 샘플 두 장 모양(로고·배경 그림·제목·글머리 기호·아래 띠) ② 실제 업무 PowerPoint(여러 레이아웃·표·그림·도형·그룹·자동 번호) ③ 차트·SmartArt·EMF 그림 자리 안내 ④ 휴대폰·태블릿 화면 ⑤ 「텍스트 추출」 결과가 전과 같은지
+
+**R4 구현**
+- `hwpx-model.ts`(순수, vitest 대상)
+  - 단위: HWPUNIT(1/7200인치) ÷ 75 = px, 글자 크기 1/100pt, 테두리 굵기 「0.12 mm」 → px(최소 1)
+  - `hp:switch`는 **`hp:case`(HwpUnitChar — 실제 값)**를 따른다(`hp:default`는 예전 형식이라 값이 두 배 — 샘플의 탭 위치 30396 vs 60792로 확인)
+  - header.xml: 언어별 글꼴(이름·명조/고딕 계열), 글자 모양(크기·색·음영·굵게·기울임·밑줄·취소선·자간·위/아래 첨자·한글/영문 글꼴), 문단 모양(정렬·왼쪽/오른쪽 여백·들여쓰기·앞뒤 간격·줄 간격 종류·문단 테두리·단어 단위 줄 바꿈), 테두리/배경(선 종류 → CSS·굵기·색·면 색/그라데이션 첫 색)
+  - 줄 간격(PERCENT·FIXED·BETWEEN_LINES·AT_LEAST), 내어쓰기(음수 intent: padding = 왼쪽 + |intent|, text-indent = intent), 글꼴 목록(영문 글꼴 → 한글 글꼴 → 계열별 대체: 명조는 바탕·AppleMyungjo·serif, 고딕은 맑은 고딕·sans-serif), 표 열 너비(`columnWidths` — 한 칸짜리로 정하고 병합 칸에서 남은 열 계산), **쪽 나눔 `splitPages`**, 쪽 번호 형식
+- `render-hwpx.ts`(브라우저)
+  - **쪽 나눔은 한컴이 저장한 줄 위치(`hp:linesegarray`의 vertpos)로** — 문단 첫 줄 위치가 앞 문단 끝 줄보다 위로 돌아가면 새 쪽, `pageBreak="1"`이면 새 쪽, 구역마다 새 쪽. 브라우저가 줄을 나누는 위치는 한컴과 조금 다를 수 있어 쪽은 최소 높이로 두고 넘치면 늘어난다
+  - 쪽: 용지 크기(`pagePr`, A4 = 794×1123px)·여백(본문 위 = 위쪽 + 머리말, 아래 = 아래쪽 + 꼬리말)·여러 단(`colPr`), 머리말·꼬리말(양쪽/홀수 쪽 것)·쪽 번호(위치·형식·꾸밈 문자 「- 1 -」, `startNum`)
+  - 문단·글자: 위 서식 + 탭(구역 `tabStop`)·줄 바꿈·고정 폭 공백, 빈 문단은 높이 유지
+  - 표: 열 너비·칸 높이·병합(colSpan·rowSpan)·칸 테두리·배경·여백(`hasMargin`이면 칸 여백, 아니면 표 안쪽 여백)·세로 정렬, 표 위치(글자처럼 취급이면 줄 안, 아니면 가로 정렬·오프셋)
+  - 그림: `hc:img binaryItemIDRef` → content.hpf 목록 → BinData(data:image URL), 현재 크기(`curSz`). 그 밖 형식(WMF 등)은 자리 안내
+  - 글상자(사각형·타원 + `drawText`): 선 색·굵기·면 색·안쪽 여백·세로 정렬·안의 문단
+  - **수식·차트·OLE·동영상·글맵시·묶음 개체·선·호·다각형·곡선은 「○○은(는) 미리보기에 표시하지 않습니다」 자리**. 문단 번호·글머리 기호 자동 매기기, 각주·미주, 글자 장평은 그리지 않는다
+  - **앞 50쪽까지**(넘으면 안내). 문단·개체 하나가 실패해도 나머지는 그린다
+  - 보안: 글자는 `textContent`, 색은 `#RRGGBB`만 통과, 글꼴 이름 정리, 그린 뒤 `sanitizePreview`
+- `office.ts`: HWPX 구역 순서 읽기를 `readHwpxManifest`(구역 경로 + 목록 id → 경로)로 분리(추출 동작 변경 없음)
+- `TextExtractorPage`: `OFFICE_RENDERERS`에 `hwpx` — **이제 4개 형식 모두 화면 미리보기**(`OfficeCard`는 렌더러가 없는 형식의 대비용으로 남김)
+- 참고: Quick Look(Hancom Office HWP Viewer 설치됨)으로 HWPX 기준 화면을 만들려 했으나 응답하지 않아, 문서 구조(줄 위치·용지 크기·표 칸 너비)와 스크린샷으로 확인했다
+
+**R4 검증**
+- [x] typecheck 0 · `npm run lint` 통과(종료 코드 0, 변경 폴더 경고 0건) · vitest **90건**(+ `hwpx-model.test.ts` 11건: 단위·색·테두리 굵기, 글자 모양·문단 모양(switch는 case)·테두리/배경, childOf, 줄 간격 4종, 내어쓰기/들여쓰기, 글꼴 목록, 표 열 너비, 쪽 나눔, 쪽 번호 형식)
+- [x] 로컬 헤드리스 Chrome E2E **`r4.mjs` 29/29** + 회귀 `r2.mjs` 37/37·`r3.mjs` 31/31(「한글은 문서 카드」 → 「한글 미리보기」로 수정)
+  - 08 샘플: 약 65ms, **4쪽**(입법예고 2쪽 + 조례안 1쪽 + 대비표 1쪽 — 한컴 줄 위치대로, 1쪽 끝·2쪽 시작 확인), A4 794px, 제목 24pt·굵게·가운데·명조 계열, 빨간 밑줄 글자, 신·구조문 대비표(4쪽·2열 299px·12칸·실선), 쪽 번호 「- 1 -」~「- 4 -」, 추출 전 결과 비어 있음 → 「텍스트 추출」 결과 그대로, 1440 가로 넘침 없음(zoom 0.88)
+  - 기능 테스트 HWPX(샘플 header.xml + 스크래치에서 만든 본문): 머리말·꼬리말·쪽 번호(오른쪽 아래), 그림(BinData, 300×200, 가운데), 글상자(빨간 선·노란 면·안의 글), 수식 자리 안내, **악성 글자는 글자로만**, 탭·줄 바꿈, 강제 쪽 나눔·구역마다 새 쪽, 61쪽 중 **앞 50쪽만**·상한 안내
+  - 1024·390 가로 넘침 없음·쪽이 폭에 맞음(zoom 0.87·0.42), Word·Excel·PowerPoint로 교체, **HWPX → DOCX 곧바로 바꿔 열어도 Word만 남음**, 콘솔 에러·실패 요청 없음
+  - 스크린샷으로 08 샘플 네 쪽·390 화면 확인
+- [x] **R4 사용자 확인 ✅ 2026-10-15**: ① 08 샘플 네 쪽 모양(쪽 나눔 위치·글꼴·대비표) ② 실제 업무 한글 문서(표·그림·글상자·머리말/꼬리말·여러 쪽) ③ 수식·차트 등 자리 안내, 문단 번호가 빠지는 것이 괜찮은지 ④ 휴대폰·태블릿 화면 ⑤ 「텍스트 추출」 결과가 전과 같은지
+
+### P5 — 메뉴 노출·반응형·터치·접근성·저사양 성능 (✅ 2026-10-15, 사용자 확인 완료)
+
+**구현**
+- **사이드바 메뉴 노출**: `lib/toolbox/menu.ts`의 `TOOLBOX_MENU` 마지막에 `{ slug: 'text-extractor', label: '텍스트추출(OCR)', fullReload: true }` — TOOLBOX 8개 메뉴가 모두 사이드바에 올라갔다
+  - **전체 이동 링크**(P2-B′에서 예고): 이 페이지만 교차 출처 격리 헤더가 있어 문서를 새로 불러와야 적용된다. SPA로 들어오면 `use-cross-origin-isolation`이 한 번 더 불러와 깜박였다 → `Sidebar`의 `renderStaticLink`에 `fullReload` 인자를 추가해 이 메뉴만 `window.location.assign`(새 탭·수정 키 클릭은 브라우저 기본 동작, 비로그인은 기존대로 /login). `toolboxFullReload(menu)` 도우미
+  - 나갈 때는 기존 `use-cross-origin-isolation`이 전체 이동으로 바꾼다(격리 해제)
+- **터치 대상 44px**(WCAG 2.5.5, `pointer: coarse`에서만 — 마우스 화면은 그대로)
+  - 미리보기 도구(영역 선택·선택 해제·인식 영역 표시·새 파일 열기)·PDF 쪽 넘기기 32 → 44px, 헤더·패널·본문 「텍스트 추출」·「전체 복사」·「.txt 저장」·문서 「새 파일 열기」·PDF 쪽 범위 입력 → 높이 44px, 「추출되지 않은 내용」 펼치기·「선택 해제」 링크 → 최소 높이 44px
+  - 「모든 페이지를 OCR로 읽기」 스위치는 모양을 그대로 두고 `::after`로 누르는 영역을 사방 12px 넓힘(약 60×44)
+  - Excel 시트 탭: 터치 기기에서 크게(미리보기가 75%로 줄어도 44px 이상) — `render-xlsx.ts`가 `matchMedia('(pointer: coarse)')`로 판단
+- **접근성(axe-core가 잡음)**
+  - Word·PowerPoint·한글 미리보기 스크롤 영역에 키보드 포커스가 안 들어감(`scrollable-region-focusable`) → 영역에 `tabIndex=0` + 포커스 테두리(PageDown·방향키로 스크롤). Excel은 시트 탭이 있어 원래 통과
+  - 1280px 미만 본문 카드에서 h1 다음 PDF 옵션 h3(`heading-order`) → 카드 맨 위에 화면 낭독용 h2 「텍스트 추출」(`sr-only`, 우측 패널 h2와 같은 구조)
+  - Excel 숨김 시트 탭 글자 회색 `#6B7280` 대비 부족(`color-contrast`) → `#4B5563`
+  - 감사 범위: 우리 UI 전체(문서 내용을 그린 미리보기 안쪽은 원본 문서의 색·구조라 제외), 빈 화면·이미지+결과·스캔 PDF·DOCX·XLSX·PPTX·HWPX × 1440·1024·390(터치)
+- 참고(이번 범위 밖, 앱 공통): 모바일 헤더 메뉴 버튼(`Header.tsx` ☰)에 `aria-label`이 없고, 모바일 메뉴 Sheet(`MainLayout`)를 열면 Radix가 「DialogContent requires a DialogTitle」 경고를 낸다 — 다른 메뉴도 같음
+
+**저사양 성능(측정, 헤드리스 Chrome · 8코어 Mac · 격리 4스레드)**
+| 작업 | 보통 | CPU 4배 느리게 |
+| --- | --- | --- |
+| 01 이미지 OCR | 3.5초 | 3.8초 |
+| 02 스캔 PDF OCR | 3.9초 | 4.0초 |
+| 06 Word 미리보기 | 0.1초 | 0.2초 |
+| 07 Excel 미리보기 | 0.0초 | 0.1초 |
+| 05 PowerPoint 미리보기(그림 포함) | 0.1초 | 0.3초 |
+| 08 한글 미리보기 | 0.0초 | 0.1초 |
+- 오피스 미리보기는 CPU를 4배 느리게 해도 0.3초 이내
+- **OCR은 측정 한계**: CDP CPU 제한(`Emulation.setCPUThrottlingRate`)이 OCR Worker 스레드에는 적용되지 않아 1배·4배가 같게 나왔다. 저사양 참고값은 P2-B′의 1스레드 측정(01 약 5.5초, 스캔 쪽당 약 7초 — Safari 등 격리 미지원 브라우저도 이 수준)이고, 실제 저사양 PC는 개발망에서 확인한다(§5)
+
+**검증**
+- [x] typecheck 0 · `npm run lint` 통과(종료 코드 0) · vitest `lib/toolbox` **459건**(28파일) 통과
+- [x] 로컬 헤드리스 Chrome E2E **`p5.mjs` 21/21** + 회귀 `r2.mjs` 37/37·`r3.mjs` 31/31·`r4.mjs` 29/29
+  - 사이드바: TOOLBOX 8번째(마지막) 「텍스트추출(OCR)」, QR 코드 생성에서 클릭 → **전체 이동으로 들어와 바로 격리(새로 불러오기 1회 — 깜박임 없음)**, 탭 제목, 현재 메뉴 강조색, 다른 메뉴로 나가면 전체 이동·격리 해제, 비로그인 → /login, **휴대폰 메뉴(Sheet)에서 이동**(메뉴 닫힘)
+  - 터치(390, `pointer: coarse`): 이미지·Excel·PDF 화면의 버튼·입력·탭 모두 44px 이상, 스위치는 바깥 10px을 눌러도 켜짐
+  - 키보드: 한글 미리보기 영역 포커스 테두리 → PageDown으로 스크롤
+  - axe 위반 0: 1440 DOCX·PPTX·HWPX, 1024 스캔 PDF·XLSX(감사 스크립트로 1440·1024·390 전 상태 0건 확인)
+  - 저사양 성능 측정(위 표), 페이지 오류 없음(앱 공통 모바일 메뉴 DialogTitle 경고 제외)
+- [x] **사용자 확인 ✅ 2026-10-15**: ① 사이드바 TOOLBOX 맨 아래 「텍스트추출(OCR)」 → 들어갈 때 깜박임 없이 열리는지(다른 메뉴에서 클릭) ② 휴대폰·태블릿: 메뉴에서 이동, 버튼 누르기 쉬운지(미리보기 도구·쪽 넘기기·시트 탭·스위치) ③ 키보드: Tab으로 문서 미리보기 영역에 들어가 방향키·PageDown 스크롤 ④ 나머지 메뉴로 이동했을 때 정상(YouTube 등 iframe)
+- [ ] **개발망 확인**(커밋·푸시 후): §5 개발망 항목
+
 ---
 
 ## 5. 수동 QA 체크리스트
 
-(P1 이후 작성)
+**개발망(design6) — 커밋·푸시·리빌드 후**
+- [ ] 응답 헤더: `/toolbox/text-extractor`에 `Cross-Origin-Opener-Policy: same-origin`·`Cross-Origin-Embedder-Policy: credentialless`, `/_next/static/*`·`/js/*`에 COEP — nginx를 거쳐 전달되는지(개발자 도구 Network)
+- [ ] 콘솔 `crossOriginIsolated === true`(Chrome·Edge), 스캔 PDF·이미지 추출 속도(쪽당 약 3초 수준)
+- [ ] 모델 첫 내려받기(약 18MB) 진행률 → 새로고침 후 다시 받지 않음
+- [ ] 사이드바 메뉴에서 들어가기(깜박임 없음)·나가기(다른 메뉴 iframe 정상)
+- [ ] 샘플 01~09·실제 업무 파일(이미지·PDF·DOCX·XLSX·PPTX·HWPX) 추출·화면 미리보기
+- [ ] 실기기: 휴대폰·태블릿(터치 영역 선택·버튼), Safari(1스레드로 동작)·Edge·Firefox
+- [ ] 저사양 PC에서 OCR 시간(1스레드 기준 이미지 약 5~6초, 스캔 쪽당 약 7초 이내인지)
+- [ ] 운영망 반영 전: PaddleOCR ONNX 변환본 출처·라이선스 재확인(§4 P0), `docx-preview` 라이선스(Apache-2.0) 표기
 
 ---
 
@@ -331,6 +472,10 @@
 - `docs/TOOLBOX_text-extractor_handoff.md` (신규, 2026-10-15)
 - `docs/TOOLBOX_handoff.md` (로드맵 8번 행·현재 상태 추가, 2026-10-15)
 - P0: `app/(dashboard)/toolbox/text-extractor/page.tsx`·`layout.tsx`, `components/toolbox/text-extractor/TextExtractorPage.tsx`·`ExtractSidePanel.tsx` (신규)
+- P5: `lib/toolbox/menu.ts`(메뉴 등록·`fullReload`·`toolboxFullReload`), `components/category-pages/layout/Sidebar.tsx`(`renderStaticLink` 전체 이동 인자), `components/toolbox/text-extractor/`(`ExtractPreview.tsx`·`TextExtractorPage.tsx`·`ExtractResult.tsx`·`PdfOptions.tsx`·`OmissionNotice.tsx`·`ExtractSidePanel.tsx`·`OfficeVisualPreview.tsx` — 터치 44px·제목 순서·미리보기 포커스), `lib/toolbox/text-extractor/render-xlsx.ts`(터치 탭·숨김 탭 대비)
+- P4-R4: `lib/toolbox/text-extractor/`(`hwpx-model.ts`·`hwpx-model.test.ts`·`render-hwpx.ts` 신규, `office.ts` — `readHwpxManifest` 분리), `components/toolbox/text-extractor/TextExtractorPage.tsx`(`OFFICE_RENDERERS`에 hwpx). 의존성 추가 없음
+- P4-R3: `lib/toolbox/text-extractor/`(`pptx-model.ts`·`pptx-model.test.ts`·`render-pptx.ts` 신규), `components/toolbox/text-extractor/TextExtractorPage.tsx`(`OFFICE_RENDERERS`에 pptx). 의존성 추가 없음
+- P4-R2: `lib/toolbox/text-extractor/`(`xlsx-sheet.ts`·`xlsx-sheet.test.ts`·`render-xlsx.ts`·`preview-resize.ts` 신규, `office.ts` — XML 보조 함수 export), `components/toolbox/text-extractor/`(`OfficeVisualPreview.tsx` — `minZoom`·크기 변경 이벤트, `TextExtractorPage.tsx` — `OFFICE_RENDERERS`에 xlsx)
 - P4-R0·R1: `package.json`·`package-lock.json`(**`docx-preview` 0.4.1 추가**), `lib/toolbox/text-extractor/`(`render-docx.ts`·`sanitize-preview.ts` 신규, `office.ts`(`limitPreviewBlocks` 삭제)·`office.test.ts` 수정), `components/toolbox/text-extractor/`(`OfficeVisualPreview.tsx` 신규, `OfficeCard.tsx` 복원, **`OfficePreview.tsx` 삭제**, `TextExtractorPage.tsx` 수정)
 - P4-미리보기(철회): `lib/toolbox/text-extractor/`(`office.ts` — 블록·`readSheetRows`·`limitPreviewBlocks`, `office.test.ts` 수정), `components/toolbox/text-extractor/`(`OfficePreview.tsx` 신규, **`OfficeCard.tsx` 삭제**, `TextExtractorPage.tsx` 수정 — 열 때 읽기)
 - P4-보완: `lib/toolbox/text-extractor/`(`omissions.ts` 신규, `office.ts`(형식별 개수·`readCellStyles`)·`pdf.ts`(`hasImages`)·`pdf-document.ts`(`pageHasImages`)·`office.test.ts` 수정), `components/toolbox/text-extractor/`(`OmissionNotice.tsx` 신규, `ExtractResult.tsx`·`TextExtractorPage.tsx`·`use-ocr.ts`·`OfficeCard.tsx` 수정)

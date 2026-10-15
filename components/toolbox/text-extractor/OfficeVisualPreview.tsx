@@ -5,9 +5,16 @@ import { FileText, FolderOpen, Info, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatFileSize } from '@/lib/design-request-attachments'
 import { officeFormatLabel, type OfficeFormat } from '@/lib/toolbox/text-extractor/office'
+import { PREVIEW_RESIZE_EVENT, type PreviewResizeDetail } from '@/lib/toolbox/text-extractor/preview-resize'
 
 /** 형식별 화면 렌더러 — 본문·스타일 요소에 그린다 */
 export type OfficeRenderer = (data: ArrayBuffer, body: HTMLElement, style: HTMLElement) => Promise<void>
+
+export interface OfficePreviewRenderer {
+  render: OfficeRenderer
+  /** 폭 맞춤 최소 배율(기본 0.3) — 이보다 더 줄여야 하면 가로 스크롤(Excel 시트처럼 넓은 문서) */
+  minZoom?: number
+}
 
 interface OfficeVisualPreviewProps {
   fileName: string
@@ -15,6 +22,7 @@ interface OfficeVisualPreviewProps {
   size: number
   data: ArrayBuffer
   render: OfficeRenderer
+  minZoom?: number
   busy: boolean
   dragActive: boolean
   onBrowse: () => void
@@ -25,7 +33,7 @@ interface OfficeVisualPreviewProps {
  * 원본과 다르게 보일 수 있다는 안내를 위쪽에 항상 둔다. 페이지가 영역보다 넓으면 폭에 맞춰 줄인다(CSS zoom).
  * 그리기에 실패하면 안내만 보이고, 텍스트 추출은 그대로 된다.
  */
-export function OfficeVisualPreview({ fileName, format, size, data, render, busy, dragActive, onBrowse }: OfficeVisualPreviewProps) {
+export function OfficeVisualPreview({ fileName, format, size, data, render, minZoom = 0.3, busy, dragActive, onBrowse }: OfficeVisualPreviewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const styleRef = useRef<HTMLDivElement>(null)
@@ -61,7 +69,8 @@ export function OfficeVisualPreview({ fileName, format, size, data, render, busy
     }
   }, [data, render])
 
-  // 폭 맞춤 — 그려진 내용이 영역보다 넓으면 줄인다
+  // 폭 맞춤 — 그려진 내용이 영역보다 넓으면 줄인다(최소 minZoom, 그보다 넓으면 가로 스크롤).
+  // 렌더러가 그린 뒤 내용을 바꾸면(시트 탭 전환 등) PREVIEW_RESIZE_EVENT로 다시 맞춘다
   useEffect(() => {
     const scroll = scrollRef.current
     const body = bodyRef.current
@@ -70,13 +79,21 @@ export function OfficeVisualPreview({ fileName, format, size, data, render, busy
       body.style.zoom = '1'
       const available = scroll.clientWidth
       const natural = body.scrollWidth
-      body.style.zoom = natural > available ? String(Math.max(0.3, available / natural)) : '1'
+      body.style.zoom = natural > available ? String(Math.max(minZoom, available / natural)) : '1'
+    }
+    const onContentResize = (e: Event) => {
+      fit()
+      if ((e as CustomEvent<PreviewResizeDetail>).detail?.resetScroll) scroll.scrollTo({ top: 0, left: 0 })
     }
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(scroll)
-    return () => observer.disconnect()
-  }, [state])
+    body.addEventListener(PREVIEW_RESIZE_EVENT, onContentResize)
+    return () => {
+      observer.disconnect()
+      body.removeEventListener(PREVIEW_RESIZE_EVENT, onContentResize)
+    }
+  }, [state, minZoom])
 
   return (
     <div className="relative flex min-h-[320px] flex-1 flex-col overflow-hidden rounded-lg border bg-neutral-100" data-testid="ocr-office-visual">
@@ -90,7 +107,7 @@ export function OfficeVisualPreview({ fileName, format, size, data, render, busy
             {officeFormatLabel(format)} 문서 · {formatFileSize(size)}
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={onBrowse} disabled={busy}>
+        <Button type="button" variant="outline" size="sm" className="[@media(pointer:coarse)]:h-11" onClick={onBrowse} disabled={busy}>
           <FolderOpen className="mr-2 h-4 w-4" />
           새 파일 열기
         </Button>
@@ -99,7 +116,8 @@ export function OfficeVisualPreview({ fileName, format, size, data, render, busy
         <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         미리보기는 원본 문서와 다르게 보일 수 있습니다. 텍스트 추출 결과와는 관계없습니다.
       </p>
-      <div ref={scrollRef} className="relative flex-1 overflow-auto" aria-label="문서 미리보기" role="region">
+      {/* 키보드로도 스크롤할 수 있게 포커스를 받는다(axe scrollable-region-focusable) */}
+      <div ref={scrollRef} tabIndex={0} className="relative flex-1 overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-label="문서 미리보기" role="region">
         <div ref={styleRef} />
         <div ref={bodyRef} className="ocr-office-render" data-testid="ocr-office-render" />
         {state === 'rendering' && (

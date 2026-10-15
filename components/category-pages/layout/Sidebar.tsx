@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeLogo } from '@/components/ThemeLogo'
 import { BRAND_KO } from '@/lib/brand'
-import { TOOLBOX_MENU, toolboxPath } from '@/lib/toolbox/menu'
+import { TOOLBOX_MENU, toolboxFullReload, toolboxPath } from '@/lib/toolbox/menu'
 
 /** CategoryType enum에 없는 하드코딩 섹션(TOOLBOX) — categoryOrder에서 위치만 지정 */
 const TOOLBOX_SECTION = 'TOOLBOX' as const
@@ -186,7 +186,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
 
   // DB 카테고리가 아닌 정적 메뉴(자산 HTML 페이지 등)를 카테고리 사이에 삽입하기 위한 leaf 렌더러.
   // renderCategory의 leaf 분기와 동일한 스타일·세션 가드를 사용한다.
-  const renderStaticLink = (slug: string, label: string) => {
+  /** fullReload: SPA 이동 대신 문서를 새로 불러온다(응답 헤더가 필요한 페이지 — 텍스트추출(OCR)의 교차 출처 격리) */
+  const renderStaticLink = (slug: string, label: string, fullReload = false) => {
     const isActive =
       pathname !== '/' &&
       (pathname === `/${slug}` || pathname.startsWith(`/${slug}/`))
@@ -195,6 +196,9 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       if (!session) {
         e.preventDefault()
         router.push('/login')
+      } else if (fullReload && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault()
+        window.location.assign(`/${slug}`)
       }
       if (onLinkClick) onLinkClick()
     }
@@ -324,7 +328,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                       TOOLBOX
                     </div>
                     {TOOLBOX_MENU.map((menu) =>
-                      renderStaticLink(toolboxPath(menu.slug), menu.label)
+                      renderStaticLink(toolboxPath(menu.slug), menu.label, toolboxFullReload(menu))
                     )}
                   </div>
                 )
