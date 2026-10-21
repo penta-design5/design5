@@ -488,28 +488,35 @@
   - 스크린샷(Excel 확대 121% — 행 번호·열 머리글·시트 탭 고정, 이미지 확대)
 - [x] **사용자 확인 ✅ 2026-10-15**(「완벽합니다」): ① 오피스 4종 툴바 확대·축소·100%·맞추기(**Word·한글·PowerPoint는 쪽 맞춤, Excel은 폭 맞춤**), 확대 후 스크롤, Ctrl/⌘+휠(트랙패드 핀치) ② 이미지·PDF: 휠·드래그 이동·툴바, 확대한 채로 「영역 선택」 → 추출, 인식 영역 표시 ③ 휴대폰·태블릿: 두 손가락 확대·한 손가락 이동, 맞춤 상태에서 페이지 스크롤 ④ 작은 그림을 원본보다 키우지 않게 바뀐 것이 괜찮은지 ⑤ 다른 메뉴(모자이크 등) 줌 툴바 이상 없는지
 
-### 수정 — 개발망 모델 내려받기 HTTP 400 (2026-10-21, 개발망 확인 대기)
+### 수정 — 개발망 모델 내려받기 HTTP 400 (✅ 2026-10-21, 개발망 사용자 확인 완료)
 
 - 증상: 개발망에서 이미지·스캔 PDF 추출 시 「인식 모델을 내려받지 못했습니다(HTTP 400)」. 문서·텍스트 PDF는 모델을 받지 않아 정상. 10-15 확인 때는 정상(코드 변경 없음 → 개발망 앞단 정책·설정 변화로 추정)
 - 원인: `model.ts`의 `fetch(url, { cache: 'no-store' })` — 붙는 `Cache-Control`·`Pragma: no-cache` 요청 헤더를 개발망 앞단이 400으로 거부. 콘솔 확인: 세 파일 모두 기본 fetch 200 / `no-store` 400(동시 여부 무관), 주소창 직접 열기는 정상
 - 수정: `cache: 'no-store'` 제거(모자이크 `detection-engine.ts`와 같은 기본 fetch). 오래된 파일 방지는 SHA-256 확인 + 캐시 이름 버전으로 유지
 - 참고: 배경 편집도 `no-store`를 쓰지만 모델이 외부 출처(Hugging Face)라 영향 없음. 같은 서버 경로를 `no-store`로 받는 코드를 새로 만들지 말 것
-- [ ] 개발망: 브라우저 Cache Storage `toolbox-ocr-model-v1` 삭제(또는 시크릿 창) 후 이미지·스캔 PDF 추출 → 모델 진행률 → 결과, 새로고침 후 다시 받지 않음
+- [x] **사용자 확인 ✅ 2026-10-21** 개발망: 브라우저 Cache Storage `toolbox-ocr-model-v1` 삭제(또는 시크릿 창) 후 이미지·스캔 PDF 추출 → 모델 진행률 → 결과, 새로고침 후 다시 받지 않음
 
 ---
 
 ## 5. 수동 QA 체크리스트
 
 **개발망(design6) — 커밋·푸시·리빌드 후**
-- [ ] 응답 헤더: `/toolbox/text-extractor`에 `Cross-Origin-Opener-Policy: same-origin`·`Cross-Origin-Embedder-Policy: credentialless`, `/_next/static/*`·`/js/*`에 COEP — nginx를 거쳐 전달되는지(개발자 도구 Network)
-- [ ] 콘솔 `crossOriginIsolated === true`(Chrome·Edge), 스캔 PDF·이미지 추출 속도(쪽당 약 3초 수준)
-- [ ] 모델 첫 내려받기(약 18MB) 진행률 → 새로고침 후 다시 받지 않음
-- [ ] 사이드바 메뉴에서 들어가기(깜박임 없음)·나가기(다른 메뉴 iframe 정상)
-- [ ] 샘플 01~09·실제 업무 파일(이미지·PDF·DOCX·XLSX·PPTX·HWPX) 추출·화면 미리보기
-- [ ] 실기기: 휴대폰·태블릿(터치 영역 선택·버튼), Safari(1스레드로 동작)·Edge·Firefox
-- [ ] 미리보기 줌 툴바: 오피스 4종 확대·축소·쪽 맞춤, 이미지·PDF 휠·드래그·두 손가락, 확대한 채 영역 선택 → 추출(실기기 포함)
-- [ ] 저사양 PC에서 OCR 시간(1스레드 기준 이미지 약 5~6초, 스캔 쪽당 약 7초 이내인지)
+- [x] 응답 헤더: `/toolbox/text-extractor`에 `Cross-Origin-Opener-Policy: same-origin`·`Cross-Origin-Embedder-Policy: credentialless`, `/_next/static/*`·`/js/*`에 COEP — nginx를 거쳐 전달되는지(개발자 도구 Network)
+- [x] 콘솔 `crossOriginIsolated === true`(Chrome·Edge), 스캔 PDF·이미지 추출 속도(쪽당 약 3초 수준)
+- [x] 모델 첫 내려받기(약 18MB) 진행률 → 새로고침 후 다시 받지 않음
+- [x] 사이드바 메뉴에서 들어가기(깜박임 없음)·나가기(다른 메뉴 iframe 정상)
+- [x] 샘플 01~09·실제 업무 파일(이미지·PDF·DOCX·XLSX·PPTX·HWPX) 추출·화면 미리보기
+- [x] 실기기: 휴대폰·태블릿(터치 영역 선택·버튼), Safari(1스레드로 동작)·Edge·Firefox
+- [x] 미리보기 줌 툴바: 오피스 4종 확대·축소·쪽 맞춤, 이미지·PDF 휠·드래그·두 손가락, 확대한 채 영역 선택 → 추출(실기기 포함)
+- [x] 저사양 PC에서 OCR 시간(1스레드 기준 이미지 약 5~6초, 스캔 쪽당 약 7초 이내인지)
 - [ ] 운영망 반영 전: PaddleOCR ONNX 변환본 출처·라이선스 재확인(§4 P0), `docx-preview` 라이선스(Apache-2.0) 표기
+  - 2026-10-21 확인(Hugging Face API·원문): 원본 `PaddlePaddle/korean_PP-OCRv5_mobile_rec`·`PaddlePaddle/PP-OCRv4_mobile_det` = apache-2.0, PaddleOCR 저장소 LICENSE = Apache-2.0(Copyright 2016 PaddlePaddle Authors, NOTICE 파일 없음), 변환본 `monkt/paddleocr-onnx`(README: PP-OCRv5 Collection을 paddle2onnx로 변환, 출처 PaddlePaddle Team 표기)·`SWHL/RapidOCR` = apache-2.0, 파일(`languages/korean/rec.onnx`·`dict.txt`, `PP-OCRv4/ch_PP-OCRv4_det_infer.onnx`) 존재 확인. 상업적 사용 가능, 조건 = LICENSE 동봉(✅ `public/tool-models/ocr/LICENSE`)·출처 표기(✅ README). 학습 데이터 출처는 공식 모델 카드에 공개되지 않음(사용 제한 문구 없음)
+  - `docx-preview` 0.4.1 = Apache-2.0(Copyright Volodymyr Baydalka), 배포 파일 머리에 `@license` 주석 있음. 남은 확인: 운영 빌드 청크에 이 주석이 남는지(개발망에서 해당 청크 검색) 또는 별도 고지 위치를 정할지
+  - 라이선스 링크
+    - 원본: [PaddleOCR LICENSE](https://github.com/PaddlePaddle/PaddleOCR/blob/main/LICENSE) · [korean_PP-OCRv5_mobile_rec](https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec) · [PP-OCRv4_mobile_det](https://huggingface.co/PaddlePaddle/PP-OCRv4_mobile_det)
+    - 변환본: [monkt/paddleocr-onnx](https://huggingface.co/monkt/paddleocr-onnx)([README](https://huggingface.co/monkt/paddleocr-onnx/blob/main/README.md) · [languages/korean](https://huggingface.co/monkt/paddleocr-onnx/tree/main/languages/korean)) · [SWHL/RapidOCR](https://huggingface.co/SWHL/RapidOCR)([PP-OCRv4](https://huggingface.co/SWHL/RapidOCR/tree/main/PP-OCRv4))
+    - docx-preview: [LICENSE](https://github.com/VolodymyrBaydalka/docxjs/blob/master/LICENSE) · [npm](https://www.npmjs.com/package/docx-preview)
+    - [Apache-2.0 원문](https://www.apache.org/licenses/LICENSE-2.0)
 
 ---
 
