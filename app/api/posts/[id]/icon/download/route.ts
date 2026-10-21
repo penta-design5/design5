@@ -17,10 +17,8 @@ const querySchema = z.object({
   strokeWidth: z.coerce.number().optional(),
 })
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { searchParams } = new URL(request.url)
     const validatedQuery = querySchema.parse({

@@ -78,7 +78,7 @@ export function PptListPage({ category }: PptListPageProps) {
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isInitialMountRef = useRef(true)
   const fetchInProgressRef = useRef(false)
 

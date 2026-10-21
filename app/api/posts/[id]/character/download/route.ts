@@ -16,10 +16,8 @@ const querySchema = z.object({
  * - SVG를 PNG/JPG로 변환
  * - 크기 조정 (너비 기반)
  */
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { searchParams } = new URL(request.url)
     const validatedQuery = querySchema.parse({

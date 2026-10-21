@@ -57,7 +57,7 @@ export function EdmListPage() {
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const fetchInProgressRef = useRef(false)
 
   useEffect(() => {

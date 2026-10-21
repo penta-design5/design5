@@ -23,8 +23,9 @@ const updatePostSchema = z.object({
 
 export const GET = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   const { id } = params
 
     const post = await prisma.post.findUnique({
@@ -130,8 +131,9 @@ export const GET = withRouteHandler(async (
 
 export const PUT = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   const admin = await requireAdmin()
     const { id } = params
     const body = await request.json()
@@ -360,8 +362,9 @@ export const PUT = withRouteHandler(async (
 
 export const DELETE = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   await requireAdmin()
     const { id } = params
 

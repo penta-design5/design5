@@ -59,7 +59,7 @@ export function SpecialCharactersPage() {
   const [query, setQuery] = useState('')
   const [lastCopied, setLastCopied] = useState<CharEntry | null>(null)
   const [flashChar, setFlashChar] = useState<string | null>(null)
-  const flashTimer = useRef<ReturnType<typeof setTimeout>>()
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // 조합 입력창(D5 B안): 복사와 함께 문자를 이어 붙인다. 최신 값은 ref로도 들고 있어 연속 클릭에도 stale 없이 이어 붙는다.
   const [compose, setCompose] = useState('')

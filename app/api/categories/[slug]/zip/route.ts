@@ -9,7 +9,8 @@ export const dynamic = 'force-dynamic'
 
 // ZIP 파일 정보 조회
 export const GET = withRouteHandler(
-  async (_request: Request, { params }: { params: { slug: string } }) => {
+  async (_request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     const category = await prisma.category.findUnique({
       where: { slug: params.slug },
       select: { config: true },
@@ -35,7 +36,8 @@ export const GET = withRouteHandler(
 
 // ZIP 파일 업로드 (관리자만)
 export const POST = withRouteHandler(
-  async (request: Request, { params }: { params: { slug: string } }) => {
+  async (request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -113,7 +115,8 @@ export const POST = withRouteHandler(
 
 // ZIP 파일 삭제 (관리자만)
 export const DELETE = withRouteHandler(
-  async (_request: Request, { params }: { params: { slug: string } }) => {
+  async (_request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     await requireAdmin()
 
     const category = await prisma.category.findUnique({

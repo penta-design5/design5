@@ -14,7 +14,7 @@ import {
  */
 export function useMasonryLayout<T>(items: T[], cardWidth: number, gap = 8) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const [columns, setColumns] = useState<T[][]>([])
 
   const calculateColumns = useCallback(() => {

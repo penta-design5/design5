@@ -20,8 +20,9 @@ const updateNoticeSchema = z.object({
 
 export const PATCH = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   await requireAdmin()
   const { id } = params
   const body = await request.json()
@@ -61,8 +62,9 @@ export const PATCH = withRouteHandler(async (
 
 export const DELETE = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   await requireAdmin()
   const { id } = params
 

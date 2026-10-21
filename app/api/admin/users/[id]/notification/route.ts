@@ -7,8 +7,9 @@ import { BadRequestError, NotFoundError } from '@/lib/api/errors'
 // 디자인 의뢰 등록 알림 메일 수신 여부 토글(관리자 대상) — 회원 관리 화면에서 호출
 export const PATCH = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   // 관리자 권한 확인
   await requireAdmin()
 

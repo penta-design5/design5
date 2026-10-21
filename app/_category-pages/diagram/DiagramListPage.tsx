@@ -52,7 +52,7 @@ export function DiagramListPage() {
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const fetchInProgressRef = useRef(false)
 
   // 무한 스크롤 구현

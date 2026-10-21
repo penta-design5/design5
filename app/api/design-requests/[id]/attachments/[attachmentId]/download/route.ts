@@ -15,8 +15,9 @@ export const dynamic = 'force-dynamic'
 export const GET = withRouteHandler(
   async (
     _request: Request,
-    { params }: { params: { id: string; attachmentId: string } }
+    context: { params: Promise<{ id: string; attachmentId: string }> }
   ) => {
+    const params = await context.params
     await requireAuth()
 
     const attachment = await prisma.designRequestAttachment.findUnique({

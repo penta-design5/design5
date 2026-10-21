@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { isSiteNoticeMode } from "@/lib/site-notice"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   /** 공지 모드: `/notice` 및 Next 내부 자원만 허용, 그 외는 `/notice`로 리다이렉트 */

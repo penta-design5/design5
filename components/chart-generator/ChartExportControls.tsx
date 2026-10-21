@@ -161,7 +161,7 @@ async function renderSvgToCanvas(
 }
 
 interface ChartExportControlsProps {
-  chartRef: React.RefObject<HTMLDivElement>
+  chartRef: React.RefObject<HTMLDivElement | null>
   settings: ChartSettings
   chartType: ChartType
   data: Array<{ name: string; value: number }>

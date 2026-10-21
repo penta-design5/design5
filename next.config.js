@@ -10,6 +10,11 @@ const nextConfig = {
       { protocol: 'https', hostname: '**' },
       { protocol: 'http', hostname: '**' },
     ],
+    // Next 16 기본값 변경을 업그레이드(U1)에서는 이전 동작으로 유지한다 — 정리는 U2(docs/UPGRADE_next16-react19_handoff.md)
+    // 사설 IP 최적화 차단(기본 false): MinIO·사내 도메인이 192.168.x로 연결되어 이미지가 400이 된다
+    dangerouslyAllowLocalIP: true,
+    // 캐시 최소 시간(기본 4시간)
+    minimumCacheTTL: 60,
   },
   // TOOLBOX 텍스트추출(OCR): 이 페이지만 교차 출처 격리(crossOriginIsolated) → onnxruntime-web 멀티 스레드(약 3배 빠름).
   // credentialless는 Chrome·Edge·Firefox 지원(Safari는 격리 없이 1스레드로 동작). 다른 페이지는 영향 없음.

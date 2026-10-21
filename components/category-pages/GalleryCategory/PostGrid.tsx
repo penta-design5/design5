@@ -28,7 +28,7 @@ interface PostGridProps {
 export function PostGrid({ posts, categorySlug, loading, onPostClick }: PostGridProps) {
   const [columns, setColumns] = useState<Post[][]>([])
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   // 컨테이너 너비에 따라 열 개수 계산 (useCallback으로 최적화)
   const calculateColumns = useCallback(() => {

@@ -6,11 +6,12 @@ import { segmentPageMetadata } from '@/lib/segment-page-metadata'
 
 export const metadata: Metadata = segmentPageMetadata('eDM 편집')
 
-export default async function EditEdmPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default async function EditEdmPage(
+  props: {
+    params: Promise<{ id: string }>
+  }
+) {
+  const params = await props.params;
   const session = await auth()
 
   if (!session) {

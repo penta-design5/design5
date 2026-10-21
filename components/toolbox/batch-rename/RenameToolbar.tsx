@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 interface RenameToolbarProps {
   summary: string
   limitLabel: string
-  addButtonRef: React.RefObject<HTMLButtonElement>
+  addButtonRef: React.RefObject<HTMLButtonElement | null>
   onBrowse: () => void
   onPaste: () => void
   onClearAll: () => void

@@ -84,7 +84,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const resizeTimeoutRef = useRef<NodeJS.Timeout>()
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isInitialMountRef = useRef(true) // 초기 마운트 플래그
   const fetchInProgressRef = useRef(false) // fetch 진행 중 플래그
 

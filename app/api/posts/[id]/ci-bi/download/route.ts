@@ -19,10 +19,8 @@ const querySchema = z.object({
  * - 색상 변경
  * - 크기 조정
  */
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { searchParams } = new URL(request.url)
     const validatedQuery = querySchema.parse({

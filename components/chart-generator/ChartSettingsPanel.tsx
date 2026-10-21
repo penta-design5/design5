@@ -75,7 +75,7 @@ interface ChartSettingsPanelProps {
   data: Array<{ name: string; value: number }>
   title?: string
   description?: string
-  chartRef: React.RefObject<HTMLDivElement>
+  chartRef: React.RefObject<HTMLDivElement | null>
   onSettingsChange: (settings: ChartSettings) => void
   onChartTypeChange: (type: ChartType) => void
   onChartTypeSettingsChange: (settings: ChartTypeSettings) => void

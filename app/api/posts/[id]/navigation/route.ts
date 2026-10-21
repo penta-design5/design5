@@ -6,10 +6,8 @@ const querySchema = z.object({
   categorySlug: z.string().optional(),
 })
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params
     const { searchParams } = new URL(request.url)

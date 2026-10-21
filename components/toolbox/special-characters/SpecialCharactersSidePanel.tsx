@@ -20,7 +20,7 @@ interface SpecialCharactersSidePanelProps {
   /** 조합 입력창 내용 */
   compose: string
   /** 조합 입력창 DOM(선택 범위를 페이지가 삽입 위치로 쓴다) */
-  composeRef: RefObject<HTMLTextAreaElement>
+  composeRef: RefObject<HTMLTextAreaElement | null>
   /** 마지막으로 알려진 선택 범위 — Sheet처럼 패널이 다시 마운트될 때 커서를 복원한다 */
   composeSelection: RefObject<ComposeSelection>
   history: CharHistory

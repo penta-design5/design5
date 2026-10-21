@@ -7,8 +7,9 @@ import { BadRequestError, NotFoundError } from '@/lib/api/errors'
 
 export const PATCH = withRouteHandler(async (
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   // 관리자 권한 확인
   await requireAdmin()
 

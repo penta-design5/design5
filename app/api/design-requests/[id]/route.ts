@@ -38,7 +38,8 @@ function canMutate(
 }
 
 export const GET = withRouteHandler(
-  async (_request: Request, { params }: { params: { id: string } }) => {
+  async (_request: Request, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     await requireAuth()
 
     const row = await prisma.designRequest.findUnique({
@@ -61,7 +62,8 @@ export const GET = withRouteHandler(
 )
 
 export const PATCH = withRouteHandler(
-  async (request: Request, { params }: { params: { id: string } }) => {
+  async (request: Request, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     const user = await requireAuth()
     const existing = await prisma.designRequest.findUnique({
       where: { id: params.id },
@@ -182,7 +184,8 @@ export const PATCH = withRouteHandler(
 )
 
 export const DELETE = withRouteHandler(
-  async (_request: Request, { params }: { params: { id: string } }) => {
+  async (_request: Request, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     const user = await requireAuth()
     const existing = await prisma.designRequest.findUnique({
       where: { id: params.id },

@@ -13,7 +13,8 @@ const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm']
 
 // 가이드 영상 정보 조회
 export const GET = withRouteHandler(
-  async (_request: Request, { params }: { params: { slug: string } }) => {
+  async (_request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     const category = await prisma.category.findUnique({
       where: { slug: params.slug },
       select: { config: true },
@@ -41,7 +42,8 @@ export const GET = withRouteHandler(
 
 // 가이드 영상 업로드 (관리자만)
 export const POST = withRouteHandler(
-  async (request: Request, { params }: { params: { slug: string } }) => {
+  async (request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     await requireAdmin()
 
     const category = await prisma.category.findUnique({
@@ -112,7 +114,8 @@ export const POST = withRouteHandler(
 
 // 가이드 영상 삭제 (관리자만)
 export const DELETE = withRouteHandler(
-  async (_request: Request, { params }: { params: { slug: string } }) => {
+  async (_request: Request, context: { params: Promise<{ slug: string }> }) => {
+    const params = await context.params
     await requireAdmin()
 
     const category = await prisma.category.findUnique({

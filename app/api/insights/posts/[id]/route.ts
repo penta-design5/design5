@@ -15,7 +15,8 @@ const AUTHOR_SELECT = { id: true, name: true, email: true } as const
 
 // GET: 단건 (로그인 사용자)
 export const GET = withRouteHandler(
-  async (_request: NextRequest, { params }: { params: { id: string } }) => {
+  async (_request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     await requireAuth()
 
     const item = await prisma.insightPost.findUnique({
@@ -33,7 +34,8 @@ export const GET = withRouteHandler(
 
 // PATCH: 수정 (관리자 전용) — multipart. 제목/설명 + (선택) HTML/썸네일 교체.
 export const PATCH = withRouteHandler(
-  async (request: NextRequest, { params }: { params: { id: string } }) => {
+  async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     const user = await requireAdmin()
 
     const existing = await prisma.insightPost.findUnique({
@@ -137,7 +139,8 @@ export const PATCH = withRouteHandler(
 
 // DELETE: 삭제 (관리자 전용) — DB 삭제 후 S3 객체 정리(best-effort)
 export const DELETE = withRouteHandler(
-  async (_request: NextRequest, { params }: { params: { id: string } }) => {
+  async (_request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     await requireAdmin()
 
     const existing = await prisma.insightPost.findUnique({

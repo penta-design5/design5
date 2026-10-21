@@ -14,7 +14,8 @@ export const dynamic = 'force-dynamic'
  * 상세 페이지 iframe은 sandbox 속성으로 격리한다. 계획: docs/INSIGHTS_구현계획.md §5
  */
 export const GET = withRouteHandler(
-  async (_request: NextRequest, { params }: { params: { id: string } }) => {
+  async (_request: NextRequest, context: { params: Promise<{ id: string }> }) => {
+    const params = await context.params
     await requireAuth()
 
     const post = await prisma.insightPost.findUnique({

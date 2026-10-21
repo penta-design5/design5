@@ -8,8 +8,9 @@ import { UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/api/erro
 // GET /api/diagrams/[id] - 단일 다이어그램 조회
 export const GET = withRouteHandler(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   const session = await auth()
   if (!session?.user?.id) {
     throw new UnauthorizedError('인증이 필요합니다.')
@@ -45,8 +46,9 @@ export const GET = withRouteHandler(async (
 // PATCH /api/diagrams/[id] - 다이어그램 수정
 export const PATCH = withRouteHandler(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   const session = await auth()
   if (!session?.user?.id) {
     throw new UnauthorizedError('인증이 필요합니다.')
@@ -116,8 +118,9 @@ export const PATCH = withRouteHandler(async (
 // DELETE /api/diagrams/[id] - 다이어그램 삭제
 export const DELETE = withRouteHandler(async (
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
+  const params = await context.params
   const session = await auth()
   if (!session?.user?.id) {
     throw new UnauthorizedError('인증이 필요합니다.')
