@@ -93,7 +93,8 @@ async function loadFile(
 
   let response: Response
   try {
-    response = await fetch(file.url, { signal, cache: 'no-store' })
+    // cache: 'no-store'는 쓰지 않는다 — 붙는 Cache-Control·Pragma: no-cache 헤더를 개발망 앞단이 400으로 거부했다(2026-10-21)
+    response = await fetch(file.url, { signal })
   } catch (e) {
     if (signal?.aborted) throw e
     throw new OcrModelError('인식 모델을 내려받지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.')
