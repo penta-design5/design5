@@ -4,8 +4,8 @@
 
 - 메뉴: 텍스트추출(OCR) · slug `text-extractor` · 라우트 `/toolbox/text-extractor`
 - 최초 작성: 2026-10-15 (가능성 검토 2026-10-14 — 답변만, 구현 없음)
-- **현재 상태: 🟡 P0~P4(오피스 화면 미리보기 R1~R4 포함) 사용자 확인 완료(2026-10-15). P5(사이드바 메뉴 노출·반응형·터치·접근성·저사양 성능) 사용자 확인 완료(2026-10-15). Z(미리보기 줌 툴바 — Z1 오피스(쪽 맞춤 포함), Z2 이미지·PDF) 사용자 확인 완료(2026-10-15). R2~Z 커밋·푸시(`2026-06-17-tiper`, 2026-10-15). 남은 작업: 개발망 확인 → 완료 처리.**
-- 다음 시작점(새 세션): **개발망 확인**(§5 수동 QA 체크리스트의 개발망 항목 — COOP·COEP 헤더·4스레드·실기기·저사양 PC) → 완료 처리
+- **현재 상태: ✅ 완료(개발망 확인 2026-10-21) — P0~P4(오피스 화면 미리보기 R1~R4 포함) 사용자 확인 완료(2026-10-15). P5(사이드바 메뉴 노출·반응형·터치·접근성·저사양 성능) 사용자 확인 완료(2026-10-15). Z(미리보기 줌 툴바 — Z1 오피스(쪽 맞춤 포함), Z2 이미지·PDF) 사용자 확인 완료(2026-10-15). R2~Z 커밋·푸시(`2026-06-17-tiper`, 2026-10-15). 개발망 확인 완료(2026-10-21 — 모델 내려받기 HTTP 400 수정·오픈소스 고지 포함). 남은 것: 모델 학습 데이터 출처 판단(운영망 반영 전, §5).**
+- 다음 시작점(새 세션): ✅ 개발망 확인 완료(2026-10-21). 운영망 반영 전 §5 라이선스 항목(학습 데이터 출처 판단)만 남음
   - 구현 위치: 렌더러를 `lib/toolbox/text-extractor/render-<형식>.ts`로 만들고 `TextExtractorPage`의 `OFFICE_RENDERERS`에 1줄(`{ render, minZoom? }`) 추가하면 `OfficeVisualPreview`(공용 틀·안내 문구·폭 맞춤·실패 안내)가 그대로 쓴다. 그린 DOM은 **반드시 `sanitizePreview`**로 정리. 그린 뒤 내용이 바뀌면(탭 전환 등) `notifyPreviewResize`(`preview-resize.ts`)로 폭 맞춤을 다시 요청
   - E2E는 세션 스크래치에서 다시 만든다(이전 세션 스크립트 `p0~p4d.mjs`·`r2.mjs`·`r3.mjs`·`r4.mjs`는 스크래치라 남지 않음 — 방식은 각 Phase 검증 기록과 허브 §5 참고). 샘플 `docs/test-img/01~09`는 `.gitignore` 대상(로컬에만 있음)
   - 개발망 반영 시: **새 의존성 `docx-preview`**(리빌드 시 설치), DB 변경 없음(`migrate deploy` 불필요). **`next.config.js`의 COOP·COEP 헤더가 nginx를 거쳐 전달되는지 확인**(§4 P2-B′ — 개발자 도구 Network 응답 헤더, 콘솔 `crossOriginIsolated === true`)
@@ -92,7 +92,7 @@
 | P2 | **PDF 입력** — 텍스트 레이어 추출 + 스캔 페이지 자동 OCR 전환 + 페이지 범위·페이지 구분 | ✅ (사용자 확인 2026-10-15) + 멀티 스레드(B′) ✅ |
 | P3 | 인식 글자 상자 표시 + **영역 지정 인식**(D7) | ✅ (사용자 확인 2026-10-15) |
 | P4 | **오피스 문서**(DOCX·PPTX·XLSX·HWPX — jszip XML 텍스트 추출, OCR 불필요) | ✅ (사용자 확인 2026-10-15) + 추출되지 않은 내용 안내 ✅ + 화면 미리보기 R0·R1 ✅, R2 ✅, R3 ✅, R4 ✅ |
-| P5 | 반응형·터치·접근성(axe)·저사양 성능 측정 + **사이드바 메뉴 노출** + 개발망 확인 | ✅ (사용자 확인 2026-10-15), 개발망 확인 대기 |
+| P5 | 반응형·터치·접근성(axe)·저사양 성능 측정 + **사이드바 메뉴 노출** + 개발망 확인 | ✅ (사용자 확인 2026-10-15, 개발망 확인 2026-10-21) |
 | Z | 미리보기 **줌 툴바**(이미지 모자이크와 같은 공용 `ZoomControls`, 오른쪽 아래) — Z1 오피스 문서, Z2 이미지·PDF(화면 이동·두 손가락) | ✅ (사용자 확인 2026-10-15) |
 
 ---
@@ -249,7 +249,7 @@
   - 구형 HWP·지원하지 않는 형식(txt)·손상 DOCX 안내, 문서 → 이미지 전환 시 미리보기·영역 선택 복귀, 1024 본문 결과·390 긴 파일명 가로 넘침 없음, 콘솔 에러 없음
 - [x] **사용자 확인 ✅ 2026-10-15**(제외 내용 안내 요청 → P4-보완): ① 05~08 샘플 추출 결과(특히 표 → 탭, 엑셀 여러 표 배치) ② 결과를 엑셀에 붙여 넣어 칸이 살아나는지 ③ 실제 업무 문서(머리말·각주·자동 번호·슬라이드 노트가 빠지는 게 괜찮은지) ④ 구형 .hwp/.doc 안내 ⑤ 암호 걸린 DOCX·XLSX 안내
 
-### P4-보완 — 추출되지 않은 내용 안내 (✅ 2026-10-15 구현, 사용자 확인 대기)
+### P4-보완 — 추출되지 않은 내용 안내 (✅ 2026-10-15 구현, 사용자 확인 완료)
 
 **결정(사용자 2026-10-15)**: 위치는 **B + A 축약** — B: 추출 결과 위에 이 문서에서 **실제로 빠진 것만** 개수와 함께 접을 수 있는 안내 상자(빠진 게 없으면 표시 안 함) / A: 문서 카드에 한 줄. 안내 범위에 **PDF의 「글자 페이지 안 그림 속 글자」 포함**. 「포함해서 추출」 옵션(머리말·각주·노트·SmartArt)은 **나중에 검토**(이번엔 안내만).
 
@@ -450,7 +450,7 @@
   - axe 위반 0: 1440 DOCX·PPTX·HWPX, 1024 스캔 PDF·XLSX(감사 스크립트로 1440·1024·390 전 상태 0건 확인)
   - 저사양 성능 측정(위 표), 페이지 오류 없음(앱 공통 모바일 메뉴 DialogTitle 경고 제외)
 - [x] **사용자 확인 ✅ 2026-10-15**: ① 사이드바 TOOLBOX 맨 아래 「텍스트추출(OCR)」 → 들어갈 때 깜박임 없이 열리는지(다른 메뉴에서 클릭) ② 휴대폰·태블릿: 메뉴에서 이동, 버튼 누르기 쉬운지(미리보기 도구·쪽 넘기기·시트 탭·스위치) ③ 키보드: Tab으로 문서 미리보기 영역에 들어가 방향키·PageDown 스크롤 ④ 나머지 메뉴로 이동했을 때 정상(YouTube 등 iframe)
-- [ ] **개발망 확인**(커밋·푸시 후): §5 개발망 항목
+- [x] **개발망 확인**(커밋·푸시 후): §5 개발망 항목 — ✅ 2026-10-21 사용자 확인(라이선스 재확인 항목만 운영망 반영 전 과제로 남김)
 
 ### Z — 미리보기 줌 툴바 (✅ 2026-10-15, 사용자 확인 완료)
 
@@ -512,7 +512,7 @@
 - [ ] 운영망 반영 전: PaddleOCR ONNX 변환본 출처·라이선스 재확인(§4 P0), `docx-preview` 라이선스(Apache-2.0) 표기
   - 2026-10-21 확인(Hugging Face API·원문): 원본 `PaddlePaddle/korean_PP-OCRv5_mobile_rec`·`PaddlePaddle/PP-OCRv4_mobile_det` = apache-2.0, PaddleOCR 저장소 LICENSE = Apache-2.0(Copyright 2016 PaddlePaddle Authors, NOTICE 파일 없음), 변환본 `monkt/paddleocr-onnx`(README: PP-OCRv5 Collection을 paddle2onnx로 변환, 출처 PaddlePaddle Team 표기)·`SWHL/RapidOCR` = apache-2.0, 파일(`languages/korean/rec.onnx`·`dict.txt`, `PP-OCRv4/ch_PP-OCRv4_det_infer.onnx`) 존재 확인. 상업적 사용 가능, 조건 = LICENSE 동봉(✅ `public/tool-models/ocr/LICENSE`)·출처 표기(✅ README). 학습 데이터 출처는 공식 모델 카드에 공개되지 않음(사용 제한 문구 없음)
   - `docx-preview` 0.4.1 = Apache-2.0(Copyright Volodymyr Baydalka), 배포 파일 머리에 `@license` 주석 있음. 남은 확인: 운영 빌드 청크에 이 주석이 남는지(개발망에서 해당 청크 검색) 또는 별도 고지 위치를 정할지
-  - 2026-10-21 개발망 확인: 운영 빌드 청크에 `@license` 주석 **없음**(브라우저 전체 검색·서버 grep 모두) → **A안 적용**: `public/licenses/`(`paddleocr/LICENSE.txt`·`docx-preview/LICENSE.txt`·`README.md`) + 안내 영역(`ExtractNotes`, 패널·본문 카드 공용) 아래 출처 문구 「글자 인식 모델: PaddleOCR © PaddlePaddle Authors, Apache-2.0. Word 미리보기: docx-preview © Volodymyr Baydalka, Apache-2.0.」(링크 = 원문 .txt). 사이트 전체 고지 페이지는 허브 과제. [ ] 개발망: 문구 표시·두 링크가 원문을 새 탭에 표시
+  - 2026-10-21 개발망 확인: 운영 빌드 청크에 `@license` 주석 **없음**(브라우저 전체 검색·서버 grep 모두) → **A안 적용**: `public/licenses/`(`paddleocr/LICENSE.txt`·`docx-preview/LICENSE.txt`·`README.md`) + 안내 영역(`ExtractNotes`, 패널·본문 카드 공용) 아래 출처 문구 「글자 인식 모델: PaddleOCR © PaddlePaddle Authors, Apache-2.0. Word 미리보기: docx-preview © Volodymyr Baydalka, Apache-2.0.」(링크 = 원문 .txt). 사이트 전체 고지 페이지는 허브 과제. [x] **개발망 사용자 확인 ✅ 2026-10-21**: 문구 표시·두 링크가 원문을 새 탭에 표시
   - 라이선스 링크
     - 원본: [PaddleOCR LICENSE](https://github.com/PaddlePaddle/PaddleOCR/blob/main/LICENSE) · [korean_PP-OCRv5_mobile_rec](https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec) · [PP-OCRv4_mobile_det](https://huggingface.co/PaddlePaddle/PP-OCRv4_mobile_det)
     - 변환본: [monkt/paddleocr-onnx](https://huggingface.co/monkt/paddleocr-onnx)([README](https://huggingface.co/monkt/paddleocr-onnx/blob/main/README.md) · [languages/korean](https://huggingface.co/monkt/paddleocr-onnx/tree/main/languages/korean)) · [SWHL/RapidOCR](https://huggingface.co/SWHL/RapidOCR)([PP-OCRv4](https://huggingface.co/SWHL/RapidOCR/tree/main/PP-OCRv4))
