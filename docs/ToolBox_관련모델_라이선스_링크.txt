@@ -1,0 +1,45 @@
+모델 라이선스 확인 결과
+
+Hugging Face API와 각 저장소 원문으로 직접 확인했습니다.
+
+구분	출처	라이선스
+원본: 인식 모델	PaddlePaddle/korean_PP-OCRv5_mobile_rec (공식)	apache-2.0
+원본: 감지 모델	PaddlePaddle/PP-OCRv4_mobile_det (공식)	apache-2.0
+원본 저장소	GitHub PaddlePaddle/PaddleOCR LICENSE	Apache-2.0 (Copyright 2016 PaddlePaddle Authors)
+변환본: 인식 모델·사전	monkt/paddleocr-onnx — languages/korean/rec.onnx, dict.txt	apache-2.0
+변환본: 감지 모델	SWHL/RapidOCR — PP-OCRv4/ch_PP-OCRv4_det_infer.onnx	apache-2.0
+변환본 출처: monkt README에 "PaddlePaddle 공식 PP-OCRv5 Collection을 paddle2onnx로 변환했다"고 명시돼 있고, 원작자(PaddlePaddle Team)도 표기돼 있습니다. 우리가 쓰는 파일이 두 저장소에 실제로 있는 것도 확인했습니다.
+
+상업적 사용과 외부 공개: 가능합니다. Apache-2.0의 조건은 두 가지이고 이미 충족하고 있습니다.
+
+LICENSE 원문 동봉: public/tool-models/ocr/LICENSE
+
+출처 표기: public/tool-models/ocr/README.md
+
+별도로 지켜야 할 NOTICE 파일은 세 저장소 모두 없습니다.
+남은 일 ①: 학습 데이터 출처는 공식 모델 카드에 공개돼 있지 않습니다. 사용을 제한하는 문구도 없습니다. 이 정도면 충분한지는 사내 기준으로 판단해 주셔야 합니다. 번호판 모델 때와 같은 기준을 적용하시면 됩니다.
+docx-preview (Word 화면 미리보기 라이브러리)
+0.4.1 버전이고 Apache-2.0입니다(Copyright Volodymyr Baydalka). 배포 파일 맨 앞에 @license 고지 주석이 들어 있습니다.
+남은 일 ②: 운영 빌드 결과에도 이 주석이 남는지는 확인하지 못했습니다. 로컬에서 빌드하면 사용 중인 dev 서버의 .next를 덮어쓰게 되어 실행하지 않았습니다. 개발망에서 docx-preview 청크를 열어 주석이 있는지 보면 확인할 수 있습니다. 주석이 없으면 오픈소스 고지 위치를 따로 정해야 합니다.
+
+
+라이선스 원본 (PaddlePaddle 공식) 링크 
+
+PaddleOCR 저장소 LICENSE (Apache-2.0): https://github.com/PaddlePaddle/PaddleOCR/blob/main/LICENSE
+인식 모델 카드 korean_PP-OCRv5_mobile_rec: https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec
+감지 모델 카드 PP-OCRv4_mobile_det: https://huggingface.co/PaddlePaddle/PP-OCRv4_mobile_det
+변환본 (실제로 받은 곳)
+
+monkt/paddleocr-onnx (인식 모델·사전): https://huggingface.co/monkt/paddleocr-onnx
+출처·라이선스가 적힌 README: https://huggingface.co/monkt/paddleocr-onnx/blob/main/README.md
+받은 파일 폴더: https://huggingface.co/monkt/paddleocr-onnx/tree/main/languages/korean
+SWHL/RapidOCR (감지 모델): https://huggingface.co/SWHL/RapidOCR
+받은 파일 폴더: https://huggingface.co/SWHL/RapidOCR/tree/main/PP-OCRv4
+docx-preview
+
+LICENSE (Apache-2.0): https://github.com/VolodymyrBaydalka/docxjs/blob/master/LICENSE
+npm 페이지: https://www.npmjs.com/package/docx-preview
+Apache-2.0 원문
+
+https://www.apache.org/licenses/LICENSE-2.0
+Hugging Face 모델 페이지에서는 오른쪽 위 태그나 페이지 상단 메타데이터에 License: apache-2.0이 표시됩니다. 이 링크들을 handoff 문서에도 넣어 둘까요?
