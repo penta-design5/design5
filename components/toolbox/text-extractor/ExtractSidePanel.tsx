@@ -68,8 +68,29 @@ export function ExtractScope({ regionLabel, onClearRegion, disabled, selectable 
   )
 }
 
+/** 오픈소스 라이선스 원문(public/licenses/) — 운영 빌드에서 번들의 @license 주석이 지워지므로 화면에서 고지한다 */
+function LicenseLink({ href }: { href: string }) {
+  return (
+    <a className="underline" href={href} target="_blank" rel="noopener noreferrer">
+      Apache-2.0
+    </a>
+  )
+}
+
 /** 안내 — 패널·본문 카드 공용 */
 export function ExtractNotes() {
+  return (
+    <div className="space-y-2">
+      <ExtractNoteList />
+      <p className="text-xs text-muted-foreground" data-testid="attribution">
+        글자 인식 모델: PaddleOCR © PaddlePaddle Authors, <LicenseLink href="/licenses/paddleocr/LICENSE.txt" />. Word 미리보기: docx-preview © Volodymyr Baydalka,{' '}
+        <LicenseLink href="/licenses/docx-preview/LICENSE.txt" />.
+      </p>
+    </div>
+  )
+}
+
+function ExtractNoteList() {
   return (
     <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
       <li>인식 결과는 원본 품질에 따라 틀릴 수 있습니다. 사용하기 전에 꼭 확인하세요.</li>
