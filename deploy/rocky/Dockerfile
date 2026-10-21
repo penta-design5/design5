@@ -1,7 +1,7 @@
-# Next.js 14 standalone — 빌드 컨텍스트는 레포 루트( docker compose 의 context: ../.. )
+# Next.js standalone — 빌드 컨텍스트는 레포 루트( docker compose 의 context: ../.. )
 #   cd deploy/rocky && docker compose -f docker-compose.yml -f docker-compose.app.yml build app
 
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 
 FROM base AS deps
