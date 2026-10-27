@@ -6,8 +6,8 @@
 - **현재 상태**
   - ⛔ 보안 장비 예외 — 보안 담당 요청 필요(§3)
   - ✅ SSRF(다운로드 프록시) — 로컬 수정·테스트 완료, 개발망 확인 대기(§4-1)
-  - ⬜ MinIO 버킷 익명 쓰기 — 서버 설정 확인·수정 필요(§4-2), 시험 파일 정리 필요
-- **다음 시작점**: §4-2 버킷 정책 확인·수정(개발망·운영망) → SSRF 수정 개발망 확인 → §3 예외 요청(§4 조치 완료 사실 함께 전달)
+  - 🟡 MinIO 버킷 익명 쓰기 — compose 수정 완료(public → download), 서버에서 기존 버킷 정책 변경·시험 파일 정리 필요(§4-2)
+- **다음 시작점**: §4-2 서버 조치(개발망·운영망) → SSRF 수정 개발망 확인 → §3 예외 요청(§4 조치 완료 사실 함께 전달)
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -77,20 +77,33 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST https://design6.pentasecurity.c
 
 ### 4-2. MinIO 버킷 익명 쓰기 — ⬜ 서버 조치 필요
 
-- 문제: **서명 없는 PUT으로 `posts` 버킷에 파일 저장 가능**(2026-10-27 개발망 확인 — 200 후 GET으로 저장 확인). 같은 도메인에서 SVG가 열리므로 스크립트 삽입 경로도 됨. 공개 정책이 「download(읽기)」가 아닌 「public(읽기·쓰기)」으로 보임
-- **확인 시험으로 생성된 파일: `posts/test/a.svg`(16바이트) — 삭제 필요**
-- 조치(개발망·**운영망 모두** — 운영망도 같은 설정일 가능성 높음, 운영 쓰기 시험은 하지 않음):
+- 문제: **서명 없는 PUT으로 `posts` 버킷에 파일 저장 가능**(2026-10-27 개발망 확인 — 200 후 GET으로 저장 확인). 같은 도메인에서 SVG가 열리므로 스크립트 삽입 경로도 됨
+- 근본 원인: `deploy/rocky/docker-compose.yml`의 `minio-init`이 5개 버킷 모두 **`mc anonymous set public`**(익명 읽기·쓰기·목록)으로 설정 — 데이터 평면 `up -d` 때마다 다시 적용됨. 이관 당시 메모(「개발 검증 목적 download, 운영 보안정책에 맞춰 재검토」 — `INTERNAL_MIGRATION_HANDOFF.md` §13)와 달리 compose가 public으로 남아 있었음
+- ✅ compose 수정(2026-10-27): 5줄 `public` → **`download`**(익명은 읽기만). 브라우저 → 저장소 쓰기는 모두 presigned 서명 PUT·앱 API라 영향 없음(전수 확인), 이미지 표시(익명 읽기) 그대로
+- ⬜ **이미 만들어진 버킷에는 compose 수정이 바로 적용되지 않음** → 개발망·**운영망 모두** 서버에서 한 번 실행(운영망도 같은 compose라 public일 가능성 높음, 운영 쓰기 시험은 하지 않음)
+- **확인 시험으로 생성된 파일: 버킷 `posts`의 키 `posts/test/a.svg`(16바이트, URL `/posts/posts/test/a.svg` — nginx `/posts/`는 경로 그대로 MinIO에 전달하므로 앞 `posts`가 버킷) — 삭제 필요**
+- 서버 조치(design6·design5 서버 안 — MinIO 포트는 `127.0.0.1:9000`만 열림):
   ```bash
-  mc alias set local http://<minio>:9000 <ACCESS_KEY> <SECRET_KEY>   # 컨테이너 안이면 docker exec
-  mc anonymous get local/posts            # 현재 정책 확인(public이면 문제)
-  mc anonymous set download local/posts   # 익명은 읽기만
-  # edms·avatars·icons·ppt-thumbnails 등 다른 버킷도 같은 방식으로 확인
-  mc rm local/posts/test/a.svg            # 시험 파일 정리
+  # 일회용 mc 컨테이너(minio-init과 같은 이미지·네트워크)
+  docker run --rm -it --network design5-net --entrypoint /bin/sh minio/mc:RELEASE.2025-08-13T08-35-41Z
+  # 컨테이너 안 — 계정은 데이터 평면 .env의 MINIO_ROOT_USER / MINIO_ROOT_PASSWORD
+  mc alias set local http://minio:9000 <MINIO_ROOT_USER> <MINIO_ROOT_PASSWORD>
+  for b in posts edms avatars icons ppt-thumbnails; do mc anonymous get local/$b; done   # public이면 문제
+  for b in posts edms avatars icons ppt-thumbnails; do mc anonymous set download local/$b; done
+  mc stat local/posts/posts/test/a.svg && mc rm local/posts/posts/test/a.svg   # 시험 파일 정리(개발망만, 버킷 posts + 키 posts/…)
+  exit
   ```
-- 확인: `curl -s -o /dev/null -w "%{http_code}\n" -X PUT https://design6.pentasecurity.com/posts/posts/test/b.txt --data-binary x` → 403이어야 함. 앱 업로드(presigned 서명 PUT)는 영향 없음
+  - 서버에 백업용 `mc` alias(`d5miniobackup`·`local`, `scripts/backup-minio.sh`)가 있으면 컨테이너 없이 그 alias로 실행해도 됨(design6은 둘 다 설정돼 있음 — 2026-10-27 확인)
+- 확인: `curl -s -o /dev/null -w "%{http_code}\n" -X PUT https://design6.pentasecurity.com/posts/posts/test/b.txt --data-binary x` → **403**이어야 함(조치 전 200). 이미지 표시·게시물 업로드 정상 확인
+
+### 4-3. MinIO 계정 — ⬜ 운영망 외부 공개 전 검토
+
+- 현재 앱·백업(`mc` alias `d5miniobackup`·`local`)이 **루트 계정**(`MINIO_ROOT_USER`)을 그대로 쓰고, 비밀번호가 추측하기 쉬운 형태(2026-10-27 design6 `mc alias list`로 확인)
+- 검토: 운영망 루트 비밀번호를 강한 값으로 교체, 앱(`S3_ACCESS_KEY_ID`)·백업에는 **버킷 범위로 제한한 별도 접속 키** 사용. 교체 시 `.env`·`.env.app`·서버 `~/.mc/config.json` 함께 갱신 후 앱 재기동
 
 ## 5. 변경 파일
 
 - `lib/b2.ts`(허용 주소 검사), `lib/b2-download.test.ts`(신규)
 - `app/api/posts/files/route.ts`·`app/api/posts/images/route.ts`·`app/api/notices/download/route.ts`(ApiError 상태 응답)
+- `deploy/rocky/docker-compose.yml`(`minio-init` 버킷 익명 정책 public → download)
 - `docs/SECURITY_url-filter_handoff.md`(신규), `docs/UPGRADE_next16-react19_handoff.md`·`docs/TOOLBOX_handoff.md`(링크)

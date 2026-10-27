@@ -65,11 +65,11 @@ services:
       mc mb --ignore-existing myminio/avatars;
       mc mb --ignore-existing myminio/icons;
       mc mb --ignore-existing myminio/ppt-thumbnails;
-      mc anonymous set public myminio/posts;
-      mc anonymous set public myminio/edms;
-      mc anonymous set public myminio/avatars;
-      mc anonymous set public myminio/icons;
-      mc anonymous set public myminio/ppt-thumbnails;
+      mc anonymous set download myminio/posts;
+      mc anonymous set download myminio/edms;
+      mc anonymous set download myminio/avatars;
+      mc anonymous set download myminio/icons;
+      mc anonymous set download myminio/ppt-thumbnails;
       exit 0;
       "
 
