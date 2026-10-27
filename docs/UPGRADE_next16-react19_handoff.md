@@ -80,11 +80,26 @@ React 19 지원이 이미 peer 범위에 있는 것(그대로): Radix UI, tiptap
 - [x] `next build --webpack` **종료 0** — 컴파일 17초, TypeScript, 정적 페이지 45/45까지 완료(이전 Next 14는 로컬 DB 부재로 prerender 실패했음)
 - [x] 빌드 결과 서버 스모크(`next start`, 로컬 3100): `/login`·`/toolbox/text-extractor`·`/toolbox/image-editor` 200, `/admin` 비로그인 → `/` 리다이렉트(proxy 동작), `/api/auth/session` 200, OCR 페이지 COOP·COEP 헤더, `/_next/static` COEP, `/tool-models/ocr/*`·`/licenses/*` 200
 
+**개발망 이슈 — Google 로그인 콜백 `ERR_CONNECTION_RESET` (2026-10-21, ⛔ 보안 장비 예외 요청 대기)**
+- 증상: 로그아웃 후 Google 계정 선택 → `/api/auth/callback/google?iss=https://accounts.google.com&code=…` 요청이 연결 재설정(브라우저가 같은 URL로 자동 재시도)
+- 원인 확정: **nginx 앞단 보안 장비가 매개변수에 외부 URL이 든 요청을 차단** — `?code=test`는 nginx·앱 도달(302, 앱은 `iss` 누락으로 정상 거부), `?iss=https://accounts.google.com&code=test`는 RESET·**nginx 로그 없음**. 업그레이드와 무관(앱 코드·인증 설정 변경 없음, next-auth beta.30→32 · @auth/core 0.41.1→0.41.3). `iss`는 OAuth 표준(RFC 9207)이라 앱에서 우회 불가
+- 같은 장비가 `Cache-Control: no-cache` 요청 헤더도 400 거부(OCR 모델 내려받기, 같은 날) — 10-15 이후 앞단 정책 변경으로 추정
+- 조치: 보안 담당에 `design6`·`design5`의 `/api/auth/callback/google` 예외(매개변수 내 URL 탐지 규칙) 요청. **운영망 확인 완료**: design5(Next 14)는 Google 로그인·로그아웃 정상, 같은 B 요청(`iss=https://…`)도 앱까지 도달(설정 오류 페이지) → **개발망 앞단에만 있는 정책으로 확정**, 운영망은 예외 요청 대상 아님(외부 공개 시 같은 정책이 붙으면 함께 반영 요청)
+- 참고: 배포 직후 앱 로그 `The router state header was sent but could not be parsed`는 배포 전부터 열려 있던 탭(Next 14 클라이언트)의 요청 — 새로고침하면 사라짐, 조치 불필요
+
+**개발망 이슈 — 대화상자 안 달력(제작일)에서 날짜를 누르면 팝업이 닫히고 선택 안 됨 (2026-10-27, ✅ 로컬 수정)**
+- 원인: U1 재설치 때 lockfile에서 `@radix-ui/react-dialog`만 1.1.15 → **1.3.1**로 올라가(package.json `^1.1.15` 범위 안) 내부 `react-dismissable-layer`(1.2.1)·`react-focus-scope`(1.3.1)를 따로 가짐. Popover·Select·DropdownMenu·Tooltip은 1.1.11·1.1.7 → 두 벌이 서로의 레이어를 몰라, Dialog의 포커스 가두기가 Popover로 간 포커스를 되돌리고 Popover는 바깥 포커스로 보고 닫힘
+- 영향: Dialog·Sheet 안의 Popover·Select·드롭다운 전체(업로드 대화상자 제작일·달력 연/월 Select, xl 미만 TOOLBOX 「편집 옵션」 Sheet의 Select 등)
+- 조치: `package.json` `"@radix-ui/react-dialog": "1.1.15"` **정확히 고정**(`~1.1.15`는 1.1.23으로 풀려 여전히 두 벌) → `npm ls`로 dismissable-layer·focus-scope 한 벌 확인. 1.1.15 peer `react ^19.0` 지원, lockfile 변경은 `@radix-ui/*`만(next·react 등 그대로)
+- 검증(로컬): jsdom 임시 테스트(Dialog 안 DatePicker 날짜 클릭) — 1.3.1 실패(달력이 열리자마자 닫힘) / 1.1.15 통과, typecheck·lint 통과
+- 후속: Radix 패키지 일괄 최신화는 버전을 함께 맞춰 올릴 때만(한 패키지만 올리면 같은 문제 재발)
+
 **개발망 확인(U0·U1 함께)** — 리빌드 후
 - [ ] 기동·`node -v` v22, 콘솔 에러 없음
 - [ ] 로그인·로그아웃·세션 유지(next-auth beta.32), 비로그인 `/admin` 차단, 관리자 화면
 - [ ] 카테고리 목록·상세(동적 `params`), 게시물 등록·수정·삭제, 첨부 다운로드, 공지·인사이트·디자인 요청·사용자 권한 API
 - [ ] 이미지(목록 썸네일·상세·아바타·아이콘) 정상 — `next/image` 최적화 경로
+- [ ] 대화상자·Sheet 안 Popover·Select(게시물 추가 「제작일」 달력 날짜·연/월 선택, xl 미만 TOOLBOX 「편집 옵션」 Select) — react-dialog 1.1.15 고정 후
 - [ ] konva 화면(이미지 편집·다이어그램·카드)·tiptap 에디터·차트 생성기
 - [ ] TOOLBOX: 배경 편집(onnxruntime CDN wasm)·모자이크 얼굴/번호판·OCR(이미지·PDF, 4스레드)·특수 문자·파일명 일괄 변경
 
@@ -99,4 +114,5 @@ React 19 지원이 이미 peer 범위에 있는 것(그대로): Radix UI, tiptap
 ## 6. 변경 파일
 
 - U0: `docs/UPGRADE_next16-react19_handoff.md`(신규), `deploy/rocky/Dockerfile`
+- U1 후속(react-dialog 고정): `package.json`·`package-lock.json`
 - U1: `package.json`·`package-lock.json`, `next.config.js`, `tsconfig.json`, `eslint.config.mjs`(신규)·`.eslintrc.json`(삭제), `proxy.ts`(신규, `middleware.ts` 이름 변경), 페이지 4개(`app/(dashboard)/[slug]/page.tsx`·`[slug]/[id]/page.tsx`·`diagram/[id]/page.tsx`·`edm/[id]/page.tsx`), API 라우트 16개(`app/api/**/[…]/route.ts`), React 19 타입 13개 파일(`app/_category-pages/*ListPage.tsx` 6·`PostGrid.tsx`·`use-masonry-layout.ts`·`chart-generator/*` 2·`special-characters/*` 2·`RenameToolbar.tsx`)
