@@ -84,7 +84,7 @@ React 19 지원이 이미 peer 범위에 있는 것(그대로): Radix UI, tiptap
 - 증상: 로그아웃 후 Google 계정 선택 → `/api/auth/callback/google?iss=https://accounts.google.com&code=…` 요청이 연결 재설정(브라우저가 같은 URL로 자동 재시도)
 - 원인 확정: **nginx 앞단 보안 장비가 매개변수에 외부 URL이 든 요청을 차단** — `?code=test`는 nginx·앱 도달(302, 앱은 `iss` 누락으로 정상 거부), `?iss=https://accounts.google.com&code=test`는 RESET·**nginx 로그 없음**. 업그레이드와 무관(앱 코드·인증 설정 변경 없음, next-auth beta.30→32 · @auth/core 0.41.1→0.41.3). `iss`는 OAuth 표준(RFC 9207)이라 앱에서 우회 불가
 - 같은 장비가 `Cache-Control: no-cache` 요청 헤더도 400 거부(OCR 모델 내려받기, 같은 날) — 10-15 이후 앞단 정책 변경으로 추정
-- 조치: 보안 담당에 `design6`·`design5`의 `/api/auth/callback/google` 예외(매개변수 내 URL 탐지 규칙) 요청. **운영망 확인 완료**: design5(Next 14)는 Google 로그인·로그아웃 정상, 같은 B 요청(`iss=https://…`)도 앱까지 도달(설정 오류 페이지) → **개발망 앞단에만 있는 정책으로 확정**, 운영망은 예외 요청 대상 아님(외부 공개 시 같은 정책이 붙으면 함께 반영 요청)
+- 조치: 보안 담당에 `design6`·`design5`의 `/api/auth/callback/google` 예외(매개변수 내 URL 탐지 규칙) 요청. **운영망 확인 완료**: design5(Next 14)는 Google 로그인·로그아웃 정상, 같은 B 요청(`iss=https://…`)도 앱까지 도달(설정 오류 페이지) → **개발망 앞단에만 있는 정책으로 확정**, 운영망은 예외 요청 대상 아님(외부 공개 시 같은 정책이 붙으면 함께 반영 요청). **2026-10-27: 유튜브·SVG 등록 차단까지 묶어 전산팀 요청 문안으로 통합** → [SECURITY_url-filter_handoff.md](SECURITY_url-filter_handoff.md) §3-1
 - 참고: 배포 직후 앱 로그 `The router state header was sent but could not be parsed`는 배포 전부터 열려 있던 탭(Next 14 클라이언트)의 요청 — 새로고침하면 사라짐, 조치 불필요
 
 **개발망 이슈 — Penta Design 유튜브·CI/BI SVG 등록 시 `Failed to fetch` (2026-10-27, ⛔ 업그레이드와 무관)**
