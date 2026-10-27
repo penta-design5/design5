@@ -1,5 +1,10 @@
 import sharp from 'sharp'
-import { urlLooksLikeBackblazeB2S3Url } from '@/lib/legacy-asset-bases'
+import { BadRequestError } from '@/lib/api/errors'
+import {
+  getPublicStorageBasePrefixes,
+  urlHostIsLegacyCdn,
+  urlLooksLikeBackblazeB2S3Url,
+} from '@/lib/legacy-asset-bases'
 import { isS3StorageConfigured } from '@/lib/s3/config'
 import * as s3post from '@/lib/s3/post-storage'
 
@@ -156,13 +161,48 @@ export function isB2StorageUrl(url: string): boolean {
   return false
 }
 
+/** URL이 공개 저장소 베이스 아래인가 (접두어만 같은 다른 호스트 `https://base.evil.com` 제외) */
+function urlIsUnderPublicStorageBase(u: URL): boolean {
+  return getPublicStorageBasePrefixes().some((b) => {
+    try {
+      const base = new URL(b)
+      const basePath = base.pathname.replace(/\/$/, '')
+      return u.origin === base.origin && (u.pathname === basePath || u.pathname.startsWith(`${basePath}/`))
+    } catch {
+      return false
+    }
+  })
+}
+
 /**
- * 파일 다운로드 (S3 posts 또는 공개 http(s) URL fetch)
+ * 서버가 직접 fetch해도 되는 주소인지 확인 (SSRF 방지).
+ * 클라이언트가 넘긴 `?url=`·본문 URL로 사내망·임의 외부 주소를 대신 요청하지 않도록,
+ * 공개 저장소 베이스·레거시 CDN·B2 호스트만 허용한다.
+ */
+function assertFetchableStorageUrl(fileUrl: string): void {
+  let u: URL
+  try {
+    u = new URL(fileUrl)
+  } catch {
+    throw new BadRequestError('허용되지 않은 파일 주소입니다.')
+  }
+  const allowed =
+    (u.protocol === 'https:' || u.protocol === 'http:') &&
+    (urlIsUnderPublicStorageBase(u) || urlHostIsLegacyCdn(fileUrl) || urlLooksLikeBackblazeB2S3Url(fileUrl))
+  if (!allowed) {
+    console.warn('[downloadFile] 허용되지 않은 주소 차단:', u.host)
+    throw new BadRequestError('허용되지 않은 파일 주소입니다.')
+  }
+}
+
+/**
+ * 파일 다운로드 (S3 posts 또는 허용된 저장소 http(s) URL fetch)
  */
 export async function downloadFile(fileUrl: string): Promise<{ fileBuffer: Buffer; contentType: string }> {
   if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(fileUrl)) {
     return s3post.s3DownloadPost(fileUrl)
   }
+  assertFetchableStorageUrl(fileUrl)
   const res = await fetch(fileUrl, { redirect: 'follow' })
   if (!res.ok) {
     if (res.status === 404) throw new Error('파일을 찾을 수 없습니다.')
@@ -186,6 +226,7 @@ export async function downloadFileWithRange(
   if (isS3StorageConfigured() && s3post.shouldHandlePostsUrlWithS3(fileUrl)) {
     return s3post.s3DownloadPostRange(fileUrl, start, end)
   }
+  assertFetchableStorageUrl(fileUrl)
   const rangeHeader = `bytes=${start}-${end}`
   const res = await fetch(fileUrl, { headers: { Range: rangeHeader }, redirect: 'follow' })
   if (res.status !== 206 && res.status !== 200) {

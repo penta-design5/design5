@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { downloadFile } from '@/lib/b2'
+import { ApiError } from '@/lib/api/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
       },
     })
   } catch (error: any) {
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.publicMessage }, { status: error.status })
+    }
     if (error.message.includes('파일을 찾을 수 없습니다')) {
       return NextResponse.json(
         { error: error.message },

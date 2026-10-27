@@ -87,6 +87,10 @@ React 19 지원이 이미 peer 범위에 있는 것(그대로): Radix UI, tiptap
 - 조치: 보안 담당에 `design6`·`design5`의 `/api/auth/callback/google` 예외(매개변수 내 URL 탐지 규칙) 요청. **운영망 확인 완료**: design5(Next 14)는 Google 로그인·로그아웃 정상, 같은 B 요청(`iss=https://…`)도 앱까지 도달(설정 오류 페이지) → **개발망 앞단에만 있는 정책으로 확정**, 운영망은 예외 요청 대상 아님(외부 공개 시 같은 정책이 붙으면 함께 반영 요청)
 - 참고: 배포 직후 앱 로그 `The router state header was sent but could not be parsed`는 배포 전부터 열려 있던 탭(Next 14 클라이언트)의 요청 — 새로고침하면 사라짐, 조치 불필요
 
+**개발망 이슈 — Penta Design 유튜브·CI/BI SVG 등록 시 `Failed to fetch` (2026-10-27, ⛔ 업그레이드와 무관)**
+- 원인: Google 콜백과 같은 앞단 보안 장비가 요청 쿼리·본문(업로드 파일 포함)의 **외부 URL**을 탐지해 연결을 끊음. 전 메뉴 업로드·입력란이 영향 → 조사·조치·보안 담당 요청안은 [SECURITY_url-filter_handoff.md](SECURITY_url-filter_handoff.md)
+- U3 회귀에서 이 증상(유튜브·SVG·HTML 업로드, 외부 링크 입력)은 업그레이드 실패로 보지 않는다
+
 **개발망 이슈 — 대화상자 안 달력(제작일)에서 날짜를 누르면 팝업이 닫히고 선택 안 됨 (2026-10-27, ✅ 로컬 수정)**
 - 원인: U1 재설치 때 lockfile에서 `@radix-ui/react-dialog`만 1.1.15 → **1.3.1**로 올라가(package.json `^1.1.15` 범위 안) 내부 `react-dismissable-layer`(1.2.1)·`react-focus-scope`(1.3.1)를 따로 가짐. Popover·Select·DropdownMenu·Tooltip은 1.1.11·1.1.7 → 두 벌이 서로의 레이어를 몰라, Dialog의 포커스 가두기가 Popover로 간 포커스를 되돌리고 Popover는 바깥 포커스로 보고 닫힘
 - 영향: Dialog·Sheet 안의 Popover·Select·드롭다운 전체(업로드 대화상자 제작일·달력 연/월 Select, xl 미만 TOOLBOX 「편집 옵션」 Sheet의 Select 등)
