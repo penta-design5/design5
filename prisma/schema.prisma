@@ -136,6 +136,7 @@ model Category {
   config      Json? // 카테고리별 설정 (UI 옵션, 기능 플래그 등)
   parentId    String? // 상위 카테고리 (null이면 최상위)
   order       Int          @default(0) // 정렬 순서
+  isHidden    Boolean      @default(false) // 관리자 숨김 — 사이드바 비표시. 계획: docs/MENU_ADMIN_구현계획.md §3.3
   description String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt

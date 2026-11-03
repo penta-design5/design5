@@ -93,6 +93,7 @@ async function main() {
       slug: 'diagram',
       type: CategoryType.SOURCE,
       order: 5,
+      isHidden: true, // 비공개 — 사이드바 비표시
       description: '다이어그램 벡터 이미지',
     },
     // TEMPLATE 카테고리
@@ -134,6 +135,7 @@ async function main() {
       type: CategoryType.TEMPLATE,
       pageType: 'edm',
       order: 5,
+      isHidden: true, // 가이드 영상 API용 — 메뉴는 LABs 하드코딩 링크 사용
       description: 'eDM HTML 코드 생성',
     },
     // BROCHURE 카테고리
@@ -193,9 +195,8 @@ async function main() {
       where: { slug: category.slug },
       update: {
         // 기존 카테고리가 있으면 업데이트 (pageType은 명시된 경우에만 업데이트)
-        name: category.name,
+        // name·order·isHidden은 관리자 메뉴 관리에서 편집하므로 덮어쓰지 않는다 (docs/MENU_ADMIN_구현계획.md §3.9)
         type: category.type,
-        order: category.order,
         description: category.description,
         ...(category.pageType !== undefined && { pageType: category.pageType }),
         ...(category.config ? { config: category.config } : {}),

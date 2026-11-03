@@ -24,6 +24,7 @@ interface Category {
   slug: string
   type: CategoryType
   parentId?: string | null
+  isHidden?: boolean
   children?: Category[]
 }
 
@@ -101,10 +102,10 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     }
   }
 
-  // edm: 가이드 영상 API용만 — LABs 하드코딩 링크 사용. diagram: 비공개 처리로 메뉴 비표시
-  const categoriesForMenu = categories.filter(
-    (c) => c.slug !== 'edm' && c.slug !== 'diagram'
-  )
+  // 관리자 숨김 메뉴 비표시 (edm: LABs 하드코딩 링크 사용, diagram: 비공개 — 마이그레이션에서 isHidden 지정)
+  const categoriesForMenu = categories
+    .filter((c) => !c.isHidden)
+    .map((c) => ({ ...c, children: c.children?.filter((ch) => !ch.isHidden) }))
   const groupedCategories = categoriesForMenu.reduce((acc, category) => {
     // 최상위 카테고리만 그룹화 (children이 이미 포함되어 있음)
     if (!acc[category.type]) {
@@ -257,9 +258,6 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     CategoryType.ADMIN,
   ]
 
-  /** TEMPLATE 메뉴 표시 순서 (DB/캐시와 무관). eDM(slug edm)은 메뉴에서 제외되어 LABs만 사용 */
-  const templateMenuSlugOrder = ['ppt', 'wallpaper', 'welcome-board', 'card'] as const
-
   const getInitials = (name?: string | null, email?: string) => {
     if (name) {
       return name.substring(0, 2).toUpperCase()
@@ -334,19 +332,8 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                 )
               }
 
-              const cats = groupedCategories[type] || []
-              const displayCats =
-                type === CategoryType.TEMPLATE
-                  ? [...cats].sort((a, b) => {
-                      const ia = templateMenuSlugOrder.indexOf(
-                        a.slug as (typeof templateMenuSlugOrder)[number]
-                      )
-                      const ib = templateMenuSlugOrder.indexOf(
-                        b.slug as (typeof templateMenuSlugOrder)[number]
-                      )
-                      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
-                    })
-                  : cats
+              // 섹션 안 순서는 DB order (getCategories가 type·order 순으로 정렬해 전달)
+              const displayCats = groupedCategories[type] || []
 
               // SOURCE 카테고리는 일반 카테고리로 처리
               // (ICON은 Supabase 카테고리로 관리됨)
