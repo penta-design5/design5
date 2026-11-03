@@ -100,7 +100,7 @@ describe('getHtmlFileError', () => {
     expect(getHtmlFileError(file('a.html', 'image/png', 100), MENU_HTML_MAX_BYTES)).toContain('text/html')
     expect(getHtmlFileError(file('a.html', 'text/html', 0), MENU_HTML_MAX_BYTES)).toContain('빈 파일')
     expect(getHtmlFileError(file('a.html', 'text/html', MENU_HTML_MAX_BYTES + 1), MENU_HTML_MAX_BYTES)).toBe(
-      'HTML 문서는 10MB 이하만 업로드할 수 있습니다.'
+      'HTML 문서는 8MB 이하만 업로드할 수 있습니다.'
     )
   })
 

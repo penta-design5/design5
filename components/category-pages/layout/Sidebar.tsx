@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { ChevronDown, ChevronRight, Home, Briefcase, Palette, FileText, BookOpen, Settings, LogIn, Gauge, Users, Megaphone, LogOut, SquareArrowOutUpRight, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Home, Briefcase, Palette, FileText, BookOpen, Settings, LogIn, Gauge, Users, Megaphone, ListTree, LogOut, SquareArrowOutUpRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canAccessDesignSystem } from '@/lib/access-control'
 import { CategoryType } from '@prisma/client'
@@ -459,6 +459,19 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     >
                       <Megaphone className="h-4 w-4 flex-shrink-0" />
                       <span className="flex-1 text-sm">공지사항 관리</span>
+                    </Link>
+                    <Link
+                      href="/admin/menus"
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
+                        pathname.startsWith('/admin/menus')
+                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
+                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
+                      )}
+                      onClick={handleAdminMenuClick}
+                    >
+                      <ListTree className="h-4 w-4 flex-shrink-0" />
+                      <span className="flex-1 text-sm">메뉴 관리</span>
                     </Link>
                     {canAccessDesignSystem(session?.user?.email) && (
                       <Link

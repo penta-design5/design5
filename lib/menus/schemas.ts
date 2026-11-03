@@ -9,8 +9,8 @@ import { isReservedMenuSlug } from './reserved-slugs'
 /** 관리자 업로드 HTML을 표시하는 메뉴의 Category.pageType */
 export const HTML_MENU_PAGE_TYPE = 'html'
 
-/** 업로드 HTML 최대 크기 (10MB) */
-export const MENU_HTML_MAX_BYTES = 10 * 1024 * 1024
+/** 업로드 HTML 최대 크기 (8MB) — proxy 요청 본문 기본 상한(10MB, proxyClientMaxBodySize)보다 여유 있게 */
+export const MENU_HTML_MAX_BYTES = 8 * 1024 * 1024
 
 /** 메뉴 관리 대상 섹션 (TOOLBOX·LABs·ADMIN은 코드 하드코딩이라 제외) */
 export const MENU_SECTION_TYPES = ['WORK', 'SOURCE', 'TEMPLATE', 'BROCHURE', 'INSIGHTS'] as const

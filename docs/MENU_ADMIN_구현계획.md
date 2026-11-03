@@ -90,7 +90,7 @@ HTML 메뉴는 기존 컬럼으로 표현한다.
 
 ### 3.4 HTML 저장·제공
 
-- **업로드:** `menus/<slug>/<uuid>.html` 키로 Storage(posts 버킷)에 `text/html; charset=utf-8`로 저장한다. 크기 상한은 10MB이며, 검증은 `assertValidHtmlFile`을 공용 모듈로 추출해 INSIGHTS와 함께 쓴다.
+- **업로드:** `menus/<slug>/<uuid>.html` 키로 Storage(posts 버킷)에 `text/html; charset=utf-8`로 저장한다. 크기 상한은 8MB이며(Next 16 proxy 요청 본문 기본 상한 10MB보다 여유 있게), 검증 규칙은 공용 모듈(`lib/html-document.ts`)로 추출해 INSIGHTS와 함께 쓴다.
 - **교체:** 새 파일을 업로드한 뒤 DB를 갱신하고, 마지막에 기존 파일을 삭제한다. 기존 파일 삭제가 실패하면 로그만 남긴다.
 - **제공 API:** `GET /api/menu-pages/[slug]/view`
   - `requireAuth()`로 로그인을 확인하고, 숨김 메뉴는 관리자만 접근하게 한다.

@@ -23,6 +23,14 @@ interface MainLayoutProps {
   categories: Category[]
 }
 
+/**
+ * pathname이 base 경로 세그먼트(`/base` 또는 `/base/...`)인지.
+ * 접두어 비교(startsWith)를 쓰면 `/cloudbric-waf` 같은 HTML 메뉴 slug가 `/cloudbric` 레이아웃으로 오인된다.
+ */
+function isUnderPath(pathname: string | null, base: string): boolean {
+  return Boolean(pathname && (pathname === base || pathname.startsWith(`${base}/`)))
+}
+
 /** [slug]/page.tsx getDefaultPageType 과 동일 — 헤더 숨김 여부 판단용 */
 function resolveCategoryPageType(category: Category): string {
   if (category.pageType) return category.pageType
@@ -55,84 +63,52 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
   )
 
   // CI/BI 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isCiBiPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/ci-bi'))
+  const isCiBiPage = isUnderPath(pathname, '/ci-bi')
 
   // 캐릭터 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isCharacterPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/character'))
+  const isCharacterPage = isUnderPath(pathname, '/character')
 
   // WAPPLES 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isWapplesPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/wapples'))
+  const isWapplesPage = isUnderPath(pathname, '/wapples')
 
   // D.AMO 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isDamoPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/damo'))
+  const isDamoPage = isUnderPath(pathname, '/damo')
 
   // iSIGN 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isIsignPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/isign'))
+  const isIsignPage = isUnderPath(pathname, '/isign')
 
   // Cloudbric 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isCloudbricPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/cloudbric'))
+  const isCloudbricPage = isUnderPath(pathname, '/cloudbric')
 
   // PPT 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isPptPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/ppt'))
+  const isPptPage = isUnderPath(pathname, '/ppt')
 
   // 웰컴보드 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isWelcomeBoardPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/welcome-board'))
+  const isWelcomeBoardPage = isUnderPath(pathname, '/welcome-board')
 
   // 바탕화면 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isDesktopPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/wallpaper'))
+  const isDesktopPage = isUnderPath(pathname, '/wallpaper')
 
   // HW(하드웨어 제품) 페이지인지 확인 (목록·상세 모두 — 바탕화면과 동일 처리)
-  const isHwPage = Boolean(pathname &&
-    !pathname.startsWith('/admin') &&
-    (pathname === '/hw' || pathname.startsWith('/hw/')))
+  const isHwPage = isUnderPath(pathname, '/hw')
 
   // 감사/연말 카드 페이지인지 확인
-  const isCardPage = Boolean(pathname &&
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/card'))
+  const isCardPage = isUnderPath(pathname, '/card')
 
   // PDF Extractor 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isPdfExtractorPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/pdf-extractor'))
+  const isPdfExtractorPage = isUnderPath(pathname, '/pdf-extractor')
 
   // ICON 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isIconPage = Boolean(pathname && 
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/icon'))
+  const isIconPage = isUnderPath(pathname, '/icon')
 
   // Chart Generator 페이지인지 확인 (pathname 기반으로 우선 감지)
-  const isChartGeneratorPage = Boolean(pathname &&
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/chart-generator'))
+  const isChartGeneratorPage = isUnderPath(pathname, '/chart-generator')
 
   // TOOLBOX 도구 페이지인지 확인 (Chart Generator와 동일한 좌측 작업 영역 + 우측 패널 레이아웃)
-  const isToolboxPage = Boolean(pathname &&
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/toolbox'))
+  const isToolboxPage = isUnderPath(pathname, '/toolbox')
 
   // Penta Design System(정적 HTML iframe) 페이지인지 확인 — 전역 헤더 유지, 본문만 풀-블리드
-  const isPentaDesignSystemPage = Boolean(pathname &&
-    !pathname.startsWith('/admin') &&
-    pathname.startsWith('/penta-design-system'))
+  const isPentaDesignSystemPage = isUnderPath(pathname, '/penta-design-system')
 
   // 관리자 업로드 HTML 메뉴(iframe) 페이지인지 확인 — Penta Design System과 동일하게 본문 풀-블리드
   const isHtmlMenuPage = Boolean(pathname &&
