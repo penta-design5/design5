@@ -25,7 +25,7 @@ describe('createHtmlMenuSchema', () => {
     }
   )
 
-  it.each(['admin', 'toolbox', 'penta-design-system', 'api', 'img'])('예약 주소 "%s"는 거부한다', (slug) => {
+  it.each(['admin', 'toolbox', 'pdf-extractor', 'api', 'img'])('예약 주소 "%s"는 거부한다', (slug) => {
     const result = createHtmlMenuSchema.safeParse({ ...valid, slug })
     expect(result.success).toBe(false)
     expect(result.error?.errors[0]?.message).toBe('사이트에서 이미 쓰는 주소라 사용할 수 없습니다.')

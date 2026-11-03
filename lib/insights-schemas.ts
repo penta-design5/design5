@@ -29,7 +29,7 @@ export { hasHtmlExtension }
 /**
  * AI 사용가이드 카드 그라데이션 우하단 프리셋 색상.
  * 좌상단은 흰색 고정, 우하단만 선택. Penta Design System의
- * Success/Warning/Error/Info(500·700) 8색. (`public/penta-design-system`)
+ * Success/Warning/Error/Info(500·700) 8색. (`docs/assets/penta-design-system`)
  * 값 없음(null)이면 기본 중립색으로 렌더.
  */
 export const INSIGHT_CARD_COLOR_PRESETS = [

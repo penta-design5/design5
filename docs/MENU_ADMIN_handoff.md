@@ -5,10 +5,10 @@
 
 - 대상: WORK · SOURCE · TEMPLATE · BROCHURE · INSIGHTS 섹션의 메뉴를 관리자가 추가·수정·삭제한다. 새 메뉴는 HTML 1개를 첨부하면 그 HTML이 페이지로 표시된다.
 - 핵심 결정 (2026-11-03): ① 기존 메뉴는 숨김만 허용 ② HTML 메뉴는 로그인 사용자 전용 ③ Penta Design System 전환(P3) 포함
-- 최종 업데이트: **2026-11-03** (P0·P1·P2 로컬 커밋, 미푸시 · P2 로컬 브라우저 확인 완료 · P3 진행)
+- 최종 업데이트: **2026-11-03** (P0~P3 구현·로컬 확인·로컬 커밋 완료, **미푸시** · 개발 DB에 Penta Design System 등록 완료)
 - 작업 브랜치: 로컬 `feature/menu-admin`(`origin/2026-06-17-tiper` 기준) → 푸시 `git push origin HEAD:2026-06-17-tiper`
 - 검증 방식: 개발망 로그인 문제(보안 이슈)로 **로컬 dev 서버 + 개발망 터널(DB·Storage)** 에서 먼저 확인한다. 개발망 배포 확인은 로그인이 해결된 뒤에 한다.
-- **다음 세션 시작점:** **P3**(Penta Design System 전환)
+- **다음 세션 시작점:** 아래 "남은 작업" — 푸시(사용자 확인 후) → 개발망 배포·확인(로그인 문제 해결 후) → 운영망 반영
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -20,8 +20,8 @@
 | ----- | -------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
 | P0    | `isHidden` 마이그레이션 + eDM·다이어그램 숨김·TEMPLATE 순서 데이터 정리 + seed 덮어쓰기 방지 + Sidebar 하드코딩 대체 | 🟡 로컬 확인 완료 | `21cab39` (미푸시) | **개발 DB `migrate deploy` 적용 완료(2026-11-03)** · DB 값 확인 ✅ · 로컬 dev 서버 사이드바 기존과 동일 ✅. 개발망 배포 확인 대기 |
 | P1    | HTML 메뉴 백엔드·뷰어 (관리자 API, view API, `[slug]` html 분기, 숨김 처리, 검색·홈·사이트맵·구독 제외)              | 🟡 로컬 구현 완료 | `09f3551` (미푸시) | 아래 "P1 로컬 검증" 참고                                                                                                          |
-| P2    | 관리자 "메뉴 관리" 화면 `/admin/menus`                                                                               | 🟡 로컬 확인 완료 | (아래 커밋)        | typecheck·lint 0 ✅ · 비로그인 `/admin/menus` → 홈 리다이렉트 ✅ · **로컬 브라우저 체크리스트 전 항목 통과(2026-11-03, iframe 격리 콘솔 확인 포함)**. 개발망 배포 확인 대기 |
-| P3    | Penta Design System을 HTML 메뉴로 전환                                                                               | ⬜                |                    | 등록 후 표시·클립보드·다운로드·폰트                                                                                               |
+| P2    | 관리자 "메뉴 관리" 화면 `/admin/menus`                                                                               | 🟡 로컬 확인 완료 | `0b9bb68` (미푸시) | typecheck·lint 0 ✅ · 비로그인 `/admin/menus` → 홈 리다이렉트 ✅ · **로컬 브라우저 체크리스트 전 항목 통과(2026-11-03, iframe 격리 콘솔 확인 포함)**. 개발망 배포 확인 대기 |
+| P3    | Penta Design System을 HTML 메뉴로 전환                                                                               | 🟡 로컬 확인 완료 | (아래 커밋)        | typecheck·lint 0 ✅ · 옛 공개 주소 404 ✅ · HTML sandbox 호환 점검 ✅ · **개발 DB 등록·순서·.md/.json 다운로드 사용자 확인 ✅**(복사 버튼·폰트는 확인 대기). 개발망 배포 확인 대기 |
 
 공통 로컬 검증: typecheck 0 ✅ · lint 0 errors(변경 파일의 경고 3건은 기존 코드) ✅ · vitest 743 통과 / 15 실패 — 실패는 **기존 실패**(localStorage 프리셋 테스트 2파일, 변경 전과 동일). 신규 메뉴 테스트 39건 통과 ✅
 
@@ -130,6 +130,56 @@
 - [x] 잘못된 입력 거부: 예약 주소(`admin`, `toolbox` 등), 중복 주소, 대문자·한글 주소, .html이 아닌 파일, 8MB 초과
 - [x] iframe 격리: 개발자도구 콘솔에서 iframe 컨텍스트로 `document.cookie` 접근 시 오류(SecurityError)
 - [x] 모바일 폭에서 사이드바(Sheet)와 관리 화면 표가 깨지지 않는다.
+
+## P3 — 변경 내용
+
+- 삭제: `app/(dashboard)/penta-design-system/page.tsx`(정적 iframe 라우트)
+- 이동(`git mv`): `public/penta-design-system/*` → `docs/assets/penta-design-system/`(비공개 원본 보관). 이제 로그인 없이 파일 주소로 받을 수 없다.
+- `Sidebar.tsx`: WORK의 Penta Design System 하드코딩 삽입 제거
+- `MainLayout.tsx`: `isPentaDesignSystemPage` 제거(HTML 메뉴 풀-블리드 분기가 대신 처리)
+- `lib/menus/reserved-slugs.ts`: `penta-design-system` 예약 해제(테스트 예시 교체)
+- `lib/insights-schemas.ts`: 주석의 원본 경로 갱신
+- HTML sandbox 호환 점검 결과
+  - 상대 경로 파일 참조 없음, 저장소·쿠키·부모 창 접근 없음
+  - 클립보드 `navigator.clipboard`(+ `execCommand` 대체 코드), 다운로드 `createObjectURL`(→ `allow-downloads`)
+  - 외부 URL은 CDN 폰트(`cdn.jsdelivr.net`)와 본문 텍스트의 Figma 주소뿐
+- 참고: 삭제한 라우트의 Next 생성 타입(`.next/types`, `.next/dev/types`)이 남아 로컬 typecheck가 실패하면 `npx next typegen` 후 해당 폴더를 삭제한다(서버 빌드는 새로 생성하므로 무관).
+
+## P3 등록·확인 (로컬 dev + 개발망 터널, 관리자 로그인)
+
+1. 메뉴 관리 → **[HTML 메뉴 추가]**
+   - 섹션 `WORK`, 이름 `Penta Design System`, 주소 `penta-design-system`
+   - 파일 `docs/assets/penta-design-system/penta-design-system.html`
+2. WORK 탭에서 **위로 이동 1회** → Penta Design → Penta Design System → 디자인 의뢰 순서
+
+**확인 체크리스트**
+- [x] 업로드 성공. 외부 URL(CDN)이 들어 있지만 로컬 + 터널 경로는 웹 앞단 보안 장비를 거치지 않는다.
+- [x] 사이드바 WORK 순서가 위와 같고, 클릭하면 예전처럼 전체 화면으로 표시되며 헤더가 오른쪽 끝까지 이어진다.
+- [ ] Pretendard 폰트가 적용된다(CDN 로드).
+- [ ] 페이지 안의 복사 버튼 → 토스트 "복사" 메시지, 붙여넣기 확인
+- [x] 스펙(.md)·아이콘 라이브러리(.json) 다운로드 버튼 → 파일이 받아진다.
+- [x] 비로그인 상태에서 `/penta-design-system` → 로그인 페이지(2026-11-03 로컬 확인 ✅)
+- [x] 옛 주소 `/penta-design-system/penta-design-system.html` → 404(2026-11-03 로컬 확인 ✅)
+
+> ⚠️ 개발망(design6)은 아직 이전 코드다. 지금 개발 DB에 등록하면 design6 사이드바에 Penta Design System이 **두 번**(하드코딩 + DB 메뉴) 보인다. 두 링크 모두 동작하고, P3 배포 후 하나로 정리된다.
+> ⚠️ **운영망 반영 시:** 배포 직후 관리자가 운영망에서 같은 방법으로 등록해야 한다. 등록 전까지는 메뉴가 사라진 상태다.
+
+## 남은 작업
+
+1. **P3 잔여 확인(로컬):** Penta Design System의 복사 버튼, Pretendard 폰트 적용
+2. **푸시:** `git push origin HEAD:2026-06-17-tiper` — 사용자 확인 후
+3. **개발망(design6) 배포·확인:** 개발망 로그인 문제가 해결된 뒤 아래 "개발망 배포 절차"
+   - P0 마이그레이션은 이미 적용됨. Penta Design System도 개발 DB에 이미 등록돼 있어 배포 후 바로 보인다.
+   - 개발망에서 볼 것: P0 체크리스트 + P2·P3 체크리스트 중 nginx를 거쳐야 의미 있는 항목(업로드, HTML 표시·응답 헤더, 사이드바 즉시 반영)
+4. **운영망(design5) 반영** — 같은 브랜치라 운영망이 `git pull`하는 시점에 이 기능이 함께 들어간다.
+   - 리빌드 **전에** 운영 DB에 `prisma migrate deploy`(운영망 터널 `.42`)
+   - 배포 직후 관리자가 운영망 메뉴 관리에서 Penta Design System 등록(원본 `docs/assets/penta-design-system/penta-design-system.html`) + 순서 조정
+   - 운영망 MinIO 버킷 익명 정책(`public` → `download`) 조치가 반영됐는지 확인([SECURITY_url-filter_handoff.md](./SECURITY_url-filter_handoff.md) §4-2). 이번 기능은 Storage 주소를 브라우저에 노출하지 않지만, 버킷 정책은 별도 보안 사항이다.
+
+**이번 범위 밖(필요 시 별도 작업)**
+- ZIP 업로드(이미지·CSS 별도 파일 HTML)
+- TOOLBOX·LABs·ADMIN 섹션 메뉴 관리, 섹션 자체 추가·수정
+- 기존 테스트 실패 15건(localStorage 프리셋 테스트 — Node의 실험적 localStorage와 jsdom 충돌, 이번 작업과 무관)
 
 ## 개발망 배포 절차 (⚠️ 순서 중요)
 

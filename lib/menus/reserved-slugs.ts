@@ -18,7 +18,6 @@ export const RESERVED_MENU_SLUGS: ReadonlySet<string> = new Set([
   'diagram',
   'edm',
   'pdf-extractor',
-  'penta-design-system',
   'profile',
   'toolbox',
   // public/ 최상위 폴더

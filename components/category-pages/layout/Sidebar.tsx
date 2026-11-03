@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
@@ -501,25 +501,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                   <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                     {getCategoryLabel(type)}
                   </div>
-                  {displayCats.map((category) => {
-                    const item = renderCategory(category)
-                    // WORK: "Penta Design"과 "디자인 의뢰" 사이에 정적 메뉴 삽입
-                    if (
-                      type === CategoryType.WORK &&
-                      category.slug === 'penta-design'
-                    ) {
-                      return (
-                        <Fragment key={category.id}>
-                          {item}
-                          {renderStaticLink(
-                            'penta-design-system',
-                            'Penta Design System'
-                          )}
-                        </Fragment>
-                      )
-                    }
-                    return item
-                  })}
+                  {displayCats.map((category) => renderCategory(category))}
                 </div>
               )
             })}
