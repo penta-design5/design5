@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import { getCategoryBySlug } from '@/lib/categories'
-import { CategoryType } from '@prisma/client'
+import { CategoryType, UserRole } from '@prisma/client'
+import { HTML_MENU_PAGE_TYPE } from '@/lib/menus/schemas'
 import { prisma } from '@/lib/prisma'
 import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryDetailPage } from '@/app/_category-pages/gallery/GalleryDetailPage'
@@ -121,10 +123,22 @@ export default async function PostDetailPage(
     notFound()
   }
 
+  // 숨김 메뉴는 관리자만 (docs/MENU_ADMIN_구현계획.md §3.3)
+  if (category.isHidden) {
+    const session = await auth()
+    if (session?.user.role !== UserRole.ADMIN) {
+      notFound()
+    }
+  }
+
   // 카테고리 타입에 따라 다른 컴포넌트 렌더링
   const pageType = category.pageType || getDefaultPageType(category.type)
 
   switch (pageType) {
+    // HTML 메뉴는 상세 페이지가 없다
+    case HTML_MENU_PAGE_TYPE:
+      notFound()
+
     case 'gallery':
       return <GalleryDetailPage category={category} postId={params.id} />
 

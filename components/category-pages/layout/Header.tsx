@@ -12,6 +12,7 @@ import {
   type SearchCategoryOption,
 } from '@/components/search/SearchFilterDropdown'
 import type { SearchResult } from '@/app/api/search/route'
+import { HTML_MENU_PAGE_TYPE } from '@/lib/menus/schemas'
 import {
   Sheet,
   SheetContent,
@@ -27,6 +28,7 @@ interface Category {
   parentId?: string | null
   children?: Category[]
   pageType?: string | null
+  isHidden?: boolean
 }
 
 interface HeaderProps {
@@ -53,6 +55,8 @@ function buildSearchCategoryOptions(categories: Category[] = []): SearchCategory
   const flattened: Category[] = []
   const visit = (cats: Category[]) => {
     for (const c of cats) {
+      // 숨김 메뉴·HTML 메뉴(검색할 게시물 없음)는 검색 카테고리에서 제외
+      if (c.isHidden || c.pageType === HTML_MENU_PAGE_TYPE) continue
       if (!EXCLUDED_CATEGORY_SLUGS.includes(c.slug)) {
         flattened.push(c)
       }

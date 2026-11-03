@@ -1,10 +1,35 @@
 import { cache } from 'react'
-import { unstable_cache } from 'next/cache'
+import { revalidateTag, unstable_cache } from 'next/cache'
 import { prisma } from './prisma'
 import { CategoryType } from '@prisma/client'
+import { isHtmlMenu } from './menus/schemas'
 
 // 카테고리는 자주 변경되지 않으므로 긴 캐시 시간 사용
 const CACHE_REVALIDATE_TIME = 300 // 5분
+
+/** 메뉴 관리 변경 후 카테고리 캐시(사이드바·[slug] 조회)를 즉시 만료 */
+export function invalidateCategoriesCache() {
+  revalidateTag('categories', { expire: 0 })
+}
+
+/**
+ * 클라이언트 컴포넌트로 넘기기 전 HTML 메뉴의 config(Storage 주소 포함)를 제거한다.
+ * 버킷이 익명 읽기라 주소가 노출되면 로그인 없이 HTML을 받을 수 있다.
+ */
+export function stripHtmlMenuConfig<
+  T extends CategoryWithConfig & { children?: CategoryWithConfig[] },
+>(categories: T[]): T[] {
+  return categories.map((c) => ({
+    ...stripOne(c),
+    ...(c.children ? { children: c.children.map(stripOne) } : {}),
+  }))
+}
+
+type CategoryWithConfig = { pageType: string | null; config: unknown }
+
+function stripOne<C extends CategoryWithConfig>(category: C): C {
+  return isHtmlMenu(category) ? { ...category, config: null } : category
+}
 
 export const getCategories = unstable_cache(
   async () => {
@@ -76,15 +101,17 @@ const SUBSCRIPTION_EXCLUDED_SLUGS = new Set(['diagram', 'edm'])
 
 /**
  * 카테고리가 메뉴 구독 대상인지 판별한다.
- * 대상 = SOURCE/TEMPLATE/BROCHURE 타입이면서 slug ∉ {diagram, edm}.
+ * 대상 = SOURCE/TEMPLATE/BROCHURE/INSIGHTS 타입이면서 slug ∉ {diagram, edm}, HTML 메뉴(게시물 없음) 제외.
  */
 export function isSubscribableCategory(category: {
   type: CategoryType
   slug: string
+  pageType?: string | null
 }): boolean {
   return (
     SUBSCRIBABLE_TYPES.includes(category.type) &&
-    !SUBSCRIPTION_EXCLUDED_SLUGS.has(category.slug)
+    !SUBSCRIPTION_EXCLUDED_SLUGS.has(category.slug) &&
+    !isHtmlMenu(category)
   )
 }
 

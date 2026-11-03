@@ -4,8 +4,8 @@ import { BadRequestError } from '@/lib/api/errors'
 import {
   INSIGHT_HTML_MAX_BYTES,
   INSIGHT_HTML_CONTENT_TYPE,
-  hasHtmlExtension,
 } from '@/lib/insights-schemas'
+import { getHtmlFileError } from '@/lib/html-document'
 
 /**
  * INSIGHTS HTML 문서·썸네일의 S3(posts 버킷) 업로드 헬퍼.
@@ -14,20 +14,9 @@ import {
 
 /** 업로드된 HTML 파일 검증 (확장자 + MIME + 크기). 실패 시 BadRequestError */
 export function assertValidHtmlFile(file: File): void {
-  if (!hasHtmlExtension(file.name)) {
-    throw new BadRequestError('HTML 문서(.html) 파일만 업로드할 수 있습니다.')
-  }
-  // 브라우저가 text/html 외 빈 값/octet-stream을 보낼 수 있어 확장자를 우선하되,
-  // 명백히 다른 타입(image/*, application/pdf 등)은 거부한다.
-  const type = (file.type || '').toLowerCase()
-  if (type && type !== 'text/html') {
-    throw new BadRequestError('HTML 문서(text/html)만 업로드할 수 있습니다.')
-  }
-  if (file.size <= 0) {
-    throw new BadRequestError('빈 파일은 업로드할 수 없습니다.')
-  }
-  if (file.size > INSIGHT_HTML_MAX_BYTES) {
-    throw new BadRequestError('HTML 문서는 5MB 이하만 업로드할 수 있습니다.')
+  const error = getHtmlFileError(file, INSIGHT_HTML_MAX_BYTES)
+  if (error) {
+    throw new BadRequestError(error)
   }
 }
 

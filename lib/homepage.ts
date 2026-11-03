@@ -25,6 +25,7 @@ export const getRecentPosts = unstable_cache(
     // Post와 WelcomeBoardTemplate을 병렬로 조회
     const [posts, templates, welcomeBoardCategory] = await Promise.all([
       prisma.post.findMany({
+        where: { category: { isHidden: false } }, // 숨김 메뉴의 게시물 제외
         take: 10, // 더 많이 가져와서 정렬 후 상위 3개 선택
         orderBy: {
           createdAt: 'desc',
@@ -77,8 +78,9 @@ export const getRecentPosts = unstable_cache(
       isTemplate: false,
     }))
 
-    // WelcomeBoardTemplate을 RecentItem 형태로 변환
-    const templateItems: RecentItem[] = templates.map((template) => ({
+    // WelcomeBoardTemplate을 RecentItem 형태로 변환 (웰컴보드 메뉴가 숨김이면 제외)
+    const visibleTemplates = welcomeBoardCategory?.isHidden ? [] : templates
+    const templateItems: RecentItem[] = visibleTemplates.map((template) => ({
       id: template.id,
       title: template.name, // template.name을 title로 사용
       createdAt: template.createdAt,
@@ -114,7 +116,7 @@ export const getRecentPosts = unstable_cache(
   ['recent-posts'],
   {
     revalidate: 60, // 1분 캐시
-    tags: ['posts', 'welcomeboard-templates'],
+    tags: ['posts', 'welcomeboard-templates', 'categories'], // categories: 메뉴 숨김 변경 시 즉시 반영
   }
 )
 

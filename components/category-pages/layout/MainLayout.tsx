@@ -6,6 +6,7 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { CategoryType } from '@prisma/client'
+import { HTML_MENU_PAGE_TYPE } from '@/lib/menus/schemas'
 
 interface Category {
   id: string
@@ -133,6 +134,12 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     !pathname.startsWith('/admin') &&
     pathname.startsWith('/penta-design-system'))
 
+  // 관리자 업로드 HTML 메뉴(iframe) 페이지인지 확인 — Penta Design System과 동일하게 본문 풀-블리드
+  const isHtmlMenuPage = Boolean(pathname &&
+    categories
+      .flatMap((cat) => [cat, ...(cat.children ?? [])])
+      .some((cat) => pathname === `/${cat.slug}` && resolveCategoryPageType(cat) === HTML_MENU_PAGE_TYPE))
+
   // eDM 편집 페이지인지 확인 (전체 화면 에디터, 헤더 숨김)
   const isEdmEditorPage = Boolean(pathname && 
     pathname.startsWith('/edm/') &&
@@ -141,7 +148,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
   // CI/BI, 캐릭터, WAPPLES, D.AMO, iSIGN, Cloudbric, PPT, PDF Extractor, ICON, Chart Generator, TOOLBOX, eDM 편집 페이지인지 확인
   // 웰컴보드는 에디터 모드일 때 자체 헤더를 사용하므로 제외
   const isSpecialPage = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isToolboxPage || isEdmEditorPage
-  const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage || isHwPage || isPentaDesignSystemPage
+  const isCardPageOrSimilar = isWelcomeBoardPage || isDesktopPage || isCardPage || isHwPage || isPentaDesignSystemPage || isHtmlMenuPage
 
   // 헤더 너비 제한이 필요한 페이지 (우측 패널이 있는 페이지만)
   const hasRightPanel = isCiBiPage || isCharacterPage || isWapplesPage || isDamoPage || isIsignPage || isCloudbricPage || isPptPage || isPdfExtractorPage || isIconPage || isChartGeneratorPage || isToolboxPage

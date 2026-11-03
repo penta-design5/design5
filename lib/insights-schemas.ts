@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  HTML_DOCUMENT_CONTENT_TYPE,
+  HTML_DOCUMENT_EXTENSIONS,
+  hasHtmlExtension,
+} from '@/lib/html-document'
 
 /**
  * INSIGHTS(AI 사용가이드 · 최신 동향) 공용 스키마·상수.
@@ -10,19 +15,16 @@ import { z } from 'zod'
 export const INSIGHT_HTML_MAX_BYTES = 5 * 1024 * 1024
 
 /** 허용 HTML 확장자 */
-export const INSIGHT_HTML_EXTENSIONS = ['.html', '.htm'] as const
+export const INSIGHT_HTML_EXTENSIONS = HTML_DOCUMENT_EXTENSIONS
 
 /** 허용 HTML MIME (브라우저가 빈 값/octet-stream을 보낼 수 있어 확장자와 병행 검증) */
 export const INSIGHT_HTML_MIME_TYPES = ['text/html'] as const
 
 /** 저장 시 강제할 HTML content-type */
-export const INSIGHT_HTML_CONTENT_TYPE = 'text/html; charset=utf-8'
+export const INSIGHT_HTML_CONTENT_TYPE = HTML_DOCUMENT_CONTENT_TYPE
 
-/** 파일명이 허용 HTML 확장자인지 */
-export function hasHtmlExtension(fileName: string): boolean {
-  const lower = fileName.toLowerCase()
-  return INSIGHT_HTML_EXTENSIONS.some((ext) => lower.endsWith(ext))
-}
+/** 파일명이 허용 HTML 확장자인지 (공용 규칙: lib/html-document.ts) */
+export { hasHtmlExtension }
 
 /**
  * AI 사용가이드 카드 그라데이션 우하단 프리셋 색상.

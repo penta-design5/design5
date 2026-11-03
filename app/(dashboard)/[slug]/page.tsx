@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import { getCategoryBySlug } from '@/lib/categories'
-import { CategoryType } from '@prisma/client'
+import { CategoryType, UserRole } from '@prisma/client'
+import { HTML_MENU_PAGE_TYPE, parseHtmlMenuConfig } from '@/lib/menus/schemas'
+import { HtmlMenuViewer } from '@/components/category-pages/html-menu/HtmlMenuViewer'
 import { BRAND_KO, DEFAULT_DESCRIPTION } from '@/lib/brand'
 import { GalleryListPage } from '@/app/_category-pages/gallery/GalleryListPage'
 import { CiBiListPage } from '@/app/_category-pages/ci-bi/CiBiListPage'
@@ -81,7 +84,32 @@ export default async function CategoryPage(
   // 카테고리 타입에 따라 다른 컴포넌트 렌더링
   const pageType = category.pageType || getDefaultPageType(category.type)
 
+  // 숨김 메뉴는 관리자만, HTML 메뉴는 로그인 사용자만 (docs/MENU_ADMIN_구현계획.md §3.3·§3.5)
+  const session =
+    category.isHidden || pageType === HTML_MENU_PAGE_TYPE ? await auth() : null
+  if (category.isHidden && session?.user.role !== UserRole.ADMIN) {
+    notFound()
+  }
+
   switch (pageType) {
+    case HTML_MENU_PAGE_TYPE: {
+      if (!session) {
+        redirect('/login')
+      }
+      const config = parseHtmlMenuConfig(category.config)
+      if (!config) {
+        notFound()
+      }
+      return (
+        <HtmlMenuViewer
+          slug={category.slug}
+          title={category.name}
+          version={config.html.updatedAt}
+          isHidden={category.isHidden}
+        />
+      )
+    }
+
     case 'gallery':
       return <GalleryListPage category={category} />
 

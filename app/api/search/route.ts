@@ -75,6 +75,17 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
 
     const results: SearchResult[] = []
 
+    // 숨김 메뉴의 게시물은 검색에서 제외 (docs/MENU_ADMIN_구현계획.md §3.3)
+    const hiddenCategories = await prisma.category.findMany({
+      where: { isHidden: true },
+      select: { slug: true },
+    })
+    const hiddenSlugs = new Set(hiddenCategories.map((c) => c.slug))
+    if (categorySlug && hiddenSlugs.has(categorySlug)) {
+      return NextResponse.json({ results: [] })
+    }
+    const isVisibleSlug = (slug: string) => !hiddenSlugs.has(slug)
+
     const shouldSearchPost = () => {
       if (!categorySlug) return true
       const nonPostSlugs = ['diagram', 'wallpaper', 'card', 'welcome-board']
@@ -82,22 +93,22 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     }
 
     const shouldSearchDiagram = () => {
-      if (!categorySlug || categorySlug === 'diagram') return true
+      if (!categorySlug || categorySlug === 'diagram') return isVisibleSlug('diagram')
       return false
     }
 
     const shouldSearchDesktop = () => {
-      if (!categorySlug || categorySlug === 'wallpaper') return true
+      if (!categorySlug || categorySlug === 'wallpaper') return isVisibleSlug('wallpaper')
       return false
     }
 
     const shouldSearchCard = () => {
-      if (!categorySlug || categorySlug === 'card') return true
+      if (!categorySlug || categorySlug === 'card') return isVisibleSlug('card')
       return false
     }
 
     const shouldSearchWelcomeBoard = () => {
-      if (!categorySlug || categorySlug === 'welcome-board') return true
+      if (!categorySlug || categorySlug === 'welcome-board') return isVisibleSlug('welcome-board')
       return false
     }
 
@@ -138,12 +149,15 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     // 카테고리 필터가 없으면 검색, 있으면 해당 카테고리 슬러그와 일치할 때만 검색
     const shouldSearchHardware = () =>
       Boolean(hardwareCategory) &&
+      isVisibleSlug(hardwareCategory!.slug) &&
       (!categorySlug || categorySlug === hardwareCategory!.slug)
     const shouldSearchDesignRequest = () =>
       Boolean(designRequestCategory) &&
+      isVisibleSlug(designRequestCategory!.slug) &&
       (!categorySlug || categorySlug === designRequestCategory!.slug)
     const shouldSearchIconPlus = () =>
       Boolean(iconCategory) &&
+      isVisibleSlug(iconCategory!.slug) &&
       (!categorySlug || categorySlug === iconCategory!.slug)
 
     // 1. Post 검색
@@ -152,6 +166,7 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
         status: 'PUBLISHED',
         category: {
           slug: { notIn: EXCLUDED_SLUGS },
+          isHidden: false,
         },
       }
 
@@ -429,7 +444,7 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     if (shouldSearchInsight()) {
       const insightWhere: Prisma.InsightPostWhereInput = categorySlug
         ? { category: { slug: categorySlug } }
-        : { category: { type: CategoryType.INSIGHTS } }
+        : { category: { type: CategoryType.INSIGHTS, isHidden: false } }
 
       if (searchQuery) {
         insightWhere.title = { contains: searchQuery, mode: 'insensitive' }
