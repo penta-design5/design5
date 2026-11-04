@@ -136,6 +136,15 @@ function adminItems(showDesignSystem: boolean): SidebarItem[] {
   }))
 }
 
+const itemIsActive = (item: SidebarItem, pathname: string): boolean =>
+  item.isActive(pathname) || (item.children?.some((child) => itemIsActive(child, pathname)) ?? false)
+
+/** 현재 메뉴가 든 섹션 id (제목 있는 섹션만) */
+export function findActiveSectionId(sections: SidebarSection[], pathname: string): SidebarSectionId | null {
+  const found = sections.find((s) => s.label !== null && s.items.some((item) => itemIsActive(item, pathname)))
+  return found?.id ?? null
+}
+
 export interface BuildSidebarSectionsInput {
   categories: SidebarCategory[]
   /** session.user.role === 'ADMIN' */

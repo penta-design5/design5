@@ -14,7 +14,8 @@ import { ThemeLogo } from '@/components/ThemeLogo'
 import { BRAND_KO } from '@/lib/brand'
 import { buildSidebarSections, type SidebarCategory } from '@/lib/menus/sidebar-sections'
 import { ScrollEdgeFades, SCROLL_EDGE_FADE_SIZE } from '@/components/ui/scroll-edge-fades'
-import { SidebarItemNode } from './SidebarLink'
+import { SidebarSectionList } from './SidebarSectionList'
+import { useSidebarCollapse } from './useSidebarCollapse'
 
 interface SidebarProps {
   categories: SidebarCategory[]
@@ -35,10 +36,21 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
   const menuViewportRef = useRef<HTMLDivElement>(null)
   const userRole = session?.user?.role
 
+  // 섹션·메뉴 데이터 (순서·숨김·권한 규칙: lib/menus/sidebar-sections.ts)
+  const sections = buildSidebarSections({
+    categories,
+    isAdmin: userRole === 'ADMIN',
+    showDesignSystem: canAccessDesignSystem(session?.user?.email),
+  })
+  const isLoggedIn = !!session
+  // 섹션 접기/펴기 (저장값·현재 섹션 일시 펼침: lib/menus/sidebar-collapse.ts)
+  const collapse = useSidebarCollapse(sections, pathname)
+
   // 현재 메뉴(aria-current="page")가 메뉴 영역 밖이나 그라데이션 막 아래에 가려져 있으면 가운데로 스크롤.
   // 이미 보이는 경우(사이드바에서 직접 클릭 등)는 움직이지 않는다.
   // userRole: ADMIN 메뉴는 세션 로드 후에 그려지므로 그때 다시 확인.
   // categories는 참조 대신 개수만 본다 — 재렌더마다 다시 실행되면 사용자가 스크롤해 둔 위치를 되돌리게 됨.
+  // 섹션 접기: 저장값 반영(hydrated)·현재 섹션 일시 펼침(autoOpen) 뒤에 다시 확인. 둘 다 애니메이션 없이 즉시 반영되므로 바로 계산해도 된다.
   const categoryCount = categories.length
   useEffect(() => {
     const viewport = menuViewportRef.current
@@ -49,7 +61,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     const visible = a.top >= v.top + SCROLL_EDGE_FADE_SIZE && a.bottom <= v.bottom - SCROLL_EDGE_FADE_SIZE
     if (visible) return
     viewport.scrollTo({ top: viewport.scrollTop + (a.top - v.top) - (v.height - a.height) / 2 })
-  }, [pathname, userRole, categoryCount])
+  }, [pathname, userRole, categoryCount, collapse.hydrated, collapse.autoOpen])
 
   // 최신 사용자 정보 가져오기
   useEffect(() => {
@@ -89,14 +101,6 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       return next
     })
   }
-
-  // 섹션·메뉴 데이터 (순서·숨김·권한 규칙: lib/menus/sidebar-sections.ts)
-  const sections = buildSidebarSections({
-    categories,
-    isAdmin: userRole === 'ADMIN',
-    showDesignSystem: canAccessDesignSystem(session?.user?.email),
-  })
-  const isLoggedIn = !!session
 
   const getInitials = (name?: string | null, email?: string) => {
     if (name) {
@@ -162,28 +166,15 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         scrollClassName="h-full"
       >
         <div className="p-4 pt-0">
-          <nav className="space-y-6">
-            {sections.map((section) => (
-              <div key={section.id} className="space-y-1">
-                {section.label && (
-                  <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {section.label}
-                  </div>
-                )}
-                {section.items.map((item) => (
-                  <SidebarItemNode
-                    key={item.key}
-                    item={item}
-                    pathname={pathname}
-                    isLoggedIn={isLoggedIn}
-                    onNavigate={onLinkClick}
-                    expandedKeys={expandedCategories}
-                    onToggle={toggleCategory}
-                  />
-                ))}
-              </div>
-            ))}
-          </nav>
+          <SidebarSectionList
+            sections={sections}
+            collapse={collapse}
+            pathname={pathname}
+            isLoggedIn={isLoggedIn}
+            onNavigate={onLinkClick}
+            expandedKeys={expandedCategories}
+            onToggleItem={toggleCategory}
+          />
         </div>
       </ScrollEdgeFades>
 
