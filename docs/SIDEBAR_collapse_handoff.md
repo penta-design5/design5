@@ -11,10 +11,11 @@
   3. 접기/펴기 상태를 저장하고, 기본값은 모두 펼침으로 한다.
   4. 접힌 섹션에는 항목 수를 표시한다.
   5. 접힌 섹션에 마우스를 올리면 **클릭 가능한 플라이아웃**을 연다. 툴팁이 아니라 Radix HoverCard를 쓴다.
-- **최종 업데이트:** 2026-11-04 — 계획만 수립, 구현 전
+  6. (2026-11-04) 메뉴 관리와의 관계: 접힌 섹션에 메뉴를 추가해도 자동으로 펼치지 않는다. 항목 수만 바뀌고, 사용자가 펼치거나 플라이아웃에서 확인한다. 섹션의 메뉴가 모두 숨겨져 섹션이 사라져도 저장된 접힘 상태는 그대로 둔다.
+- **최종 업데이트:** 2026-11-04 — P1 구현·로컬 검증 완료(커밋·개발망 확인 대기)
 - **작업 브랜치:** 로컬 브랜치는 자유. 푸시는 항상 `git push origin HEAD:2026-06-17-tiper`
 - **선행 커밋:** `448b2ef` (사이드바 상하 그라데이션 + 현재 메뉴 자동 스크롤)
-- **다음 세션 시작점:** **P1**
+- **다음 세션 시작점:** P1 커밋·푸시 → 개발망 확인 → **P2**
 
 범례: ⬜ 대기 · 🟡 진행중 · ✅ 완료 · ⛔ 블록
 
@@ -24,7 +25,7 @@
 
 | Phase | 내용 | 상태 | 커밋 | 검증 |
 |---|---|---|---|---|
-| P1 | 섹션별 메뉴를 데이터 목록으로 정리 (화면 변화 없음) | ⬜ | | |
+| P1 | 섹션별 메뉴를 데이터 목록으로 정리 (화면 변화 없음) | 🟡 | | 로컬 ✅(픽셀 비교 0) · 개발망 ⬜ |
 | P2 | 섹션 접기/펴기 (제목 토글, 상태 저장, 현재 섹션 자동 펼침, 항목 수) | ⬜ | | |
 | P3 | 접힌 섹션 플라이아웃 (HoverCard, 클릭 이동) | ⬜ | | |
 | (선택) | Alt/Option + 섹션 제목 클릭으로 전체 접기/펴기 | ⬜ | | 사용자가 원하면 P2에 포함 |
@@ -86,8 +87,29 @@ DB 변경은 없다.
 
 **목적:** 사이드바와 플라이아웃(P3)이 같은 메뉴를 같은 규칙으로 그리려면, 4가지로 흩어진 렌더링을 하나의 데이터 모델로 모아야 한다. 화면과 동작은 그대로 둔다.
 
+### 구현 결과 (2026-11-04)
+- **파일**
+  - `lib/menus/sidebar-sections.ts` — `SidebarItem`·`SidebarSection` 모델, `SIDEBAR_SECTION_ORDER`, `buildSidebarSections({ categories, isAdmin, showDesignSystem })`
+    - 계획의 `session`·`canAccessDesignSystem` 인자 대신 **불리언 2개**를 받는다(순수 함수 유지, 테스트 간단). Sidebar에서 `userRole === 'ADMIN'`, `canAccessDesignSystem(email)`을 넘긴다.
+    - `CategoryType`은 `import type`만 쓴다(테스트에서 Prisma 클라이언트 불필요).
+  - `components/category-pages/layout/SidebarLink.tsx`
+    - `<SidebarLink>`: 하위 항목 없는 링크 한 줄. 로그인 가드·fullReload·외부 링크(↗)·`aria-current`를 처리한다. **P3 플라이아웃에서 이것을 재사용**한다.
+    - `<SidebarItemNode>`: 항목 래퍼(`div.pr-4`) + 하위 카테고리 왼쪽 화살표 펼침. 펼침 상태는 `expandedKeys`·`onToggle`로 받는다.
+  - `components/category-pages/layout/Sidebar.tsx` — 4가지 렌더링 분기를 `sections.map` 하나로 교체. 섹션 제목 마크업은 그대로 Sidebar에 있다(P2에서 토글 버튼으로 바꿀 자리).
+  - `lib/__tests__/sidebar-sections.test.ts` — 11개 테스트
+- **기존과 달라진 점 (화면은 동일)**
+  - 행 스타일(`px-3 py-1`, 활성·hover 색)을 바깥 `div`가 아니라 **링크/버튼 자체**에 붙였다. 일반 카테고리·TOOLBOX 링크의 클릭 영역이 행 여백까지 넓어졌다(LABs·ADMIN은 원래 이 방식).
+  - 하위 카테고리 토글 버튼에 `aria-expanded`, `type="button"` 추가.
+  - 기존 판정 규칙은 그대로 유지: LABs는 로그인 가드 없음, PDF Extractor·Chart Generator는 정확히 일치, ADMIN은 `startsWith`.
+- **제목 없는 그룹: 없음.** 모든 섹션이 제목을 가진다(WORK 섹션 제목은 `WORK`, 화면에서 확인). `label: null` 분기는 모델에만 남겨 둔다.
+- **로컬 검증 방법** (DB 없이): 스크래치 복사본에서 `getCategories`만 가짜 카테고리(하위·숨김 포함)로 바꾸고 관리자 테스트 쿠키로 접속해, 변경 전(HEAD)·후 사이드바를 같은 조건으로 캡처해 비교했다.
+  - 픽셀 비교(threshold 0): 라이트, 다크, 항목 hover, Mind5 hover(↗), 하위 카테고리 펼침, 모바일 시트 → **6장 모두 차이 0픽셀**
+  - 동작 비교(전·후 동일): 메뉴 텍스트·순서, `aria-current`, Mind5 `target=_blank`, TOOLBOX SPA 이동, OCR 문서 새로고침 이동, 자동 스크롤 위치(`/admin/menus`·`/toolbox/text-extractor`), 모바일 시트 링크 클릭 후 닫힘
+  - 로그아웃 상태: `/`가 `/penta-design`으로 이동하고 사이드바가 없는 화면이라, 로그아웃 클릭 가드는 로컬에서 직접 누를 수 없었다(세션 만료 시에만 해당). 코드상 기존과 같은 조건이다.
+- 참고: `npx vitest run` 전체 실행 시 `preset-storage`·`card-schemas` 15건 실패는 **기존 문제**(Node 내장 localStorage와 jsdom 충돌)이며 이번 변경과 무관하다.
+
 ### 작업
-- [ ] **메뉴 모델 정의** (예: `lib/menus/sidebar-sections.ts` 또는 Sidebar 옆 파일)
+- [x] **메뉴 모델 정의** (예: `lib/menus/sidebar-sections.ts` 또는 Sidebar 옆 파일)
   ```ts
   type SidebarItem = {
     key: string            // 고유 키 (slug 등)
@@ -106,13 +128,13 @@ DB 변경은 없다.
     items: SidebarItem[]
   }
   ```
-- [ ] **`buildSidebarSections({ categories, session, canAccessDesignSystem })` 순수 함수**
+- [x] **`buildSidebarSections({ categories, session, canAccessDesignSystem })` 순수 함수**
   - 지금의 `categoryOrder`, isHidden 필터, 빈 섹션 제외, ADMIN 권한 조건을 그대로 옮긴다.
-- [ ] **공용 렌더러 `<SidebarLink item>`** 하나로 일반·static·LABs·ADMIN 링크를 통일한다.
+- [x] **공용 렌더러 `<SidebarLink item>`** 하나로 일반·static·LABs·ADMIN 링크를 통일한다.
   - 클래스와 동작을 기존과 똑같이 맞춘다. 클래스는 `px-3 py-1`, 활성·hover 색, 외부 링크 아이콘 hover 노출 등이다.
   - `aria-current`, 로그인 가드, `onLinkClick`, fullReload 처리를 포함한다.
-- [ ] 하위 카테고리 펼침(`expandedCategories`, 왼쪽 화살표)도 기존 동작 그대로 유지한다.
-- [ ] **단위 테스트:** `buildSidebarSections` (`lib/**/*.test.ts`, vitest·jsdom)
+- [x] 하위 카테고리 펼침(`expandedCategories`, 왼쪽 화살표)도 기존 동작 그대로 유지한다.
+- [x] **단위 테스트:** `buildSidebarSections` (`lib/**/*.test.ts`, vitest·jsdom)
   - 섹션 순서
   - isHidden 제외, 빈 섹션 제외
   - ADMIN은 role이 ADMIN일 때만, 디자인 시스템은 권한이 있을 때만
@@ -120,11 +142,12 @@ DB 변경은 없다.
   - 활성 판정 (`/`일 때 비활성, 하위 경로 포함)
 
 ### 검증 체크리스트
-- [ ] 사이드바가 **변경 전과 픽셀 단위로 같음**: 섹션 순서, 간격, 색, 아이콘 (데스크톱·모바일 시트·다크 모드)
-- [ ] 로그아웃 상태 클릭 → `/login`, OCR 새로고침 이동, Mind5 새 탭
-- [ ] 활성 메뉴 강조와 자동 스크롤(OCR·ADMIN 새로고침)이 그대로 동작
-- [ ] 하위 카테고리 왼쪽 화살표 펼침 그대로
-- [ ] 제목 없는 그룹이 있는지 확인하고 결과를 이 문서에 기록
+- [x] (로컬) 사이드바가 **변경 전과 픽셀 단위로 같음**: 섹션 순서, 간격, 색, 아이콘 (데스크톱·모바일 시트·다크 모드)
+- [ ] 로그아웃 상태 클릭 → `/login` (로컬 직접 확인 불가, 위 참고) · [x] OCR 새로고침 이동, Mind5 새 탭 (로컬)
+- [x] (로컬) 활성 메뉴 강조와 자동 스크롤(OCR·ADMIN 새로고침)이 그대로 동작
+- [x] (로컬) 하위 카테고리 왼쪽 화살표 펼침 그대로
+- [x] 제목 없는 그룹이 있는지 확인하고 결과를 이 문서에 기록 → 없음
+- [ ] **개발망(design6)** 실제 DB 메뉴로 위 항목 육안 확인
 
 ---
 

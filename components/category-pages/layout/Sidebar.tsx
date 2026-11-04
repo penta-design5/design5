@@ -4,33 +4,20 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { ChevronDown, ChevronRight, Home, Briefcase, Palette, FileText, BookOpen, Settings, LogIn, Gauge, Users, Megaphone, ListTree, LogOut, SquareArrowOutUpRight, Loader2 } from 'lucide-react'
+import { Settings, LogIn, LogOut, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { canAccessDesignSystem } from '@/lib/access-control'
-import { CategoryType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ThemeLogo } from '@/components/ThemeLogo'
 import { BRAND_KO } from '@/lib/brand'
-import { TOOLBOX_MENU, toolboxFullReload, toolboxPath } from '@/lib/toolbox/menu'
+import { buildSidebarSections, type SidebarCategory } from '@/lib/menus/sidebar-sections'
 import { ScrollEdgeFades, SCROLL_EDGE_FADE_SIZE } from '@/components/ui/scroll-edge-fades'
-
-/** CategoryType enum에 없는 하드코딩 섹션(TOOLBOX) — categoryOrder에서 위치만 지정 */
-const TOOLBOX_SECTION = 'TOOLBOX' as const
-
-interface Category {
-  id: string
-  name: string
-  slug: string
-  type: CategoryType
-  parentId?: string | null
-  isHidden?: boolean
-  children?: Category[]
-}
+import { SidebarItemNode } from './SidebarLink'
 
 interface SidebarProps {
-  categories: Category[]
+  categories: SidebarCategory[]
   className?: string
   onLinkClick?: () => void
 }
@@ -94,190 +81,22 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     // 프로필 업데이트는 프로필 페이지에서 저장 시 router.refresh()로 처리
   }, [session?.user?.id, session?.user?.image, session?.user?.name, pathname]) // pathname 변경 시에도 업데이트 (프로필 페이지 이동 시)
 
-  const toggleCategory = (categoryId: string) => {
-    const newExpanded = new Set(expandedCategories)
-    if (newExpanded.has(categoryId)) {
-      newExpanded.delete(categoryId)
-    } else {
-      newExpanded.add(categoryId)
-    }
-    setExpandedCategories(newExpanded)
+  const toggleCategory = (key: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
-  const getCategoryIcon = (type: CategoryType) => {
-    switch (type) {
-      case CategoryType.WORK:
-        return Briefcase
-      case CategoryType.SOURCE:
-        return Palette
-      case CategoryType.TEMPLATE:
-        return FileText
-      case CategoryType.BROCHURE:
-        return BookOpen
-      case CategoryType.ADMIN:
-        return Settings
-      default:
-        return Settings
-    }
-  }
-
-  // 관리자 숨김 메뉴 비표시 (edm: LABs 하드코딩 링크 사용, diagram: 비공개 — 마이그레이션에서 isHidden 지정)
-  const categoriesForMenu = categories
-    .filter((c) => !c.isHidden)
-    .map((c) => ({ ...c, children: c.children?.filter((ch) => !ch.isHidden) }))
-  const groupedCategories = categoriesForMenu.reduce((acc, category) => {
-    // 최상위 카테고리만 그룹화 (children이 이미 포함되어 있음)
-    if (!acc[category.type]) {
-      acc[category.type] = []
-    }
-    acc[category.type].push(category)
-    return acc
-  }, {} as Record<CategoryType, Category[]>)
-
-  const renderCategory = (category: Category, level: number = 0) => {
-    const hasChildren = category.children && category.children.length > 0
-    const isExpanded = expandedCategories.has(category.id)
-    // pathname이 '/'일 때는 활성화되지 않도록 설정
-    const isActive = pathname !== '/' && (pathname === `/${category.slug}` || pathname.startsWith(`/${category.slug}/`))
-    const IconComponent = getCategoryIcon(category.type)
-
-    // 로그아웃 상태에서 메뉴 클릭 시 로그인 페이지로 이동
-    // 모바일에서 사이드바 닫기
-    const handleCategoryClick = (e: React.MouseEvent) => {
-      if (!session) {
-        e.preventDefault()
-        router.push('/login')
-      }
-      // 모바일에서 링크 클릭 시 사이드바 닫기
-      if (onLinkClick) {
-        onLinkClick()
-      }
-    }
-
-    return (
-      // ********** 실제 사이드 메뉴 아이템 부분 
-      <div key={category.id} className='pr-4'>
-        <div
-          className={cn(
-            'flex items-center gap-2 px-3 py-1 transition-colors rounded-md', // 메뉴: 선택/호버 시 텍스트 색상만 변경, 배경 유지
-            isActive
-              ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-              : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky',
-            level > 0 && 'ml-4'
-          )}
-        >
-          {hasChildren ? (
-            <button
-              onClick={() => {
-                if (!session) {
-                  router.push('/login')
-                  if (onLinkClick) onLinkClick()
-                  return
-                }
-                toggleCategory(category.id)
-              }}
-              className="flex items-center flex-1 gap-2 text-left"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 flex-shrink-0" />
-              ) : (
-                <ChevronRight className="h-4 w-4 flex-shrink-0" />
-              )}
-              <span className="flex-1 text-sm">{category.name}</span>
-            </button>
-          ) : (
-            <Link
-              href={`/${category.slug}`}
-              aria-current={isActive ? 'page' : undefined}
-              className="flex items-center flex-1 gap-2"
-              onClick={handleCategoryClick}
-            >
-              <span className="flex-1 text-sm">{category.name}</span>
-            </Link>
-          )}
-        </div>
-        {hasChildren && isExpanded && category.children && (
-          <div className="mt-1">
-            {category.children.map((child) => renderCategory(child, level + 1))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // DB 카테고리가 아닌 정적 메뉴(자산 HTML 페이지 등)를 카테고리 사이에 삽입하기 위한 leaf 렌더러.
-  // renderCategory의 leaf 분기와 동일한 스타일·세션 가드를 사용한다.
-  /** fullReload: SPA 이동 대신 문서를 새로 불러온다(응답 헤더가 필요한 페이지 — 텍스트추출(OCR)의 교차 출처 격리) */
-  const renderStaticLink = (slug: string, label: string, fullReload = false) => {
-    const isActive =
-      pathname !== '/' &&
-      (pathname === `/${slug}` || pathname.startsWith(`/${slug}/`))
-
-    const handleClick = (e: React.MouseEvent) => {
-      if (!session) {
-        e.preventDefault()
-        router.push('/login')
-      } else if (fullReload && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-        e.preventDefault()
-        window.location.assign(`/${slug}`)
-      }
-      if (onLinkClick) onLinkClick()
-    }
-
-    return (
-      <div key={slug} className='pr-4'>
-        <div
-          className={cn(
-            'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-            isActive
-              ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-              : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-          )}
-        >
-          <Link
-            href={`/${slug}`}
-            aria-current={isActive ? 'page' : undefined}
-            className='flex items-center flex-1 gap-2'
-            onClick={handleClick}
-          >
-            <span className='flex-1 text-sm'>{label}</span>
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const getCategoryLabel = (type: CategoryType) => {
-    switch (type) {
-      case CategoryType.WORK:
-        return 'WORK'
-      case CategoryType.SOURCE:
-        return 'SOURCE'
-      case CategoryType.TEMPLATE:
-        return 'TEMPLATE'
-      case CategoryType.BROCHURE:
-        return 'BROCHURE'
-      case CategoryType.ADMIN:
-        return 'ADMIN'
-      case CategoryType.ETC:
-        return 'LABs'
-      case CategoryType.INSIGHTS:
-        return 'INSIGHTS'
-      default:
-        return ''
-    }
-  }
-
-  const categoryOrder: (CategoryType | typeof TOOLBOX_SECTION)[] = [
-    CategoryType.WORK,
-    CategoryType.SOURCE,
-    CategoryType.TEMPLATE,
-    CategoryType.BROCHURE,
-    TOOLBOX_SECTION,
-    CategoryType.ETC,
-    CategoryType.INSIGHTS,
-    CategoryType.ADMIN,
-  ]
+  // 섹션·메뉴 데이터 (순서·숨김·권한 규칙: lib/menus/sidebar-sections.ts)
+  const sections = buildSidebarSections({
+    categories,
+    isAdmin: userRole === 'ADMIN',
+    showDesignSystem: canAccessDesignSystem(session?.user?.email),
+  })
+  const isLoggedIn = !!session
 
   const getInitials = (name?: string | null, email?: string) => {
     if (name) {
@@ -344,202 +163,26 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
       >
         <div className="p-4 pt-0">
           <nav className="space-y-6">
-            {categoryOrder.map((type) => {
-              // TOOLBOX는 하드코딩 (메뉴 정의: lib/toolbox/menu.ts)
-              if (type === TOOLBOX_SECTION) {
-                return (
-                  <div key={type} className="space-y-1">
-                    <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      TOOLBOX
-                    </div>
-                    {TOOLBOX_MENU.map((menu) =>
-                      renderStaticLink(toolboxPath(menu.slug), menu.label, toolboxFullReload(menu))
-                    )}
-                  </div>
-                )
-              }
-
-              // 섹션 안 순서는 DB order (getCategories가 type·order 순으로 정렬해 전달)
-              const displayCats = groupedCategories[type] || []
-
-              // SOURCE 카테고리는 일반 카테고리로 처리
-              // (ICON은 Supabase 카테고리로 관리됨)
-
-              // Etc 카테고리는 하드코딩
-              if (type === CategoryType.ETC) {
-                const isEdmActive = pathname === '/edm' || pathname.startsWith('/edm/')
-                const isPdfExtractorActive = pathname === '/pdf-extractor'
-                const isChartGeneratorActive = pathname === '/chart-generator'
-                
-                return (
-                  <div key={type} className="space-y-1 pr-4">
-                    <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {getCategoryLabel(type)}
-                    </div>
-                    <Link
-                      href="/edm"
-                      aria-current={isEdmActive ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
-                        isEdmActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={onLinkClick}
-                    >
-                      <span className="flex-1 text-sm">eDM</span>
-                    </Link>
-                    <Link
-                      href="/pdf-extractor"
-                      aria-current={isPdfExtractorActive ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
-                        isPdfExtractorActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={onLinkClick}
-                    >
-                      <span className="flex-1 text-sm">PDF Extractor</span>
-                    </Link>
-                    <Link
-                      href="/chart-generator"
-                      aria-current={isChartGeneratorActive ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
-                        isChartGeneratorActive
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={onLinkClick}
-                    >
-                      <span className="flex-1 text-sm">Chart Generator</span>
-                    </Link>
-                    <a
-                      href="https://penta-mind5.vercel.app"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-2 px-3 py-1 rounded-md transition-colors hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky"
-                      onClick={onLinkClick}
-                    >
-                      <span className="flex-1 text-sm">Mind5</span>
-                      <SquareArrowOutUpRight className="h-3.5 w-3.5 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
-                    </a>
-                  </div>
-                )
-              }
-
-              // ADMIN 카테고리는 특별 메뉴
-              if (type === CategoryType.ADMIN) {
-                if (!session || session.user.role !== 'ADMIN') return null
-                
-                // 로그아웃 상태에서 ADMIN 메뉴 클릭 시 로그인 페이지로 이동
-                // 모바일에서 사이드바 닫기
-                const handleAdminMenuClick = (e: React.MouseEvent) => {
-                  if (!session) {
-                    e.preventDefault()
-                    router.push('/login')
-                  }
-                  // 모바일에서 링크 클릭 시 사이드바 닫기
-                  if (onLinkClick) {
-                    onLinkClick()
-                  }
-                }
-                
-                return (
-                  <div key={type} className="space-y-1 pr-4">
-                    <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {getCategoryLabel(type)}
-                    </div>
-                    <Link
-                      href="/admin/dashboard"
-                      aria-current={pathname.startsWith('/admin/dashboard') ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-                        pathname.startsWith('/admin/dashboard')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={handleAdminMenuClick}
-                    >
-                      <Gauge className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-sm">대시보드</span>
-                    </Link>
-                    <Link
-                      href="/admin/users"
-                      aria-current={pathname.startsWith('/admin/users') ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-                        pathname.startsWith('/admin/users')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={handleAdminMenuClick}
-                    >
-                      <Users className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-sm">회원 관리</span>
-                    </Link>
-                    <Link
-                      href="/admin/notices"
-                      aria-current={pathname.startsWith('/admin/notices') ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-                        pathname.startsWith('/admin/notices')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={handleAdminMenuClick}
-                    >
-                      <Megaphone className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-sm">공지사항 관리</span>
-                    </Link>
-                    <Link
-                      href="/admin/menus"
-                      aria-current={pathname.startsWith('/admin/menus') ? 'page' : undefined}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-                        pathname.startsWith('/admin/menus')
-                          ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                          : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                      )}
-                      onClick={handleAdminMenuClick}
-                    >
-                      <ListTree className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-sm">메뉴 관리</span>
-                    </Link>
-                    {canAccessDesignSystem(session?.user?.email) && (
-                      <Link
-                        href="/admin/design-system"
-                        aria-current={pathname.startsWith('/admin/design-system') ? 'page' : undefined}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
-                          pathname.startsWith('/admin/design-system')
-                            ? 'text-[var(--penta-indigo)] dark:text-penta-sky'
-                            : 'hover:text-[var(--penta-indigo)] dark:hover:text-penta-sky'
-                        )}
-                        onClick={handleAdminMenuClick}
-                      >
-                        <Palette className="h-4 w-4 flex-shrink-0" />
-                        <span className="flex-1 text-sm">디자인 시스템</span>
-                      </Link>
-                    )}
-                  </div>
-                )
-              }
-
-              // 일반 카테고리 (WORK, SOURCE, TEMPLATE, BROCHURE)
-              if (displayCats.length === 0) return null
-
-              // 카테고리 텍스트 랜더링 
-              return (
-                <div key={type} className="space-y-1">
+            {sections.map((section) => (
+              <div key={section.id} className="space-y-1">
+                {section.label && (
                   <div className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {getCategoryLabel(type)}
+                    {section.label}
                   </div>
-                  {displayCats.map((category) => renderCategory(category))}
-                </div>
-              )
-            })}
+                )}
+                {section.items.map((item) => (
+                  <SidebarItemNode
+                    key={item.key}
+                    item={item}
+                    pathname={pathname}
+                    isLoggedIn={isLoggedIn}
+                    onNavigate={onLinkClick}
+                    expandedKeys={expandedCategories}
+                    onToggle={toggleCategory}
+                  />
+                ))}
+              </div>
+            ))}
           </nav>
         </div>
       </ScrollEdgeFades>
