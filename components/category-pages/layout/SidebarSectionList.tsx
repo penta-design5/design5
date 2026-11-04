@@ -103,11 +103,6 @@ export function SidebarSectionList({
                 )}
               >
                 <span>{section.label}</span>
-                {!open && (
-                  <span className="font-normal tabular-nums text-muted-foreground/60">
-                    {section.items.length}
-                  </span>
-                )}
                 <ChevronDown
                   aria-hidden
                   className={cn(
