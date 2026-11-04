@@ -21,6 +21,8 @@ interface PropertyPanelProps {
   onColorChange: (color: string) => void
   onSizeChange: (width?: number, height?: number) => void
   onDownload: (format: 'png' | 'jpg' | 'svg') => Promise<void>
+  /** "원본 색상" 버튼이 노출될 때 호출 — 부모가 맨 앞 색(원본)을 기본 선택하는 데 사용 */
+  onOriginalColorAvailable?: (postId: string) => void
   /** sidebar: 우측 고정 패널(기본). sheet: 모바일 하단 시트 내부용(고정 위치 해제) */
   variant?: 'sidebar' | 'sheet'
 }
@@ -68,6 +70,7 @@ export function PropertyPanel({
   onColorChange,
   onSizeChange,
   onDownload,
+  onOriginalColorAvailable,
   variant = 'sidebar',
 }: PropertyPanelProps) {
   const isSheet = variant === 'sheet'
@@ -84,7 +87,6 @@ export function PropertyPanel({
 
 
   const postType = post?.concept || 'CI' // 기본값 CI
-  const availableColors = postType === 'CI' ? CI_COLORS : BI_COLORS
 
   const getImageSrc = (url: string) => getB2ImageSrc(url)
 
@@ -92,6 +94,22 @@ export function PropertyPanel({
   const originalSvgUrl = getFirstSvgUrl(postType === 'CI' ? null : post?.images)
   const originalColors =
     originalSvgUrl && originalColorsState?.url === originalSvgUrl ? originalColorsState.colors : null
+
+  // "원본" 버튼은 원본이 다른 버튼과 결과가 다를 때만 노출.
+  // 검정 단색·흰색 단색 로고(기존 제품 BI)는 검정/흰색 버튼과 같으므로 숨기고,
+  // 색을 아직 모르거나(로딩·실패) 추출되지 않은 경우에도 숨긴다.
+  const showOriginal =
+    !!originalColors &&
+    originalColors.length > 0 &&
+    !(originalColors.length === 1 && BI_COLORS.some((c) => c.value.toLowerCase() === originalColors[0]))
+  const availableColors =
+    postType === 'CI' ? CI_COLORS : BI_COLORS.filter((c) => c.value !== ORIGINAL_COLOR || showOriginal)
+
+  // "원본"이 맨 앞 색이 되면 부모에 알려 기본 선택하게 한다 (사용자가 이미 고른 경우는 부모가 무시)
+  const postId = post?.id
+  useEffect(() => {
+    if (showOriginal && postId) onOriginalColorAvailable?.(postId)
+  }, [showOriginal, postId, onOriginalColorAvailable])
 
   // 흰색 선택 여부 확인
   const isWhiteSelected = selectedColor === '#FFFFFF' || selectedColor === '#FFF' || selectedColor?.toLowerCase() === 'white'
@@ -333,28 +351,23 @@ export function PropertyPanel({
               }
               
               // 원본 색상 — 업로드한 SVG의 색을 그대로 견본으로 표시 (1색이면 단일, 여러 색이면 분할)
+              // (showOriginal일 때만 목록에 포함되므로 originalColors는 항상 1개 이상)
               if (color.value === ORIGINAL_COLOR) {
-                const swatches = originalColors && originalColors.length > 0 ? originalColors.slice(0, 4) : null
+                const swatches = (originalColors ?? []).slice(0, 4)
                 return (
                   <Button
                     key={color.value}
                     variant={selectedColor === color.value ? 'default' : 'outline'}
                     className="flex items-center gap-0 justify-center w-9 h-9 p-0 focus:ring-4 focus:bg-penta-sky/20 active:ring-4 active:bg-penta-sky/20"
                     onClick={() => onColorChange(color.value)}
-                    title={swatches ? `원본 색상 (${originalColors!.join(', ')})` : '원본 색상'}
+                    title={`원본 색상 (${(originalColors ?? []).join(', ')})`}
                     aria-label="원본 색상"
                   >
-                    {swatches ? (
-                      <div className="flex w-8 h-8 overflow-hidden rounded border border-border">
-                        {swatches.map((hex) => (
-                          <div key={hex} className="h-full flex-1" style={{ backgroundColor: hex }} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex w-8 h-8 items-center justify-center rounded border border-border text-[10px] font-medium text-muted-foreground bg-background">
-                        원본
-                      </div>
-                    )}
+                    <div className="flex w-8 h-8 overflow-hidden rounded border border-border">
+                      {swatches.map((hex) => (
+                        <div key={hex} className="h-full flex-1" style={{ backgroundColor: hex }} />
+                      ))}
+                    </div>
                   </Button>
                 )
               }

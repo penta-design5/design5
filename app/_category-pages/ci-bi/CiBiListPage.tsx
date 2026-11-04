@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import { CiBiUploadDialog } from '@/components/category-pages/CiBiCategory/CiBiUploadDialog'
 import { CiBiCard } from '@/components/category-pages/CiBiCategory/CiBiCard'
 import { PropertyPanel } from '@/components/category-pages/CiBiCategory/PropertyPanel'
+import { ORIGINAL_COLOR } from '@/lib/ci-bi/brand-colors'
 import { Flipper, Flipped } from 'react-flip-toolkit'
 import { ImageCardSkeleton } from '@/components/ui/image-card-skeleton'
 import {
@@ -87,6 +88,8 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
   const resizeTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const isInitialMountRef = useRef(true) // 초기 마운트 플래그
   const fetchInProgressRef = useRef(false) // fetch 진행 중 플래그
+  // 게시물 선택 후 사용자가 색을 직접 골랐는지 — 고르지 않았을 때만 "원본"을 기본값으로 자동 선택
+  const colorPickedByUserRef = useRef(false)
 
   useEffect(() => {
     if (!isMobileViewport) {
@@ -262,6 +265,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
         setSelectedPost(post)
         const defaultColor = post.concept === 'CI' ? 'CI_COLOR_SET' : '#000000'
         setSelectedColor(defaultColor)
+        colorPickedByUserRef.current = false
         setMobilePropertySheetOpen(true)
         router.replace(`/${category.slug}`, { scroll: false })
       }
@@ -352,15 +356,26 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
     setSelectedPost(post)
     const defaultColor = post.concept === 'CI' ? 'CI_COLOR_SET' : '#000000'
     setSelectedColor(defaultColor)
+    colorPickedByUserRef.current = false
     setMobilePropertySheetOpen(true)
   }
 
   // 색상 변경
   const handleColorChange = (color: string) => {
+    colorPickedByUserRef.current = true
     setSelectedColor(color)
     // 목록에 반영 (색상 변경 시)
     // 카드 컴포넌트에서 selectedColor prop을 받아 처리
   }
+
+  // BI 원본 색상 버튼이 노출되면(브랜드 색 로고) 맨 앞 색인 "원본"을 기본 선택 — 사용자가 이미 고른 경우는 유지
+  const handleOriginalColorAvailable = useCallback(
+    (postId: string) => {
+      if (colorPickedByUserRef.current || postId !== selectedPostId) return
+      setSelectedColor(ORIGINAL_COLOR)
+    },
+    [selectedPostId]
+  )
 
   // 사이즈 변경
   const handleSizeChange = useCallback((width?: number, height?: number) => {
@@ -638,6 +653,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
           post={selectedPost}
           selectedColor={selectedColor}
           onColorChange={handleColorChange}
+          onOriginalColorAvailable={handleOriginalColorAvailable}
           onSizeChange={handleSizeChange}
           onDownload={handleDownload}
         />
@@ -660,6 +676,7 @@ export function CiBiListPage({ category }: CiBiListPageProps) {
               post={selectedPost}
               selectedColor={selectedColor}
               onColorChange={handleColorChange}
+              onOriginalColorAvailable={handleOriginalColorAvailable}
               onSizeChange={handleSizeChange}
               onDownload={handleDownload}
             />
