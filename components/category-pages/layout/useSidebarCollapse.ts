@@ -7,8 +7,11 @@ import {
   SIDEBAR_COLLAPSE_STORAGE_KEY,
   applyRoute,
   isSectionOpen,
+  markSkipAutoOpenAfterReload,
+  nextSkipAutoOpenPath,
   readCollapsedSections,
   sameIds,
+  takeSkipAutoOpenAfterReload,
   toggleSection,
   writeCollapsedSections,
   type SidebarCollapseState,
@@ -29,7 +32,8 @@ interface State {
 export function useSidebarCollapse(sections: SidebarSection[], pathname: string) {
   const [state, setState] = useState<State>({ collapse: INITIAL_COLLAPSE_STATE, instant: true })
   const [hydrated, setHydrated] = useState(false)
-  const skipNextAutoOpenRef = useRef(false)
+  /** 플라이아웃에서 이동한 경로 — 이 경로에 있는 동안은 자동 펼침하지 않는다 */
+  const skipAutoOpenPathRef = useRef<string | null>(null)
   const activeSectionId = findActiveSectionId(sections, pathname)
 
   // 저장값은 마운트 후에 읽는다(SSR·hydration 불일치 방지). 다른 인스턴스·다른 탭의 변경도 따라간다.
@@ -45,6 +49,10 @@ export function useSidebarCollapse(sections: SidebarSection[], pathname: string)
     const onStorage = (e: StorageEvent) => {
       if (e.key === SIDEBAR_COLLAPSE_STORAGE_KEY) sync()
     }
+    // 플라이아웃에서 문서를 새로 불러오며 이동한 경우(OCR) 이전 문서가 남긴 값.
+    // 값은 읽으면 지워지므로, effect가 다시 실행돼도(개발 모드 Strict Mode) 이미 읽은 값을 null로 덮지 않는다.
+    const reloadSkipPath = takeSkipAutoOpenAfterReload()
+    if (reloadSkipPath !== null) skipAutoOpenPathRef.current = reloadSkipPath
     sync()
     setHydrated(true)
     window.addEventListener(SIDEBAR_COLLAPSE_EVENT, sync)
@@ -58,8 +66,8 @@ export function useSidebarCollapse(sections: SidebarSection[], pathname: string)
   // 페이지 이동 후 현재 메뉴가 든 접힌 섹션을 일시 펼침 (플라이아웃에서 이동한 경우 제외)
   useEffect(() => {
     if (!hydrated) return
-    const skip = skipNextAutoOpenRef.current
-    skipNextAutoOpenRef.current = false
+    skipAutoOpenPathRef.current = nextSkipAutoOpenPath(skipAutoOpenPathRef.current, pathname)
+    const skip = skipAutoOpenPathRef.current !== null
     setState((prev) => {
       const collapse = applyRoute(prev.collapse, activeSectionId, skip)
       return collapse === prev.collapse ? prev : { collapse, instant: true }
@@ -77,9 +85,19 @@ export function useSidebarCollapse(sections: SidebarSection[], pathname: string)
     [sections, state.collapse]
   )
 
-  /** P3 플라이아웃: 다음 페이지 이동에서는 섹션을 자동으로 펼치지 않는다 */
-  const skipNextAutoOpen = useCallback(() => {
-    skipNextAutoOpenRef.current = true
+  /**
+   * 플라이아웃에서 이동: 그 경로에서는 섹션을 자동으로 펼치지 않는다(접힌 상태 유지).
+   * reload(문서를 새로 불러오는 이동)면 새 문서에 sessionStorage로 넘긴다.
+   */
+  const skipAutoOpenFor = useCallback((href: string, reload: boolean) => {
+    let path: string
+    try {
+      path = new URL(href, window.location.href).pathname
+    } catch {
+      return
+    }
+    skipAutoOpenPathRef.current = path
+    if (reload) markSkipAutoOpenAfterReload(path)
   }, [])
 
   return {
@@ -89,6 +107,6 @@ export function useSidebarCollapse(sections: SidebarSection[], pathname: string)
     hydrated,
     autoOpen: state.collapse.autoOpen,
     activeSectionId,
-    skipNextAutoOpen,
+    skipAutoOpenFor,
   }
 }

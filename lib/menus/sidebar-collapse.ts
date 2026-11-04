@@ -106,6 +106,37 @@ export function writeCollapsedSections(collapsed: readonly string[]) {
   }
 }
 
+/**
+ * 플라이아웃에서 문서를 새로 불러오는 메뉴(OCR)로 이동할 때, 새 문서의 사이드바에
+ * "이 경로에서는 자동 펼침하지 않음"을 넘기는 값 (탭 단위, 한 번 읽으면 지운다)
+ */
+export const SIDEBAR_SKIP_AUTO_OPEN_KEY = 'design5:sidebar:skip-auto-open'
+
+export function markSkipAutoOpenAfterReload(pathname: string) {
+  try {
+    window.sessionStorage.setItem(SIDEBAR_SKIP_AUTO_OPEN_KEY, pathname)
+  } catch {
+    // 저장 불가 환경 — 새 문서에서는 평소대로 자동 펼침
+  }
+}
+
+export function takeSkipAutoOpenAfterReload(): string | null {
+  try {
+    const value = window.sessionStorage.getItem(SIDEBAR_SKIP_AUTO_OPEN_KEY)
+    if (value !== null) window.sessionStorage.removeItem(SIDEBAR_SKIP_AUTO_OPEN_KEY)
+    return value
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 플라이아웃 이동 뒤 자동 펼침을 건너뛸 경로 갱신.
+ * 그 경로에 있는 동안은 계속 건너뛰고(섹션 목록이 늦게 바뀌어 다시 계산돼도 유지), 다른 경로로 가면 해제한다.
+ */
+export const nextSkipAutoOpenPath = (skipPath: string | null, pathname: string) =>
+  skipPath === pathname ? skipPath : null
+
 export const sameIds = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id) => b.includes(id))
 

@@ -23,12 +23,22 @@ const rowClass = (active: boolean, level: number) =>
 const isPlainLeftClick = (e: React.MouseEvent) =>
   e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
 
+/**
+ * 링크를 누른 결과
+ * - spa: 이 탭에서 화면만 바뀜 · reload: 이 탭에서 문서를 새로 불러옴(OCR)
+ * - other: 이 탭은 그대로(외부 링크·Cmd/Ctrl/Shift+클릭으로 새 탭·새 창)
+ */
+export interface SidebarNavigation {
+  href: string
+  mode: 'spa' | 'reload' | 'other'
+}
+
 interface SidebarLinkProps {
   item: SidebarItem
   pathname: string
   isLoggedIn: boolean
-  /** 링크를 누른 뒤 호출 (모바일 시트 닫기 등) */
-  onNavigate?: () => void
+  /** 링크를 누른 뒤 호출 (모바일 시트 닫기, 플라이아웃 닫기 등) */
+  onNavigate?: (nav: SidebarNavigation) => void
   level?: number
 }
 
@@ -44,7 +54,7 @@ export function SidebarLink({ item, pathname, isLoggedIn, onNavigate, level = 0 
         target="_blank"
         rel="noopener noreferrer"
         className={cn('group', rowClass(false, level))}
-        onClick={onNavigate}
+        onClick={() => onNavigate?.({ href: item.href, mode: 'other' })}
       >
         {Icon && <Icon className="h-4 w-4 flex-shrink-0" />}
         <span className="flex-1 text-sm">{item.label}</span>
@@ -56,14 +66,21 @@ export function SidebarLink({ item, pathname, isLoggedIn, onNavigate, level = 0 
   const active = item.isActive(pathname)
 
   const handleClick = (e: React.MouseEvent) => {
+    let nav: SidebarNavigation
     if (item.requiresAuth && !isLoggedIn) {
       e.preventDefault()
       router.push('/login')
-    } else if (item.fullReload && isPlainLeftClick(e)) {
+      nav = { href: '/login', mode: 'spa' }
+    } else if (!isPlainLeftClick(e)) {
+      nav = { href: item.href, mode: 'other' }
+    } else if (item.fullReload) {
       e.preventDefault()
       window.location.assign(item.href)
+      nav = { href: item.href, mode: 'reload' }
+    } else {
+      nav = { href: item.href, mode: 'spa' }
     }
-    onNavigate?.()
+    onNavigate?.(nav)
   }
 
   return (
@@ -111,7 +128,7 @@ export function SidebarItemNode({
   const handleToggle = () => {
     if (item.requiresAuth && !isLoggedIn) {
       router.push('/login')
-      onNavigate?.()
+      onNavigate?.({ href: '/login', mode: 'spa' })
       return
     }
     onToggle(item.key)

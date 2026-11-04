@@ -130,7 +130,7 @@ export function MainLayout({ children, categories }: MainLayoutProps) {
     <div className="flex min-h-screen md:h-screen bg-background">
       {/* 데스크톱 Sidebar */}
       <aside className="hidden md:flex md:flex-shrink-0">
-        <Sidebar categories={categories} />
+        <Sidebar categories={categories} flyout />
       </aside>
 
       {/* 모바일 Sidebar (Sheet) */}

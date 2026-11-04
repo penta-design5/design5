@@ -21,9 +21,11 @@ interface SidebarProps {
   categories: SidebarCategory[]
   className?: string
   onLinkClick?: () => void
+  /** 접힌 섹션 제목에 마우스를 올리면 메뉴 플라이아웃 (데스크톱만, 모바일 시트에서는 끔) */
+  flyout?: boolean
 }
 
-export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
+export function Sidebar({ categories, className, onLinkClick, flyout = false }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
@@ -174,6 +176,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
             onNavigate={onLinkClick}
             expandedKeys={expandedCategories}
             onToggleItem={toggleCategory}
+            flyout={flyout}
           />
         </div>
       </ScrollEdgeFades>

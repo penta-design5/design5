@@ -3,7 +3,10 @@ import {
   INITIAL_COLLAPSE_STATE,
   applyRoute,
   isSectionOpen,
+  markSkipAutoOpenAfterReload,
+  nextSkipAutoOpenPath,
   parseCollapsedSections,
+  takeSkipAutoOpenAfterReload,
   toggleSection,
   type SidebarCollapseState,
 } from '@/lib/menus/sidebar-collapse'
@@ -92,5 +95,24 @@ describe('findActiveSectionId', () => {
     ['/profile', null],
   ])('%s → %s', (pathname, expected) => {
     expect(findActiveSectionId(sections, pathname)).toBe(expected)
+  })
+})
+
+describe('플라이아웃 이동 후 자동 펼침 건너뛰기', () => {
+  it('이동한 경로에 있는 동안 유지, 다른 경로로 가면 해제', () => {
+    expect(nextSkipAutoOpenPath('/toolbox/ocr', '/toolbox/ocr')).toBe('/toolbox/ocr')
+    expect(nextSkipAutoOpenPath('/toolbox/ocr', '/toolbox/image-editor')).toBeNull()
+    expect(nextSkipAutoOpenPath(null, '/toolbox/ocr')).toBeNull()
+  })
+
+  it('플라이아웃으로 이동한 뒤 페이지 이동 시 섹션은 접힌 채(일시 펼침 없음)', () => {
+    const skip = nextSkipAutoOpenPath('/toolbox/ocr', '/toolbox/ocr') !== null
+    expect(applyRoute(st(['TOOLBOX']), 'TOOLBOX', skip)).toEqual(st(['TOOLBOX']))
+  })
+
+  it('문서 새로고침 이동(OCR): 새 문서에서 한 번만 읽힌다', () => {
+    markSkipAutoOpenAfterReload('/toolbox/ocr')
+    expect(takeSkipAutoOpenAfterReload()).toBe('/toolbox/ocr')
+    expect(takeSkipAutoOpenAfterReload()).toBeNull()
   })
 })
