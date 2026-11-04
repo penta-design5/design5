@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ThemeLogo } from '@/components/ThemeLogo'
 import { BRAND_KO } from '@/lib/brand'
 import { TOOLBOX_MENU, toolboxFullReload, toolboxPath } from '@/lib/toolbox/menu'
+import { ScrollEdgeFades, SCROLL_EDGE_FADE_SIZE } from '@/components/ui/scroll-edge-fades'
 
 /** CategoryType enum에 없는 하드코딩 섹션(TOOLBOX) — categoryOrder에서 위치만 지정 */
 const TOOLBOX_SECTION = 'TOOLBOX' as const
@@ -44,6 +45,24 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
     new Set()
   )
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const menuViewportRef = useRef<HTMLDivElement>(null)
+  const userRole = session?.user?.role
+
+  // 현재 메뉴(aria-current="page")가 메뉴 영역 밖이나 그라데이션 막 아래에 가려져 있으면 가운데로 스크롤.
+  // 이미 보이는 경우(사이드바에서 직접 클릭 등)는 움직이지 않는다.
+  // userRole: ADMIN 메뉴는 세션 로드 후에 그려지므로 그때 다시 확인.
+  // categories는 참조 대신 개수만 본다 — 재렌더마다 다시 실행되면 사용자가 스크롤해 둔 위치를 되돌리게 됨.
+  const categoryCount = categories.length
+  useEffect(() => {
+    const viewport = menuViewportRef.current
+    const active = viewport?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (!viewport || !active) return
+    const v = viewport.getBoundingClientRect()
+    const a = active.getBoundingClientRect()
+    const visible = a.top >= v.top + SCROLL_EDGE_FADE_SIZE && a.bottom <= v.bottom - SCROLL_EDGE_FADE_SIZE
+    if (visible) return
+    viewport.scrollTo({ top: viewport.scrollTop + (a.top - v.top) - (v.height - a.height) / 2 })
+  }, [pathname, userRole, categoryCount])
 
   // 최신 사용자 정보 가져오기
   useEffect(() => {
@@ -169,6 +188,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
           ) : (
             <Link
               href={`/${category.slug}`}
+              aria-current={isActive ? 'page' : undefined}
               className="flex items-center flex-1 gap-2"
               onClick={handleCategoryClick}
             >
@@ -216,6 +236,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         >
           <Link
             href={`/${slug}`}
+            aria-current={isActive ? 'page' : undefined}
             className='flex items-center flex-1 gap-2'
             onClick={handleClick}
           >
@@ -313,8 +334,14 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
         </Link>
       </div>
 
-      {/* 메뉴 영역 */}
-      <div className="flex-1 overflow-y-auto">
+      {/* 메뉴 영역 — 스크롤이 남은 쪽(위/아래) 가장자리에 그라데이션 막 표시 */}
+      <ScrollEdgeFades
+        orientation="vertical"
+        edgeFadeVariant="background"
+        viewportRef={menuViewportRef}
+        className="flex-1"
+        scrollClassName="h-full"
+      >
         <div className="p-4 pt-0">
           <nav className="space-y-6">
             {categoryOrder.map((type) => {
@@ -351,6 +378,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </div>
                     <Link
                       href="/edm"
+                      aria-current={isEdmActive ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isEdmActive
@@ -363,6 +391,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </Link>
                     <Link
                       href="/pdf-extractor"
+                      aria-current={isPdfExtractorActive ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isPdfExtractorActive
@@ -375,6 +404,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </Link>
                     <Link
                       href="/chart-generator"
+                      aria-current={isChartGeneratorActive ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 rounded-md transition-colors',
                         isChartGeneratorActive
@@ -423,6 +453,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </div>
                     <Link
                       href="/admin/dashboard"
+                      aria-current={pathname.startsWith('/admin/dashboard') ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/dashboard')
@@ -436,6 +467,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </Link>
                     <Link
                       href="/admin/users"
+                      aria-current={pathname.startsWith('/admin/users') ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/users')
@@ -449,6 +481,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </Link>
                     <Link
                       href="/admin/notices"
+                      aria-current={pathname.startsWith('/admin/notices') ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/notices')
@@ -462,6 +495,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     </Link>
                     <Link
                       href="/admin/menus"
+                      aria-current={pathname.startsWith('/admin/menus') ? 'page' : undefined}
                       className={cn(
                         'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                         pathname.startsWith('/admin/menus')
@@ -476,6 +510,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
                     {canAccessDesignSystem(session?.user?.email) && (
                       <Link
                         href="/admin/design-system"
+                        aria-current={pathname.startsWith('/admin/design-system') ? 'page' : undefined}
                         className={cn(
                           'flex items-center gap-2 px-3 py-1 transition-colors rounded-md',
                           pathname.startsWith('/admin/design-system')
@@ -507,7 +542,7 @@ export function Sidebar({ categories, className, onLinkClick }: SidebarProps) {
             })}
           </nav>
         </div>
-      </div>
+      </ScrollEdgeFades>
 
       {/* 하단: 사용자 정보 또는 로그인 버튼 */}
       <div className="p-4">
