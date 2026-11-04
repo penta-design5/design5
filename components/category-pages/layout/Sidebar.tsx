@@ -159,13 +159,15 @@ export function Sidebar({ categories, className, onLinkClick, flyout = false }: 
         </Link>
       </div>
 
-      {/* 메뉴 영역 — 스크롤이 남은 쪽(위/아래) 가장자리에 그라데이션 막 표시 */}
+      {/* 메뉴 영역 — 스크롤이 남은 쪽(위/아래) 가장자리에 그라데이션 막 표시
+          scrollbar-gutter: stable — Windows처럼 스크롤바가 폭을 차지하는 환경에서 섹션을 접어 스크롤이 사라져도
+          폭이 그대로라 오른쪽 끝 섹션 화살표가 좌우로 밀리지 않는다(macOS 겹침 스크롤바에는 영향 없음) */}
       <ScrollEdgeFades
         orientation="vertical"
         edgeFadeVariant="background"
         viewportRef={menuViewportRef}
         className="flex-1"
-        scrollClassName="h-full"
+        scrollClassName="h-full [scrollbar-gutter:stable]"
       >
         <div className="p-4 pt-0">
           <SidebarSectionList
