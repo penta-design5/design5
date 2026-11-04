@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Skeleton } from '@/components/ui/skeleton'
 import { changeSvgColors, changeCiColorSet, changeAllSvgColors } from '@/lib/svg-utils'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { ORIGINAL_COLOR } from '@/lib/ci-bi/brand-colors'
 
 interface PostImage {
   url: string
@@ -145,8 +146,11 @@ export function CiBiCard({
         
         let modifiedSvg: string
         
-        // CI 컬러 세트인 경우
-        if (selectedColor === 'CI_COLOR_SET' && post.concept === 'CI') {
+        if (selectedColor === ORIGINAL_COLOR) {
+          // 원본 색상 — 업로드한 SVG 그대로
+          modifiedSvg = svgText
+        } else if (selectedColor === 'CI_COLOR_SET' && post.concept === 'CI') {
+          // CI 컬러 세트인 경우
           modifiedSvg = changeCiColorSet(svgText, '#0060A9', '#999B9E')
         } else {
           // 일반 색상 변경 - 모든 텍스트 요소의 색상을 선택한 색상으로 변경

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RotateCcw, Link as LinkIcon, Loader2 } from 'lucide-react'
 import { getB2ImageSrc } from '@/lib/b2-client-url'
+import { ORIGINAL_COLOR, getRenderedSvgColors } from '@/lib/ci-bi/brand-colors'
 
 interface Post {
   id: string
@@ -31,9 +32,27 @@ const CI_COLORS = [
 ]
 
 const BI_COLORS = [
+  { value: ORIGINAL_COLOR, label: '원본 색상' },
   { value: '#000000', label: 'Black (#000000)' },
   { value: '#FFFFFF', label: 'White (#FFFFFF)' },
 ]
+
+/** 게시물 images(JSON 배열 또는 문자열)에서 order가 가장 앞선 SVG 주소 */
+function getFirstSvgUrl(rawImages: unknown): string | null {
+  let images: Array<{ url?: string; order?: number }> = []
+  if (Array.isArray(rawImages)) {
+    images = rawImages
+  } else if (typeof rawImages === 'string') {
+    try {
+      const parsed = JSON.parse(rawImages)
+      images = Array.isArray(parsed) ? parsed : []
+    } catch {
+      images = []
+    }
+  }
+  const first = [...images].sort((a, b) => (a.order || 0) - (b.order || 0))[0]
+  return first?.url && first.url.toLowerCase().includes('.svg') ? first.url : null
+}
 
 const SIZE_PRESETS = [
   { label: '60h', height: 60 },
@@ -60,12 +79,19 @@ export function PropertyPanel({
   const [originalHeight, setOriginalHeight] = useState<number | undefined>(undefined)
   const [isSizeFieldFocused, setIsSizeFieldFocused] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  /** 원본 SVG에 쓰인 색 — "원본 색상" 버튼 견본용. url이 현재 게시물과 같을 때만 유효 */
+  const [originalColorsState, setOriginalColorsState] = useState<{ url: string; colors: string[] } | null>(null)
 
 
   const postType = post?.concept || 'CI' // 기본값 CI
   const availableColors = postType === 'CI' ? CI_COLORS : BI_COLORS
 
   const getImageSrc = (url: string) => getB2ImageSrc(url)
+
+  // "원본 색상" 견본을 만들 원본 SVG 주소 (BI만, 첫 번째 이미지) — 문자열이라 effect 의존성으로 안정적
+  const originalSvgUrl = getFirstSvgUrl(postType === 'CI' ? null : post?.images)
+  const originalColors =
+    originalSvgUrl && originalColorsState?.url === originalSvgUrl ? originalColorsState.colors : null
 
   // 흰색 선택 여부 확인
   const isWhiteSelected = selectedColor === '#FFFFFF' || selectedColor === '#FFF' || selectedColor?.toLowerCase() === 'white'
@@ -140,6 +166,24 @@ export function PropertyPanel({
       img.src = imageUrl
     }
   }, [post, onSizeChange])
+
+  // 원본 SVG 색 추출 ("원본 색상" 견본) — BI만 해당
+  useEffect(() => {
+    if (!originalSvgUrl) return
+
+    let cancelled = false
+    fetch(getB2ImageSrc(originalSvgUrl))
+      .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((svgText) => {
+        if (!cancelled) setOriginalColorsState({ url: originalSvgUrl, colors: getRenderedSvgColors(svgText) })
+      })
+      .catch((error) => {
+        console.error('[PropertyPanel] 원본 색상 추출 실패:', error)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [originalSvgUrl])
 
   // 너비 변경 시 높이 자동 조정 (정비율)
   const handleWidthChange = (value: string) => {
@@ -288,6 +332,33 @@ export function PropertyPanel({
                 )
               }
               
+              // 원본 색상 — 업로드한 SVG의 색을 그대로 견본으로 표시 (1색이면 단일, 여러 색이면 분할)
+              if (color.value === ORIGINAL_COLOR) {
+                const swatches = originalColors && originalColors.length > 0 ? originalColors.slice(0, 4) : null
+                return (
+                  <Button
+                    key={color.value}
+                    variant={selectedColor === color.value ? 'default' : 'outline'}
+                    className="flex items-center gap-0 justify-center w-9 h-9 p-0 focus:ring-4 focus:bg-penta-sky/20 active:ring-4 active:bg-penta-sky/20"
+                    onClick={() => onColorChange(color.value)}
+                    title={swatches ? `원본 색상 (${originalColors!.join(', ')})` : '원본 색상'}
+                    aria-label="원본 색상"
+                  >
+                    {swatches ? (
+                      <div className="flex w-8 h-8 overflow-hidden rounded border border-border">
+                        {swatches.map((hex) => (
+                          <div key={hex} className="h-full flex-1" style={{ backgroundColor: hex }} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex w-8 h-8 items-center justify-center rounded border border-border text-[10px] font-medium text-muted-foreground bg-background">
+                        원본
+                      </div>
+                    )}
+                  </Button>
+                )
+              }
+
               // 일반 색상 버튼
               return (
                 <Button

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { downloadFile } from '@/lib/b2'
 import { changeSvgColors, changeCiColorSet, changeAllSvgColors, resizeSvg } from '@/lib/svg-utils'
 import sharp from 'sharp'
+import { ORIGINAL_COLOR } from '@/lib/ci-bi/brand-colors'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -91,8 +92,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
     let svgContent = fileBuffer.toString('utf-8')
 
-    // 색상 변경
-    if (validatedQuery.color) {
+    // 색상 변경 (원본 색상이면 업로드한 SVG 그대로)
+    if (validatedQuery.color && validatedQuery.color !== ORIGINAL_COLOR) {
       // CI 컬러 세트인 경우
       if (validatedQuery.color === 'CI_COLOR_SET' && post.concept === 'CI') {
         svgContent = changeCiColorSet(svgContent, '#0060A9', '#999B9E')

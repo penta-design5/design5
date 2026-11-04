@@ -30,8 +30,28 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, X, File } from 'lucide-react'
+import { Loader2, X, File, AlertTriangle } from 'lucide-react'
 import { uploadWithPresignedEntry } from '@/lib/presigned-client-upload'
+import { CI_BI_BRAND_COLORS, findOffBrandColors, getRenderedSvgColors } from '@/lib/ci-bi/brand-colors'
+
+/** 선택한 SVG 중 브랜드 색과 다른 색이 들어 있는 파일 */
+interface OffBrandWarning {
+  fileName: string
+  colors: string[]
+}
+
+async function checkBrandColors(files: File[]): Promise<OffBrandWarning[]> {
+  const warnings: OffBrandWarning[] = []
+  for (const file of files) {
+    try {
+      const colors = findOffBrandColors(getRenderedSvgColors(await file.text()))
+      if (colors.length > 0) warnings.push({ fileName: file.name, colors })
+    } catch (error) {
+      console.error('[CiBiUploadDialog] 색상 검사 실패:', file.name, error)
+    }
+  }
+  return warnings
+}
 
 const ciBiPostSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
@@ -84,6 +104,8 @@ export function CiBiUploadDialog({
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const isSubmittingRef = useRef(false) // 중복 제출 방지
+  const [colorWarnings, setColorWarnings] = useState<OffBrandWarning[]>([])
+  const colorCheckIdRef = useRef(0)
 
   const form = useForm<CiBiPostFormValues>({
     resolver: zodResolver(ciBiPostSchema),
@@ -145,6 +167,7 @@ export function CiBiUploadDialog({
       setExistingImages([])
       setSelectedFiles([])
     }
+    setColorWarnings([])
   }, [isEditMode, post, form])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,11 +185,19 @@ export function CiBiUploadDialog({
       }
 
       setSelectedFiles(svgFiles)
+      setColorWarnings([])
+      // 브랜드 색 검사 — 경고만 하고 업로드는 막지 않음 (다시 고르면 이전 검사 결과는 버림)
+      const checkId = ++colorCheckIdRef.current
+      checkBrandColors(svgFiles).then((warnings) => {
+        if (checkId === colorCheckIdRef.current) setColorWarnings(warnings)
+      })
     }
   }
 
   const handleRemoveFile = (index: number) => {
+    const removed = selectedFiles[index]
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+    if (removed) setColorWarnings((prev) => prev.filter((w) => w.fileName !== removed.name))
   }
 
   const handleRemoveExistingImage = (index: number) => {
@@ -351,6 +382,7 @@ export function CiBiUploadDialog({
       form.reset()
       setSelectedFiles([])
       setExistingImages([])
+      setColorWarnings([])
     } catch (error: any) {
       console.error('Upload error:', error)
       toast.error(error.message || '게시물 업로드 중 오류가 발생했습니다.')
@@ -515,6 +547,40 @@ export function CiBiUploadDialog({
                       </Button>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* 브랜드 색 검사 경고 (업로드는 가능) */}
+              {colorWarnings.length > 0 && (
+                <div
+                  role="alert"
+                  className="space-y-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                  <p className="flex items-center gap-1.5 font-medium">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    브랜드 색과 다른 색이 포함되어 있습니다.
+                  </p>
+                  {colorWarnings.map((warning) => (
+                    <div key={warning.fileName} className="space-y-1">
+                      {colorWarnings.length > 1 && <p className="text-xs">{warning.fileName}</p>}
+                      <ul className="flex flex-wrap gap-2">
+                        {warning.colors.map((hex) => (
+                          <li key={hex} className="flex items-center gap-1 font-mono text-xs">
+                            <span
+                              className="inline-block h-3.5 w-3.5 rounded-sm border border-black/20"
+                              style={{ backgroundColor: hex }}
+                            />
+                            {hex}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                    허용 색상: {CI_BI_BRAND_COLORS.map((c) => `${c.name} ${c.hex}`).join(', ')}
+                    <br />
+                    색이 의도한 것이 아니라면 SVG를 수정해 다시 선택해 주세요. 그대로 업로드할 수도 있습니다.
+                  </p>
                 </div>
               )}
             </div>
